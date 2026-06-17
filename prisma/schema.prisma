@@ -33,5 +33,235 @@ model User {
   createdAt       DateTime   @default(now()) @map("created_at")
   updatedAt       DateTime   @updatedAt @map("updated_at")
 
+  tenantUsers TenantUser[]
+
   @@map("users")
+}
+
+// ============================================================================
+// V1 — MVP Core Multi-nicho: tenants, niches, templates, features, billing.
+// See .devrails/rules/multi-tenant.md for the isolation rules these models
+// must satisfy (tenant_id on every query, platform_admin-only niche/template
+// management, custom_data validated against templates.fields).
+// ============================================================================
+
+enum NicheStatus {
+  active
+  inactive
+}
+
+model Niche {
+  id            String      @id @default(uuid())
+  key           String      @unique
+  name          String
+  description   String?
+  customerLabel String?     @map("customer_label")
+  entityLabel   String?     @map("entity_label")
+  status        NicheStatus @default(active)
+  createdBy     String?     @map("created_by")
+  createdAt     DateTime    @default(now()) @map("created_at")
+  updatedAt     DateTime    @updatedAt @map("updated_at")
+
+  tenants   Tenant[]
+  templates Template[]
+
+  @@map("niches")
+}
+
+enum TemplateEntityType {
+  tenant
+  customer
+  customer_entity
+  product
+  service
+  plan
+  request
+  agent_config
+}
+
+enum TemplateStatus {
+  draft
+  active
+  inactive
+}
+
+model Template {
+  id          String             @id @default(uuid())
+  nicheId     String             @map("niche_id")
+  entityType  TemplateEntityType @map("entity_type")
+  name        String
+  description String?
+  // Field definitions used to validate custom_data on the matching entity —
+  // see the multi-tenant rule: never hardcode niche-specific fields in code.
+  fields      Json               @default("[]")
+  config      Json?
+  version     Int                @default(1)
+  status      TemplateStatus     @default(draft)
+  createdBy   String?            @map("created_by")
+  updatedBy   String?            @map("updated_by")
+  createdAt   DateTime           @default(now()) @map("created_at")
+  updatedAt   DateTime           @updatedAt @map("updated_at")
+
+  niche Niche @relation(fields: [nicheId], references: [id], onDelete: Restrict)
+
+  @@index([nicheId, entityType])
+  @@map("templates")
+}
+
+enum TenantStatus {
+  active
+  trial
+  suspended
+  blocked
+}
+
+model Tenant {
+  id                   String       @id @default(uuid())
+  nicheId              String       @map("niche_id")
+  name                 String
+  legalName            String?      @map("legal_name")
+  document             String?
+  slug                 String       @unique
+  description          String?
+  logoUrl              String?      @map("logo_url")
+  status               TenantStatus @default(trial)
+  publicPhone          String?      @map("public_phone")
+  publicEmail          String?      @map("public_email")
+  notificationPhone    String?      @map("notification_phone")
+  address              Json?
+  businessHours        Json?        @map("business_hours")
+  serviceAreas         Json?        @map("service_areas")
+  paymentMethods       Json?        @map("payment_methods")
+  hasProducts          Boolean      @default(false) @map("has_products")
+  hasServices          Boolean      @default(false) @map("has_services")
+  hasPlans             Boolean      @default(false) @map("has_plans")
+  hasDelivery          Boolean      @default(false) @map("has_delivery")
+  hasPickup            Boolean      @default(false) @map("has_pickup")
+  acceptsOnlinePayment Boolean      @default(false) @map("accepts_online_payment")
+  customData           Json         @default("{}") @map("custom_data")
+  createdAt            DateTime     @default(now()) @map("created_at")
+  updatedAt            DateTime     @updatedAt @map("updated_at")
+
+  niche          Niche           @relation(fields: [nicheId], references: [id], onDelete: Restrict)
+  tenantUsers    TenantUser[]
+  tenantFeatures TenantFeature[]
+
+  @@index([nicheId])
+  @@index([status])
+  @@map("tenants")
+}
+
+enum TenantUserRole {
+  tenant_owner
+  tenant_manager
+  tenant_operator
+  tenant_viewer
+}
+
+enum TenantUserStatus {
+  active
+  invited
+  disabled
+}
+
+model TenantUser {
+  id        String           @id @default(uuid())
+  tenantId  String           @map("tenant_id")
+  userId    String           @map("user_id")
+  role      TenantUserRole
+  status    TenantUserStatus @default(active)
+  createdAt DateTime         @default(now()) @map("created_at")
+  updatedAt DateTime         @updatedAt @map("updated_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, userId])
+  @@index([tenantId])
+  @@index([userId])
+  @@map("tenant_users")
+}
+
+enum FeatureStatus {
+  active
+  inactive
+}
+
+model Feature {
+  id          String        @id @default(uuid())
+  key         String        @unique
+  name        String
+  description String?
+  group       String?
+  status      FeatureStatus @default(active)
+  createdAt   DateTime      @default(now()) @map("created_at")
+  updatedAt   DateTime      @updatedAt @map("updated_at")
+
+  planFeatures   PlanFeature[]
+  tenantFeatures TenantFeature[]
+
+  @@map("features")
+}
+
+enum BillingPeriod {
+  monthly
+  yearly
+}
+
+enum BillingPlanStatus {
+  active
+  inactive
+}
+
+model BillingPlan {
+  id            String            @id @default(uuid())
+  key           String            @unique
+  name          String
+  description   String?
+  price         Decimal           @db.Decimal(10, 2)
+  billingPeriod BillingPeriod     @map("billing_period")
+  status        BillingPlanStatus @default(active)
+  createdAt     DateTime          @default(now()) @map("created_at")
+  updatedAt     DateTime          @updatedAt @map("updated_at")
+
+  planFeatures PlanFeature[]
+
+  @@map("billing_plans")
+}
+
+model PlanFeature {
+  id            String   @id @default(uuid())
+  billingPlanId String   @map("billing_plan_id")
+  featureId     String   @map("feature_id")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  billingPlan BillingPlan @relation(fields: [billingPlanId], references: [id], onDelete: Cascade)
+  feature     Feature     @relation(fields: [featureId], references: [id], onDelete: Cascade)
+
+  @@unique([billingPlanId, featureId])
+  @@map("plan_features")
+}
+
+enum TenantFeatureSource {
+  plan
+  manual
+  trial
+}
+
+model TenantFeature {
+  id        String              @id @default(uuid())
+  tenantId  String              @map("tenant_id")
+  featureId String              @map("feature_id")
+  enabled   Boolean             @default(true)
+  source    TenantFeatureSource @default(manual)
+  expiresAt DateTime?           @map("expires_at")
+  createdAt DateTime            @default(now()) @map("created_at")
+  updatedAt DateTime            @updatedAt @map("updated_at")
+
+  tenant  Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  feature Feature @relation(fields: [featureId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, featureId])
+  @@index([tenantId])
+  @@map("tenant_features")
 }
