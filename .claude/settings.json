@@ -1,0 +1,44 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Write|Edit|MultiEdit",
+        "hooks": [
+          { "type": "command", "command": "\"$CLAUDE_PROJECT_DIR/.claude/hooks/pretooluse-secrets.sh\"" }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          { "type": "command", "command": "\"$CLAUDE_PROJECT_DIR/.claude/hooks/pretooluse-guardian.sh\"" }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit|MultiEdit",
+        "hooks": [
+          { "type": "command", "command": "\"$CLAUDE_PROJECT_DIR/.claude/hooks/posttooluse-quality.sh\"" }
+        ]
+      },
+      {
+        "matcher": "Write|Edit|MultiEdit",
+        "hooks": [
+          { "type": "command", "command": "\"$CLAUDE_PROJECT_DIR/.claude/hooks/posttooluse-licenses.sh\"" }
+        ]
+      },
+      {
+        "matcher": "Write|Edit|MultiEdit",
+        "hooks": [
+          { "type": "command", "command": "\"$CLAUDE_PROJECT_DIR/.claude/hooks/posttooluse-logger.sh\"" }
+        ]
+      },
+      {
+        "matcher": "Write|Edit|MultiEdit",
+        "hooks": [
+          { "type": "command", "command": "\"$CLAUDE_PROJECT_DIR/.claude/hooks/posttooluse-tenant-isolation.sh\"" }
+        ]
+      }
+    ]
+  }
+}
