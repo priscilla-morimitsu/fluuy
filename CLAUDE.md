@@ -1,5 +1,7 @@
 <!-- GENERATED from .devrails/rules/*.md (alwaysApply: true). Edit the rules and re-sync, not this file directly. -->
 
+@AGENTS.md
+
 # Project guard-rails
 
 Always-on conventions for this project. Scoped conventions (Next.js, database, accessibility) are provided as skills under `.claude/skills/` and applied automatically when relevant.

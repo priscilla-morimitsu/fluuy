@@ -1,0 +1,37 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// V0 — Fundação técnica: apenas o necessário para autenticação básica.
+// users.role discrimina platform_admin desde já, pois a tabela tenant_users
+// (Versão 1) referenciará users.id para roles por tenant.
+enum UserStatus {
+  active
+  invited
+  disabled
+}
+
+model User {
+  id              String     @id @default(uuid())
+  name            String
+  email           String     @unique
+  passwordHash    String     @map("password_hash")
+  isPlatformAdmin Boolean    @default(false) @map("is_platform_admin")
+  status          UserStatus @default(active)
+  createdAt       DateTime   @default(now()) @map("created_at")
+  updatedAt       DateTime   @updatedAt @map("updated_at")
+
+  @@map("users")
+}

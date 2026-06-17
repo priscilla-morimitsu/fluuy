@@ -1,0 +1,69 @@
+# LOCAL DEV ONLY. Production on the Hostinger VPS is orchestrated by the
+# sibling compose project at ../deploy/docker-compose.yml, which builds this
+# same Dockerfile as a service named "fluuy" (proxied by the shared nginx —
+# see ../deploy/nginx/conf.d/fluuy.conf) and points DATABASE_URL at an
+# externally managed Postgres, not at the fluuy_db container below.
+name: fluuy
+
+services:
+  fluuy_web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: fluuy_web
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      # Overrides the host-facing DATABASE_URL from .env: inside fluuy_network
+      # the DB is reachable at fluuy_db:5432, not localhost:5433.
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-fluuy}:${POSTGRES_PASSWORD:-fluuy_dev_password}@fluuy_db:5432/${POSTGRES_DB:-fluuy}?schema=public
+      - AUTH_SECRET=${AUTH_SECRET}
+      - AUTH_URL=${AUTH_URL:-http://localhost:3001}
+      - NEXT_PUBLIC_BASE_URL=${NEXT_PUBLIC_BASE_URL:-http://localhost:3001}
+    depends_on:
+      fluuy_db:
+        condition: service_healthy
+    networks:
+      - fluuy_network
+    # In production the shared VPS reverse-proxy talks to this container over
+    # the network only (see header note above). Published here for local dev.
+    ports:
+      - "3001:3000"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+  fluuy_db:
+    image: postgres:17-alpine
+    container_name: fluuy_db
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER:-fluuy}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-fluuy_dev_password}
+      - POSTGRES_DB=${POSTGRES_DB:-fluuy}
+    volumes:
+      - fluuy_db_data:/var/lib/postgresql/data
+    networks:
+      - fluuy_network
+    # Never publish 5432 on the shared VPS in production. Mapped to 5433 here
+    # because local dev machines often already have a native Postgres on 5432.
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-fluuy} -d ${POSTGRES_DB:-fluuy}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+networks:
+  fluuy_network:
+    name: fluuy_network
+    driver: bridge
+
+volumes:
+  fluuy_db_data:
+    name: fluuy_db_data
