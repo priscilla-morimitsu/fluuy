@@ -34,6 +34,9 @@ export default async function TenantLayout({
           <Link href={`/t/${slug}/settings`} className="text-zinc-600 hover:text-zinc-950 dark:text-zinc-400 dark:hover:text-zinc-50">
             Configurações
           </Link>
+          <Link href="/account/security" className="text-zinc-600 hover:text-zinc-950 dark:text-zinc-400 dark:hover:text-zinc-50">
+            Segurança da conta
+          </Link>
         </nav>
       </header>
       <main className="flex-1 p-6">{children}</main>

@@ -1,0 +1,120 @@
+{
+  "name": "fluuy_authentication_flow_implementation_prompt",
+  "version": "1.0.0",
+  "language": "pt-BR",
+  "target_model": "Claude / Anthropic-compatible",
+  "prompt_engineering_guidelines": {
+    "style": [
+      "Use instruções claras, específicas e verificáveis.",
+      "Separe contexto, tarefa, restrições e entregáveis com tags XML.",
+      "Antes de implementar, leia o contexto real do projeto via MCPs disponíveis.",
+      "Não presuma estrutura de arquivos, stack ou padrões sem inspecionar o repositório.",
+      "Quebre a implementação em etapas pequenas, com validação, testes e critérios de aceite."
+    ],
+    "required_behavior": [
+      "Pense como engenheiro de software sênior e engenheiro de IA sênior.",
+      "Priorize segurança, isolamento multi-tenant, auditabilidade e boas práticas de autenticação.",
+      "Use specs, skills, hooks e MCPs disponíveis para manter consistência com o projeto.",
+      "Não implemente atalhos inseguros para acelerar o fluxo."
+    ]
+  },
+  "system_prompt": "<role>\nVocê é um desenvolvedor de software especialista, engenheiro de IA sênior e arquiteto de sistemas web multi-tenant. Você tem experiência em desenvolvimento assistido por IA, segurança de autenticação, SaaS B2B, Next.js, TypeScript, PostgreSQL, Prisma, Docker, integração com provedores externos, MCPs, hooks, skills e specs.\n</role>\n\n<mission>\nImplementar o fluxo de autenticação seguro do sistema Fluuy, respeitando arquitetura multi-tenant, usuários e tenants previamente cadastrados, autenticação por múltiplos métodos e geração de lead no botão de cadastro público sem criar tenant nem usuário.\n</mission>\n\n<priority_order>\n1. Segurança e isolamento multi-tenant.\n2. Correção funcional dos fluxos de autenticação.\n3. Consistência com a arquitetura, padrões, specs e componentes existentes do projeto.\n4. Boa experiência de usuário.\n5. Testabilidade, observabilidade e manutenção.\n</priority_order>\n\n<non_negotiable_rules>\n- Não criar tenant por fluxo público de cadastro.\n- Não criar usuário por fluxo público de cadastro.\n- O cadastro de novos tenants é exclusivo do admin Fluuy.\n- O botão de cadastro da tela de login deve criar apenas um lead comercial.\n- Só usuários previamente cadastrados e vinculados a tenants ativos podem autenticar na plataforma.\n- Nunca permitir acesso cross-tenant.\n- Nunca revelar se um e-mail, telefone, tenant ou usuário existe em respostas públicas.\n- Nunca armazenar senha, OTP ou token sensível em texto puro.\n- Toda ação sensível deve gerar evento de auditoria.\n</non_negotiable_rules>",
+  "user_prompt": "<context>\nEstamos implementando o fluxo de autenticação do Fluuy.\n\nO Fluuy é uma plataforma web SaaS multi-tenant e multi-nicho. O sistema atende diferentes tipos de clientes e nichos, com tenants previamente cadastrados pelo admin Fluuy. O tenant representa uma empresa cliente. Cada usuário pertence a um ou mais tenants por meio de vínculo e role.\n\nA autenticação deve atender apenas tenants e usuários já cadastrados. Não existe auto-cadastro público de tenant nem de usuário.\n\nA criação de novos tenants é feita exclusivamente pelo usuário admin da Fluuy.\n\nA tela de login pode ter um botão de cadastro/interesse, mas esse botão NÃO deve criar tenant e NÃO deve criar usuário. Ele deve apenas cadastrar um lead comercial e informar que a equipe entrará em contato.\n\nA integração com WhatsApp para envio de códigos deve usar Pilot Status.\nA integração com e-mail para envio de códigos e reset de senha deve usar Resend.\n\nO sistema roda em contêiner Docker dentro de uma VPS da Hostinger, junto com outros projetos. A implementação deve considerar variáveis de ambiente, isolamento, logs, segurança e configuração adequada para ambiente containerizado.\n</context>\n\n<task>\nCrie e implemente a spec completa do fluxo de autenticação do Fluuy, incluindo banco de dados, rotas, serviços, validações, componentes de interface, integrações, testes, hooks e critérios de aceite.\n</task>\n\n<available_auth_methods>\n- Login com e-mail + senha.\n- Login com Google OAuth.\n- Login com e-mail + código de verificação enviado por Resend.\n- Login com número de telefone/WhatsApp + código de verificação enviado via Pilot Status.\n- Reset de senha por e-mail.\n- Alteração de senha para usuário autenticado.\n- Criação/definição inicial de senha para usuários previamente cadastrados.\n</available_auth_methods>\n\n<registration_rule>\nA plataforma NÃO possui cadastro público de tenant nem cadastro público de usuário.\n\nNa tela de login, o botão \"Cadastrar\", \"Criar conta\", \"Quero usar o Fluuy\" ou equivalente deve abrir um formulário de lead comercial.\n\nEsse formulário deve criar apenas um registro de lead, contendo dados como:\n- nome;\n- empresa;\n- e-mail;\n- telefone/WhatsApp;\n- nicho/segmento;\n- mensagem opcional;\n- origem;\n- status inicial.\n\nApós envio, exibir mensagem informando que a equipe Fluuy entrará em contato.\n\nNão autenticar o lead.\nNão criar usuário.\nNão criar tenant.\nNão enviar convite automático.\n</registration_rule>\n\n<security_requirements>\nImplemente o fluxo seguindo boas práticas de segurança para sistemas web multi-tenant:\n\n- Senhas devem ser armazenadas usando algoritmo forte de hashing, preferencialmente Argon2id ou bcrypt com custo adequado.\n- Senha deve atender critérios de senha forte.\n- Confirmação de senha obrigatória em criação, reset e alteração de senha.\n- Campos de senha devem ter botão para visualizar/ocultar senha.\n- OTP/códigos devem ser numéricos ou alfanuméricos seguros, com expiração curta.\n- OTPs devem ser armazenados apenas como hash.\n- OTPs devem ter limite de tentativas.\n- OTPs devem ser invalidados após uso.\n- Implementar rate limiting por IP, identificador e método.\n- Implementar proteção contra enumeração de usuários.\n- Mensagens públicas devem ser genéricas.\n- Sessões devem usar cookies HttpOnly, Secure e SameSite adequado.\n- Tokens de reset devem ser de uso único, expirar e ser armazenados como hash.\n- Login deve validar status do usuário, status do tenant e vínculo ativo.\n- Usuários sem tenant ativo não devem acessar o painel.\n- Usuários vinculados a múltiplos tenants devem selecionar tenant ativo após login, caso aplicável.\n- Todas as queries de dados de tenant após autenticação devem ser escopadas por tenant_id.\n- Registrar eventos de auditoria para login, falha de login, logout, reset, alteração de senha, envio de código, validação de código e tentativa bloqueada.\n</security_requirements>\n\n<password_policy>\nA política mínima de senha deve exigir:\n- mínimo de 12 caracteres;\n- pelo menos uma letra maiúscula;\n- pelo menos uma letra minúscula;\n- pelo menos um número;\n- pelo menos um caractere especial;\n- não permitir senha igual ao e-mail;\n- não permitir senha igual ao telefone;\n- não permitir senhas comuns, se houver utilitário disponível;\n- confirmação de senha idêntica.\n\nA interface deve mostrar feedback claro sobre os critérios da senha.\n</password_policy>\n\n<flows_to_implement>\n1. Login com e-mail e senha.\n2. Login com Google OAuth.\n3. Login com e-mail e código.\n4. Login com telefone/WhatsApp e código.\n5. Solicitar reset de senha.\n6. Confirmar reset de senha.\n7. Alterar senha logado.\n8. Criar senha inicial para usuário previamente cadastrado.\n9. Logout.\n11. Cadastro de lead comercial a partir do botão de cadastro na tela de login.\n</flows_to_implement>\n\n<integrations>\n<pilot_status>\nUsar Pilot Status para envio de código de autenticação por WhatsApp (ler skills/pilot-status.md).\n\nRequisitos:\n- Criar service/adapter isolado para Pilot Status.\n- Não espalhar chamadas diretas pela aplicação.\n- Validar variáveis de ambiente.\n- Tratar falhas de envio.\n- Registrar logs sem expor código.\n- Permitir mocks em testes.\n</pilot_status>\n\n<resend>\nUsar Resend para envio de:\n- código de login por e-mail;\n- link/código de reset de senha;\n- confirmação de alteração sensível, se aplicável.\n\nRequisitos:\n- Criar service/adapter isolado para Resend.\n- Usar templates padronizados.\n- Não expor tokens em logs.\n- Permitir mocks em testes.\n</resend>\n\n<google_oauth>\nLogin com Google deve:\n- aceitar apenas e-mails de usuários já cadastrados;\n- não criar usuário automaticamente;\n- vincular identidade Google a usuário existente quando seguro;\n- validar e-mail verificado pelo Google;\n- recusar autenticação se o e-mail não estiver em usuário ativo;\n- respeitar vínculo com tenant ativo.\n</google_oauth>\n</integrations>\n\n<data_model_requirements>\nAvalie a estrutura existente antes de criar tabelas. Se as tabelas não existirem, proponha/implemente as seguintes entidades ou equivalentes seguindo o padrão do projeto:\n\n- users\n- tenants\n- tenant_users\n- auth_identities\n- auth_credentials\n- auth_verification_codes\n- password_reset_tokens\n- sessions ou tabela equivalente, se a estratégia escolhida exigir\n- auth_audit_logs\n- leads\n\nCampos mínimos sugeridos:\n\nusers:\n- id\n- name\n- email\n- phone\n- avatar_url\n- status\n- email_verified_at\n- phone_verified_at\n- last_login_at\n- created_at\n- updated_at\n\ntenants:\n- id\n- name\n- status\n- created_at\n- updated_at\n\ntenant_users:\n- id\n- tenant_id\n- user_id\n- role\n- status\n- created_at\n- updated_at\n\nauth_credentials:\n- id\n- user_id\n- password_hash\n- password_set_at\n- must_change_password\n- created_at\n- updated_at\n\nauth_identities:\n- id\n- user_id\n- provider\n- provider_user_id\n- provider_email\n- provider_email_verified\n- created_at\n- updated_at\n\nauth_verification_codes:\n- id\n- user_id nullable\n- identifier_hash\n- channel\n- purpose\n- code_hash\n- expires_at\n- consumed_at\n- attempts\n- max_attempts\n- metadata\n- created_at\n\npassword_reset_tokens:\n- id\n- user_id\n- token_hash\n- expires_at\n- consumed_at\n- created_at\n\nauth_audit_logs:\n- id\n- user_id nullable\n- tenant_id nullable\n- event\n- ip_address\n- user_agent\n- metadata\n- created_at\n\nleads:\n- id\n- name\n- company_name\n- email\n- phone\n- niche\n- message\n- source\n- status\n- created_at\n- updated_at\n\nNunca salvar código, token ou senha em texto puro.\n</data_model_requirements>\n\n<ui_requirements>\nCrie ou ajuste telas/componentes:\n\n- Tela de login.\n- Formulário e-mail + senha.\n- Formulário e-mail + código.\n- Formulário telefone/WhatsApp + código.\n- Botão login com Google.\n- Tela de solicitar reset de senha.\n- Tela de confirmar reset de senha.\n- Tela de criar senha inicial.\n- Tela/modal de alterar senha logado.\n- Tela de seleção de tenant, quando necessário.\n- Formulário de lead comercial acionado pelo botão de cadastro.\n\nRequisitos visuais e UX:\n- Campos de senha com botão visualizar/ocultar.\n- Validação de senha forte em tempo real.\n- Confirmação de senha obrigatória.\n- Estados de loading.\n- Mensagens de erro genéricas e seguras.\n- Feedback claro após envio de código.\n- Feedback claro após lead criado.\n- Acessibilidade básica.\n- Componentes seguindo padrão do projeto.\n</ui_requirements>\n\n<api_requirements>\nImplemente rotas/server actions/endpoints equivalentes para:\n\n- POST /auth/login/password\n- POST /auth/login/google\n- POST /auth/otp/request\n- POST /auth/otp/verify\n- POST /auth/password/reset/request\n- POST /auth/password/reset/confirm\n- POST /auth/password/change\n- POST /auth/password/initial-set\n- POST /auth/logout\n- GET /auth/session\n- POST /auth/select-tenant\n- POST /leads\n\nAdapte os caminhos ao padrão real do projeto após inspecionar o repositório.\n\nTodos os endpoints devem validar input com schema, preferencialmente Zod ou padrão existente.\n</api_requirements>\n\n<multi_tenant_requirements>\nApós autenticação:\n- Resolver tenants ativos vinculados ao usuário.\n- Se houver exatamente um tenant ativo, selecionar automaticamente.\n- Se houver múltiplos tenants ativos, exigir seleção.\n- Se não houver tenant ativo, bloquear acesso e informar genericamente que o acesso não está disponível.\n- Persistir tenant selecionado na sessão de forma segura.\n- Todas as operações privadas devem validar user_id, tenant_id, tenant_user.status e role.\n- Admin Fluuy deve ter fluxo de acesso próprio por role/permissão, sem depender de tenant comum quando aplicável.\n</multi_tenant_requirements>\n\n<mcp_skill_hook_requirements>\nAntes de implementar:\n- Usar MCP de filesystem/repositório para ler estrutura real do projeto.\n- Usar MCP de banco de dados, se disponível, para verificar schema atual.\n- Usar MCP de documentação/specs para consultar decisões existentes.\n- Usar MCP de GitHub, se disponível, para branch, issues e PR.\n- Usar skills existentes para criar migrations, componentes, services, hooks, testes e validações.\n- Não criar padrões paralelos se já houver padrão no projeto.\n\nDurante a implementação:\n- Criar ou atualizar specs necessárias.\n- Criar migrations seguras.\n- Criar services/adapters isolados para Pilot Status e Resend.\n- Criar componentes reutilizáveis.\n- Criar testes unitários e de integração.\n- Rodar hooks de lint, typecheck, testes e validação de segurança.\n\nHooks obrigatórios/recomendados:\n- lint\n- typecheck\n- tests\n- migration validation\n- auth route validation\n- tenant_id guard validation\n- secret leakage check\n- no plaintext token/code check\n</mcp_skill_hook_requirements>\n\n<implementation_steps>\nSiga esta ordem:\n\n1. Inspecionar projeto, stack, estrutura de pastas, autenticação existente e padrões.\n2. Levantar gaps entre a spec e o projeto atual.\n3. Propor plano de implementação em tarefas pequenas.\n4. Criar/ajustar schema do banco.\n5. Criar validações compartilhadas.\n6. Criar serviços de senha, OTP, sessão, auditoria, Pilot Status e Resend.\n7. Criar endpoints/server actions.\n8. Criar componentes e telas.\n9. Implementar guards de rota e tenant context.\n10. Implementar fluxo de seleção de tenant.\n11. Implementar formulário público de lead sem criação de usuário/tenant.\n12. Criar testes.\n13. Rodar hooks.\n14. Documentar variáveis de ambiente e instruções de deploy Docker.\n15. Gerar checklist final de aceite.\n</implementation_steps>\n\n<acceptance_criteria>\nA implementação só deve ser considerada concluída quando:\n\n- Usuário cadastrado consegue login com e-mail + senha.\n- Usuário cadastrado consegue login com Google se o e-mail já existir e estiver ativo.\n- Usuário cadastrado consegue solicitar e validar código por e-mail via Resend.\n- Usuário cadastrado consegue solicitar e validar código por WhatsApp via Pilot Status.\n- Usuário consegue solicitar reset de senha sem enumeração pública.\n- Usuário consegue definir nova senha forte com confirmação.\n- Usuário autenticado consegue alterar senha informando senha atual, quando aplicável.\n- Campos de senha possuem botão visualizar/ocultar.\n- Critérios de senha forte são validados no front e no back.\n- Lead público é criado pelo botão de cadastro sem criar tenant nem usuário.\n- Usuário sem tenant ativo não acessa painel.\n- Usuário com múltiplos tenants ativos seleciona tenant.\n- Sessão armazena tenant selecionado de forma segura.\n- Todas as ações privadas validam tenant e role.\n- OTPs e tokens são armazenados apenas como hash.\n- Rate limit está implementado nos fluxos sensíveis.\n- Logs não expõem senha, token ou código.\n- Eventos críticos são auditados.\n- Testes relevantes foram criados.\n- Lint, typecheck e testes passam.\n</acceptance_criteria>\n\n<output_format>\nAntes de codar, responda com:\n1. Resumo do entendimento.\n2. Arquivos que pretende criar/alterar.\n3. Plano de implementação em etapas.\n4. Riscos de segurança e mitigação.\n5. Confirmação das decisões assumidas.\n\nDepois implemente seguindo o plano e apresente:\n1. Resumo do que foi implementado.\n2. Migrations criadas.\n3. Endpoints criados.\n4. Componentes criados.\n5. Variáveis de ambiente necessárias.\n6. Testes criados.\n7. Comandos executados.\n8. Pendências, se houver.\n</output_format>",
+  "implementation_spec": {
+    "scope": "authentication_flow",
+    "product": "Fluuy",
+    "architecture": "web_saas_multi_tenant_multi_niche",
+    "tenant_creation": "admin_only",
+    "public_signup": "lead_only_no_user_no_tenant",
+    "whatsapp_provider": "Pilot Status",
+    "email_provider": "Resend",
+    "deployment": {
+      "environment": "VPS Hostinger",
+      "runtime": "Docker container",
+      "server_context": "shared VPS with multiple projects",
+      "requirements": [
+        "container isolation",
+        "environment variables",
+        "reverse proxy compatibility",
+        "secure cookies behind proxy",
+        "logs without secrets",
+        "healthcheck",
+        "restart policy",
+        "database connection via env",
+        "provider credentials via env"
+      ]
+    },
+    "auth_methods": [
+      "email_password",
+      "google_oauth_existing_user_only",
+      "email_otp_resend",
+      "whatsapp_otp_pilot_status",
+      "password_reset",
+      "password_change",
+      "initial_password_set_existing_user"
+    ],
+    "forbidden_behaviors": [
+      "public tenant creation",
+      "public user creation",
+      "oauth automatic user provisioning",
+      "lead authentication",
+      "plaintext password storage",
+      "plaintext otp storage",
+      "plaintext reset token storage",
+      "user enumeration",
+      "cross_tenant_access",
+      "auth bypass for inactive tenant",
+      "auth bypass for inactive user"
+    ],
+    "recommended_files": [
+      "src/features/auth/spec.md",
+      "src/features/auth/schemas.ts",
+      "src/features/auth/services/password.service.ts",
+      "src/features/auth/services/otp.service.ts",
+      "src/features/auth/services/session.service.ts",
+      "src/features/auth/services/auth-audit.service.ts",
+      "src/features/auth/providers/pilot-status.provider.ts",
+      "src/features/auth/providers/resend.provider.ts",
+      "src/features/auth/providers/google-oauth.provider.ts",
+      "src/features/auth/components/LoginForm.tsx",
+      "src/features/auth/components/PasswordField.tsx",
+      "src/features/auth/components/PasswordStrengthChecklist.tsx",
+      "src/features/auth/components/OtpForm.tsx",
+      "src/features/auth/components/LeadSignupForm.tsx",
+      "src/features/auth/components/TenantSelector.tsx",
+      "src/features/auth/guards/require-auth.ts",
+      "src/features/auth/guards/require-tenant.ts",
+      "src/features/auth/guards/require-role.ts"
+    ],
+    "environment_variables": [
+      "APP_URL",
+      "AUTH_SECRET",
+      "SESSION_COOKIE_NAME",
+      "GOOGLE_CLIENT_ID",
+      "GOOGLE_CLIENT_SECRET",
+      "RESEND_API_KEY",
+      "RESEND_FROM_EMAIL",
+      "PILOT_STATUS_API_URL",
+      "PILOT_STATUS_API_KEY",
+      "PILOT_STATUS_WHATSAPP_NUMBER",
+      "DATABASE_URL",
+      "REDIS_URL_OPTIONAL_FOR_RATE_LIMIT"
+    ]
+  },
+  "definition_of_done": [
+    "Fluxos implementados conforme requisitos.",
+    "Sem criação pública de usuário ou tenant.",
+    "Lead público funcional.",
+    "OTP e tokens protegidos com hash.",
+    "Senhas com política forte e confirmação.",
+    "Botão visualizar senha implementado.",
+    "Resend integrado para e-mail.",
+    "Pilot Status integrado para WhatsApp.",
+    "Google OAuth aceita apenas usuário existente.",
+    "Sessão e tenant selecionado seguros.",
+    "Rate limit implementado.",
+    "Auditoria implementada.",
+    "Testes e hooks executados.",
+    "Documentação de env e deploy Docker atualizada."
+  ]
+}

@@ -4,7 +4,25 @@ Plataforma SaaS multi-tenant e multi-nicho para automação de atendimento via a
 
 ## Stack
 
-Next.js (App Router) + TypeScript + Tailwind v4 + shadcn/ui + Prisma + PostgreSQL + Auth.js (Credentials) + Docker.
+Next.js (App Router) + TypeScript + Tailwind v4 + shadcn/ui + Prisma + PostgreSQL + Auth.js (senha, Google OAuth, código por e-mail/WhatsApp) + Docker.
+
+## Autenticação
+
+Sem auto-cadastro: tenants e usuários só são criados pelo platform admin (`/admin`). A tela
+de login (`/login`) oferece senha, código por e-mail (Resend) e código por WhatsApp (Pilot
+Status), além de "Entrar com Google" — que só funciona para um e-mail já cadastrado e ativo,
+nunca cria conta nova. O botão "Quero usar o Fluuy" cria apenas um `Lead` comercial.
+
+Fluxos adicionais: `/forgot-password` + `/reset-password` (reset de senha), `/set-password`
+(primeira senha de usuário convidado, após login via código), `/account/security` (alterar
+senha logado), `/select-tenant` (quando o usuário pertence a mais de um tenant ativo).
+
+Variáveis necessárias para os provedores externos (preencha no `.env`):
+`AUTH_GOOGLE_ID`/`AUTH_GOOGLE_SECRET` (Google OAuth), `RESEND_API_KEY`/`RESEND_FROM_EMAIL`
+(e-mail), `PILOT_STATUS_API_KEY` (ou `PILOT_STATUS_API_KEY_ID`)/`PILOT_STATUS_OTP_TEMPLATE_ID`
+(WhatsApp — o template no dashboard da Pilot Status deve ser categoria OTP com as variáveis
+`{{otp_code}}` e `{{expiry_minutes}}`, nesses nomes exatos; ver `verification_code` no
+dashboard). Testado de ponta a ponta com envio real por e-mail e WhatsApp.
 
 ## Setup local
 

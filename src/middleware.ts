@@ -8,7 +8,14 @@ import { authConfig } from "@/lib/auth.config";
 // req.auth below is decoded straight from the cookie, no DB access needed.
 const { auth } = NextAuth(authConfig);
 
-const PUBLIC_PATHS = ["/login", "/api/auth", "/api/health", "/api/whatsapp/webhook"];
+const PUBLIC_PATHS = [
+  "/login",
+  "/forgot-password",
+  "/reset-password",
+  "/api/auth",
+  "/api/health",
+  "/api/whatsapp/webhook",
+];
 
 export default auth((req) => {
   const { pathname } = req.nextUrl;

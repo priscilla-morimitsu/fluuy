@@ -10,15 +10,20 @@ async function main() {
 
   const passwordHash = await bcrypt.hash(password, 12);
 
-  await prisma.user.upsert({
+  const user = await prisma.user.upsert({
     where: { email },
     update: {},
     create: {
       name: "Fluuy Admin",
       email,
-      passwordHash,
       isPlatformAdmin: true,
     },
+  });
+
+  await prisma.authCredential.upsert({
+    where: { userId: user.id },
+    update: {},
+    create: { userId: user.id, passwordHash },
   });
 
   console.log(`Seeded platform admin: ${email}`);

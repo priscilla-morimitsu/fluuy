@@ -27,15 +27,150 @@ model User {
   id              String     @id @default(uuid())
   name            String
   email           String     @unique
-  passwordHash    String     @map("password_hash")
+  phone           String?    @unique
+  avatarUrl       String?    @map("avatar_url")
   isPlatformAdmin Boolean    @default(false) @map("is_platform_admin")
   status          UserStatus @default(active)
+  emailVerifiedAt DateTime?  @map("email_verified_at")
+  phoneVerifiedAt DateTime?  @map("phone_verified_at")
+  lastLoginAt     DateTime?  @map("last_login_at")
   createdAt       DateTime   @default(now()) @map("created_at")
   updatedAt       DateTime   @updatedAt @map("updated_at")
 
-  tenantUsers TenantUser[]
+  tenantUsers         TenantUser[]
+  authCredential      AuthCredential?
+  authIdentities      AuthIdentity[]
+  verificationCodes   AuthVerificationCode[]
+  passwordResetTokens PasswordResetToken[]
 
   @@map("users")
+}
+
+// ============================================================================
+// Authentication — see .claude/docs/specs/auth/authentication-flow.spec.json
+// and .devrails/rules/security.md. No public signup creates a User/Tenant —
+// only the lead form is public (see Lead below).
+// ============================================================================
+
+model AuthCredential {
+  id                 String   @id @default(uuid())
+  userId             String   @unique @map("user_id")
+  passwordHash       String   @map("password_hash")
+  passwordSetAt      DateTime @default(now()) @map("password_set_at")
+  mustChangePassword Boolean  @default(false) @map("must_change_password")
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("auth_credentials")
+}
+
+enum AuthProvider {
+  google
+}
+
+model AuthIdentity {
+  id                    String       @id @default(uuid())
+  userId                String       @map("user_id")
+  provider              AuthProvider
+  providerUserId        String       @map("provider_user_id")
+  providerEmail         String?      @map("provider_email")
+  providerEmailVerified Boolean      @default(false) @map("provider_email_verified")
+  createdAt             DateTime     @default(now()) @map("created_at")
+  updatedAt             DateTime     @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerUserId])
+  @@index([userId])
+  @@map("auth_identities")
+}
+
+enum OtpChannel {
+  email
+  whatsapp
+}
+
+enum OtpPurpose {
+  login
+}
+
+model AuthVerificationCode {
+  id             String     @id @default(uuid())
+  userId         String?    @map("user_id")
+  // Hash of the normalized email/phone — never store the raw identifier here
+  // longer than needed to send the code; the row is keyed by its hash.
+  identifierHash String     @map("identifier_hash")
+  channel        OtpChannel
+  purpose        OtpPurpose @default(login)
+  codeHash       String     @map("code_hash")
+  expiresAt      DateTime   @map("expires_at")
+  consumedAt     DateTime?  @map("consumed_at")
+  attempts       Int        @default(0)
+  maxAttempts    Int        @default(5) @map("max_attempts")
+  metadata       Json?
+  createdAt      DateTime   @default(now()) @map("created_at")
+
+  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([identifierHash, channel, purpose])
+  @@index([userId])
+  @@map("auth_verification_codes")
+}
+
+model PasswordResetToken {
+  id         String    @id @default(uuid())
+  userId     String    @map("user_id")
+  tokenHash  String    @unique @map("token_hash")
+  expiresAt  DateTime  @map("expires_at")
+  consumedAt DateTime? @map("consumed_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("password_reset_tokens")
+}
+
+model AuthAuditLog {
+  id        String   @id @default(uuid())
+  userId    String?  @map("user_id")
+  tenantId  String?  @map("tenant_id")
+  event     String
+  ipAddress String?  @map("ip_address")
+  userAgent String?  @map("user_agent")
+  metadata  Json?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([userId])
+  @@index([tenantId])
+  @@index([event, createdAt])
+  @@map("auth_audit_logs")
+}
+
+enum LeadStatus {
+  new
+  contacted
+  qualified
+  discarded
+}
+
+model Lead {
+  id          String     @id @default(uuid())
+  name        String
+  companyName String?    @map("company_name")
+  email       String
+  phone       String?
+  niche       String?
+  message     String?
+  source      String?
+  status      LeadStatus @default(new)
+  createdAt   DateTime   @default(now()) @map("created_at")
+  updatedAt   DateTime   @updatedAt @map("updated_at")
+
+  @@index([status])
+  @@map("leads")
 }
 
 // ============================================================================
