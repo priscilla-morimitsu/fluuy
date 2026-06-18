@@ -41,6 +41,7 @@ export async function createFeatureAction(
   });
 
   revalidatePath("/admin/features");
+  return { ok: true };
 }
 
 export async function updateFeatureAction(

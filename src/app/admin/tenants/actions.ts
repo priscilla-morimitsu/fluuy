@@ -63,6 +63,7 @@ export async function createTenantAction(
   });
 
   revalidatePath("/admin/tenants");
+  return { ok: true };
 }
 
 export async function updateTenantAction(

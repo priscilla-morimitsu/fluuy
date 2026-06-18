@@ -1,64 +1,30 @@
-import { Badge } from "@/components/ui/badge";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { prisma } from "@/lib/prisma";
 import { requirePlatformAdmin } from "@/lib/rbac";
 
-import FeatureForm from "./feature-form";
-import FeatureRowActions from "./feature-row-actions";
+import { listFeatures } from "./data";
+import FeaturesClient from "./features-client";
 
-export default async function FeaturesPage() {
+export default async function FeaturesPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   await requirePlatformAdmin();
-  const features = await prisma.feature.findMany({ orderBy: { createdAt: "desc" } });
+  const sp = await searchParams;
+  const str = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
+  const num = (v: string | string[] | undefined) => {
+    const n = Number(str(v));
+    return Number.isFinite(n) ? n : undefined;
+  };
 
-  return (
-    <div className="flex flex-col gap-6">
-      <h2 className="text-xl font-semibold">Features</h2>
-      <FeatureForm />
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Key</TableHead>
-            <TableHead>Nome</TableHead>
-            <TableHead>Grupo</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead></TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {features.length === 0 ? (
-            <TableRow>
-              <TableCell colSpan={5} className="py-8 text-center text-sm text-zinc-500">
-                Nenhuma feature cadastrada ainda.
-              </TableCell>
-            </TableRow>
-          ) : (
-            features.map((feature) => (
-              <TableRow key={feature.id}>
-                <TableCell className="font-mono text-sm">{feature.key}</TableCell>
-                <TableCell>{feature.name}</TableCell>
-                <TableCell>{feature.group}</TableCell>
-                <TableCell>
-                  <Badge variant={feature.status === "active" ? "default" : "secondary"}>
-                    {feature.status}
-                  </Badge>
-                </TableCell>
-                <TableCell>
-                  <FeatureRowActions
-                    feature={{
-                      id: feature.id,
-                      key: feature.key,
-                      name: feature.name,
-                      description: feature.description,
-                      group: feature.group,
-                      status: feature.status,
-                    }}
-                  />
-                </TableCell>
-              </TableRow>
-            ))
-          )}
-        </TableBody>
-      </Table>
-    </div>
-  );
+  const { rows, filtered, total, groups } = await listFeatures({
+    q: str(sp.q),
+    status: str(sp.status),
+    featureGroup: str(sp.featureGroup),
+    sortBy: str(sp.sortBy),
+    sortDir: str(sp.sortDir),
+    page: num(sp.page),
+    pageSize: num(sp.pageSize),
+  });
+
+  return <FeaturesClient rows={rows} filtered={filtered} total={total} groups={groups} />;
 }
