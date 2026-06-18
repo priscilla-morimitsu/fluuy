@@ -33,3 +33,8 @@ export const billingPlanSchema = z.object({
 });
 
 export type BillingPlanInput = z.infer<typeof billingPlanSchema>;
+
+// `key` is immutable after creation (stable plan identifier).
+export const billingPlanUpdateSchema = billingPlanSchema.omit({ key: true });
+
+export type BillingPlanUpdateInput = z.infer<typeof billingPlanUpdateSchema>;

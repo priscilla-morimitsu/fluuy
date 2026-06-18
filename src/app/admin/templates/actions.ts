@@ -48,6 +48,7 @@ export async function createTemplateAction(
   });
 
   revalidatePath("/admin/templates");
+  return { ok: true };
 }
 
 export async function updateTemplateAction(

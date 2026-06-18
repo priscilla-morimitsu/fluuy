@@ -24,49 +24,51 @@ import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
-import { toggleFeatureStatusAction } from "./actions";
-import type { FeatureListRow } from "./data";
-import FeatureForm, { type FeatureInitial } from "./feature-form";
+import { toggleNicheStatusAction } from "./actions";
+import type { NicheListRow } from "./data";
+import NicheForm, { type NicheInitial } from "./niche-form";
 
-const STATUS_LABELS: Record<string, string> = { active: "Ativa", inactive: "Inativa" };
+const STATUS_LABELS: Record<string, string> = { active: "Ativo", inactive: "Inativo" };
 const STATUS_OPTIONS = ["active", "inactive"] as const;
 const dateFmt = new Intl.DateTimeFormat("pt-BR", { dateStyle: "short" });
 
-function toInitial(row: FeatureListRow): FeatureInitial {
-  return { id: row.id, key: row.key, name: row.name, description: row.description, group: row.group };
+function toInitial(row: NicheListRow): NicheInitial {
+  return {
+    id: row.id,
+    key: row.key,
+    name: row.name,
+    description: row.description,
+    customerLabel: row.customerLabel,
+    entityLabel: row.entityLabel,
+  };
 }
 
-export default function FeaturesClient({
+export default function NichesClient({
   rows,
   filtered,
   total,
-  groups,
 }: {
-  rows: FeatureListRow[];
+  rows: NicheListRow[];
   filtered: number;
   total: number;
-  groups: string[];
 }) {
   const [params, setParams] = useTableParams();
   const [status, setStatus] = useQueryState("status", parseAsString.withOptions({ shallow: false }));
-  const [group, setGroup] = useQueryState("featureGroup", parseAsString.withOptions({ shallow: false }));
 
   const [creating, setCreating] = useState(false);
-  const [editing, setEditing] = useState<FeatureInitial | null>(null);
-  const [toggling, setToggling] = useState<FeatureListRow | null>(null);
+  const [editing, setEditing] = useState<NicheInitial | null>(null);
+  const [toggling, setToggling] = useState<NicheListRow | null>(null);
 
   const activeFilters: ActiveFilter[] = [];
   if (params.q) activeFilters.push({ key: "q", label: `Busca: ${params.q}`, onRemove: () => setParams({ q: null, page: 1 }) });
   if (status) activeFilters.push({ key: "status", label: `Status: ${STATUS_LABELS[status] ?? status}`, onRemove: () => setStatus(null) });
-  if (group) activeFilters.push({ key: "featureGroup", label: `Grupo: ${group}`, onRemove: () => setGroup(null) });
 
   const clearAll = () => {
     setStatus(null);
-    setGroup(null);
     setParams({ q: null, page: 1 });
   };
 
-  const columns: ColumnDef<FeatureListRow, unknown>[] = [
+  const columns: ColumnDef<NicheListRow, unknown>[] = [
     {
       accessorKey: "key",
       meta: { label: "Key" },
@@ -80,10 +82,14 @@ export default function FeaturesClient({
       cell: ({ row }) => <span className="font-medium">{row.original.name}</span>,
     },
     {
-      accessorKey: "group",
-      meta: { label: "Grupo" },
-      header: () => <DataTableColumnHeader label="Grupo" sortKey="group" />,
-      cell: ({ row }) => <span className="text-sm text-zinc-500">{row.original.group ?? "—"}</span>,
+      id: "labels",
+      meta: { label: "Labels" },
+      header: () => <DataTableColumnHeader label="Cliente / Entidade" />,
+      cell: ({ row }) => (
+        <span className="text-sm text-zinc-500">
+          {row.original.customerLabel ?? "—"} / {row.original.entityLabel ?? "—"}
+        </span>
+      ),
     },
     {
       accessorKey: "status",
@@ -97,8 +103,8 @@ export default function FeaturesClient({
     },
     {
       accessorKey: "createdAt",
-      meta: { label: "Criada em" },
-      header: () => <DataTableColumnHeader label="Criada em" sortKey="createdAt" />,
+      meta: { label: "Criado em" },
+      header: () => <DataTableColumnHeader label="Criado em" sortKey="createdAt" />,
       cell: ({ row }) => <span className="text-sm text-zinc-500">{dateFmt.format(row.original.createdAt)}</span>,
     },
     {
@@ -127,13 +133,13 @@ export default function FeaturesClient({
   return (
     <div className="flex flex-col gap-4">
       <PageHeader
-        title="Features"
-        description="Catálogo global de features da plataforma."
-        action={<Button onClick={() => setCreating(true)}>Nova feature</Button>}
+        title="Nichos"
+        description="Segmentos atendidos pela plataforma."
+        action={<Button onClick={() => setCreating(true)}>Novo nicho</Button>}
       />
 
       <DataTable
-        tableId="admin-features"
+        tableId="admin-niches"
         columns={columns}
         data={rows}
         hasActiveFilters={activeFilters.length > 0}
@@ -141,7 +147,7 @@ export default function FeaturesClient({
         toolbarStart={<SearchInput placeholder="Buscar por nome ou key..." />}
         resultCount={<ResultCount filtered={filtered} total={total} />}
         toolbarEnd={
-          <FilterDialog activeCount={(status ? 1 : 0) + (group ? 1 : 0)} onClear={clearAll}>
+          <FilterDialog activeCount={status ? 1 : 0} onClear={clearAll}>
             <div className="flex flex-col gap-2">
               <Label>Status</Label>
               <Select value={status ?? "all"} onValueChange={(v) => setStatus(v === "all" ? null : v)}>
@@ -158,55 +164,35 @@ export default function FeaturesClient({
                 </SelectContent>
               </Select>
             </div>
-            <div className="flex flex-col gap-2">
-              <Label>Grupo</Label>
-              <Select value={group ?? "all"} onValueChange={(v) => setGroup(v === "all" ? null : v)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos</SelectItem>
-                  {groups.map((g) => (
-                    <SelectItem key={g} value={g}>
-                      {g}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
           </FilterDialog>
         }
         activeFilters={<ActiveFiltersBar filters={activeFilters} onClearAll={clearAll} />}
         emptyState={
           <EmptyState
-            title="Nenhuma feature cadastrada ainda"
-            action={<Button onClick={() => setCreating(true)}>Nova feature</Button>}
+            title="Nenhum nicho cadastrado ainda"
+            action={<Button onClick={() => setCreating(true)}>Novo nicho</Button>}
           />
         }
       />
 
       <PaginationControls total={filtered} />
 
-      <CrudDrawer open={creating} onOpenChange={setCreating} title="Nova feature">
-        <FeatureForm
+      <CrudDrawer open={creating} onOpenChange={setCreating} title="Novo nicho">
+        <NicheForm
           onSuccess={() => {
             setCreating(false);
-            toast.success("Feature criada.");
+            toast.success("Nicho criado.");
           }}
         />
       </CrudDrawer>
 
-      <CrudDrawer
-        open={editing !== null}
-        onOpenChange={(open) => !open && setEditing(null)}
-        title="Editar feature"
-      >
+      <CrudDrawer open={editing !== null} onOpenChange={(o) => !o && setEditing(null)} title="Editar nicho">
         {editing && (
-          <FeatureForm
+          <NicheForm
             initial={editing}
             onSuccess={() => {
               setEditing(null);
-              toast.success("Feature atualizada.");
+              toast.success("Nicho atualizado.");
             }}
           />
         )}
@@ -214,18 +200,18 @@ export default function FeaturesClient({
 
       <ConfirmActionDialog
         open={toggling !== null}
-        onOpenChange={(open) => !open && setToggling(null)}
-        title={toggling?.status === "active" ? "Inativar feature" : "Ativar feature"}
+        onOpenChange={(o) => !o && setToggling(null)}
+        title={toggling?.status === "active" ? "Inativar nicho" : "Ativar nicho"}
         description={
           toggling?.status === "active"
-            ? `Inativar "${toggling?.name}" esconde o módulo correspondente para novos tenants. As liberações já existentes (TenantFeature) são preservadas.`
-            : `Reativar "${toggling?.name}" volta a disponibilizá-la para liberação por tenant.`
+            ? `Inativar "${toggling?.name}" impede que ele seja oferecido para novos tenants e templates.`
+            : `Reativar "${toggling?.name}" volta a disponibilizá-lo para novos tenants e templates.`
         }
         destructive={toggling?.status === "active"}
         confirmLabel={toggling?.status === "active" ? "Inativar" : "Ativar"}
         onConfirm={async () => {
           if (!toggling) return;
-          await toggleFeatureStatusAction(toggling.id);
+          await toggleNicheStatusAction(toggling.id);
           toast.success("Status atualizado.");
         }}
       />

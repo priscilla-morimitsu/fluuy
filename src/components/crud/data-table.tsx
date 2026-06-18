@@ -8,7 +8,7 @@ import {
   useReactTable,
 } from "@tanstack/react-table";
 import { Settings2 } from "lucide-react";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -35,6 +35,9 @@ function loadVisibility(tableId: string): VisibilityState {
  * Server-side table: data/sorting/pagination are driven by URL params and the
  * parent Server Component — TanStack here only owns the column model and
  * per-user column visibility (persisted to localStorage by `tableId`).
+ *
+ * Renders the standardized CRUD toolbar so search/result-count sit on the
+ * left and the filters button + columns menu align on the right.
  */
 export function DataTable<TData>({
   columns,
@@ -43,13 +46,25 @@ export function DataTable<TData>({
   hasActiveFilters = false,
   onClearFilters,
   emptyState,
+  toolbarStart,
+  resultCount,
+  toolbarEnd,
+  activeFilters,
 }: {
   columns: ColumnDef<TData, unknown>[];
   data: TData[];
   tableId: string;
   hasActiveFilters?: boolean;
   onClearFilters?: () => void;
-  emptyState?: React.ReactNode;
+  emptyState?: ReactNode;
+  /** Left side of the toolbar — typically the search field. */
+  toolbarStart?: ReactNode;
+  /** Left side, after search — typically the result count. */
+  resultCount?: ReactNode;
+  /** Right side, before the columns menu — typically the filters button. */
+  toolbarEnd?: ReactNode;
+  /** Applied-filter badges row, rendered below the toolbar. */
+  activeFilters?: ReactNode;
 }) {
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>(() =>
     loadVisibility(tableId),
@@ -78,75 +93,88 @@ export function DataTable<TData>({
 
   const hideableColumns = table.getAllColumns().filter((c) => c.getCanHide());
 
-  if (data.length === 0) {
-    return hasActiveFilters ? <FilteredEmptyState onClear={onClearFilters} /> : <>{emptyState}</>;
-  }
-
   return (
-    <div className="flex flex-col gap-2">
-      <div className="flex justify-end">
-        <DropdownMenu>
-          <DropdownMenuTrigger
-            render={
-              <Button variant="outline" size="sm" className="gap-2">
-                <Settings2 className="size-4" /> Colunas
-              </Button>
-            }
-          />
-          <DropdownMenuContent align="end" className="w-44">
-            <DropdownMenuLabel>Colunas visíveis</DropdownMenuLabel>
-            {hideableColumns.map((column) => {
-              const label =
-                typeof column.columnDef.meta === "object" &&
-                column.columnDef.meta &&
-                "label" in column.columnDef.meta
-                  ? String((column.columnDef.meta as { label: string }).label)
-                  : column.id;
-              return (
-                <label
-                  key={column.id}
-                  className="flex cursor-pointer items-center gap-2 px-2 py-1.5 text-sm"
-                >
-                  <Checkbox
-                    checked={column.getIsVisible()}
-                    onCheckedChange={(v) => column.toggleVisibility(Boolean(v))}
-                  />
-                  {label}
-                </label>
-              );
-            })}
-          </DropdownMenuContent>
-        </DropdownMenu>
+    <div className="flex flex-col gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-1 flex-wrap items-center gap-3">
+          {toolbarStart}
+          {resultCount}
+        </div>
+        <div className="flex items-center gap-2">
+          {toolbarEnd}
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              render={
+                <Button variant="outline" size="sm" className="gap-2">
+                  <Settings2 className="size-4" /> Colunas
+                </Button>
+              }
+            />
+            <DropdownMenuContent align="end" className="w-44">
+              <DropdownMenuLabel>Colunas visíveis</DropdownMenuLabel>
+              {hideableColumns.map((column) => {
+                const label =
+                  typeof column.columnDef.meta === "object" &&
+                  column.columnDef.meta &&
+                  "label" in column.columnDef.meta
+                    ? String((column.columnDef.meta as { label: string }).label)
+                    : column.id;
+                return (
+                  <label
+                    key={column.id}
+                    className="flex cursor-pointer items-center gap-2 px-2 py-1.5 text-sm"
+                  >
+                    <Checkbox
+                      checked={column.getIsVisible()}
+                      onCheckedChange={(v) => column.toggleVisibility(Boolean(v))}
+                    />
+                    {label}
+                  </label>
+                );
+              })}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </div>
 
-      <div className="overflow-x-auto rounded-lg border">
-        <Table>
-          <TableHeader>
-            {table.getHeaderGroups().map((hg) => (
-              <TableRow key={hg.id}>
-                {hg.headers.map((header) => (
-                  <TableHead key={header.id}>
-                    {header.isPlaceholder
-                      ? null
-                      : flexRender(header.column.columnDef.header, header.getContext())}
-                  </TableHead>
-                ))}
-              </TableRow>
-            ))}
-          </TableHeader>
-          <TableBody>
-            {table.getRowModel().rows.map((row) => (
-              <TableRow key={row.id}>
-                {row.getVisibleCells().map((cell) => (
-                  <TableCell key={cell.id}>
-                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                  </TableCell>
-                ))}
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
+      {activeFilters}
+
+      {data.length === 0 ? (
+        hasActiveFilters ? (
+          <FilteredEmptyState onClear={onClearFilters} />
+        ) : (
+          emptyState
+        )
+      ) : (
+        <div className="overflow-x-auto rounded-lg border">
+          <Table>
+            <TableHeader>
+              {table.getHeaderGroups().map((hg) => (
+                <TableRow key={hg.id}>
+                  {hg.headers.map((header) => (
+                    <TableHead key={header.id}>
+                      {header.isPlaceholder
+                        ? null
+                        : flexRender(header.column.columnDef.header, header.getContext())}
+                    </TableHead>
+                  ))}
+                </TableRow>
+              ))}
+            </TableHeader>
+            <TableBody>
+              {table.getRowModel().rows.map((row) => (
+                <TableRow key={row.id}>
+                  {row.getVisibleCells().map((cell) => (
+                    <TableCell key={cell.id}>
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                    </TableCell>
+                  ))}
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      )}
     </div>
   );
 }

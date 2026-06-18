@@ -44,6 +44,7 @@ export async function createNicheAction(
   });
 
   revalidatePath("/admin/niches");
+  return { ok: true };
 }
 
 export async function updateNicheAction(

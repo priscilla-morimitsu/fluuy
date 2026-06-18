@@ -1,7 +1,6 @@
 "use client";
 
 import type { ColumnDef } from "@tanstack/react-table";
-import Link from "next/link";
 import { parseAsString, useQueryState } from "nuqs";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -21,82 +20,70 @@ import { EmptyState } from "@/components/crud/states";
 import { useTableParams } from "@/components/crud/use-table-params";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { DropdownMenuItem, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
+import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
-import { setTenantStatusAction } from "./actions";
-import type { TenantListRow } from "./data";
-import TenantForm, { type TenantInitial } from "./tenant-form";
+import { toggleBillingPlanStatusAction } from "./actions";
+import type { BillingPlanListRow } from "./data";
+import BillingPlanForm, { type BillingPlanInitial } from "./billing-plan-form";
 
-const STATUS_LABELS: Record<string, string> = {
-  active: "Ativo",
-  trial: "Trial",
-  suspended: "Suspenso",
-  blocked: "Bloqueado",
-};
-const STATUS_OPTIONS = ["active", "trial", "suspended", "blocked"] as const;
-const DESTRUCTIVE_STATUSES = new Set(["suspended", "blocked"]);
-
+const STATUS_LABELS: Record<string, string> = { active: "Ativo", inactive: "Inativo" };
+const STATUS_OPTIONS = ["active", "inactive"] as const;
+const PERIOD_LABELS: Record<string, string> = { monthly: "Mensal", yearly: "Anual" };
+const PERIOD_OPTIONS = ["monthly", "yearly"] as const;
 const dateFmt = new Intl.DateTimeFormat("pt-BR", { dateStyle: "short" });
+const brl = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
 
-function toInitial(row: TenantListRow): TenantInitial {
+function toInitial(row: BillingPlanListRow): BillingPlanInitial {
   return {
     id: row.id,
-    nicheId: row.nicheId,
+    key: row.key,
     name: row.name,
-    slug: row.slug,
-    legalName: row.legalName,
-    document: row.document,
     description: row.description,
-    publicPhone: row.publicPhone,
-    publicEmail: row.publicEmail,
-    notificationPhone: row.notificationPhone,
-    hasProducts: row.hasProducts,
-    hasServices: row.hasServices,
-    hasPlans: row.hasPlans,
-    hasDelivery: row.hasDelivery,
-    hasPickup: row.hasPickup,
-    acceptsOnlinePayment: row.acceptsOnlinePayment,
+    price: row.price,
+    billingPeriod: row.billingPeriod,
+    featureIds: row.featureIds,
   };
 }
 
-export default function TenantsClient({
+export default function BillingPlansClient({
   rows,
   filtered,
   total,
-  niches,
+  features,
 }: {
-  rows: TenantListRow[];
+  rows: BillingPlanListRow[];
   filtered: number;
   total: number;
-  niches: { id: string; name: string }[];
+  features: { id: string; name: string }[];
 }) {
   const [params, setParams] = useTableParams();
   const [status, setStatus] = useQueryState("status", parseAsString.withOptions({ shallow: false }));
-  const [nicheId, setNicheId] = useQueryState("nicheId", parseAsString.withOptions({ shallow: false }));
+  const [period, setPeriod] = useQueryState("billingPeriod", parseAsString.withOptions({ shallow: false }));
 
   const [creating, setCreating] = useState(false);
-  const [editing, setEditing] = useState<TenantInitial | null>(null);
-  const [statusChange, setStatusChange] = useState<{ tenant: TenantListRow; target: string } | null>(null);
+  const [editing, setEditing] = useState<BillingPlanInitial | null>(null);
+  const [toggling, setToggling] = useState<BillingPlanListRow | null>(null);
 
   const activeFilters: ActiveFilter[] = [];
   if (params.q) activeFilters.push({ key: "q", label: `Busca: ${params.q}`, onRemove: () => setParams({ q: null, page: 1 }) });
-  if (status) {
-    activeFilters.push({ key: "status", label: `Status: ${STATUS_LABELS[status] ?? status}`, onRemove: () => setStatus(null) });
-  }
-  if (nicheId) {
-    const n = niches.find((x) => x.id === nicheId);
-    activeFilters.push({ key: "nicheId", label: `Nicho: ${n?.name ?? nicheId}`, onRemove: () => setNicheId(null) });
-  }
+  if (status) activeFilters.push({ key: "status", label: `Status: ${STATUS_LABELS[status] ?? status}`, onRemove: () => setStatus(null) });
+  if (period) activeFilters.push({ key: "billingPeriod", label: `Período: ${PERIOD_LABELS[period] ?? period}`, onRemove: () => setPeriod(null) });
 
   const clearAll = () => {
     setStatus(null);
-    setNicheId(null);
+    setPeriod(null);
     setParams({ q: null, page: 1 });
   };
 
-  const columns: ColumnDef<TenantListRow, unknown>[] = [
+  const columns: ColumnDef<BillingPlanListRow, unknown>[] = [
+    {
+      accessorKey: "key",
+      meta: { label: "Key" },
+      header: () => <DataTableColumnHeader label="Key" sortKey="key" />,
+      cell: ({ row }) => <span className="font-mono text-sm">{row.original.key}</span>,
+    },
     {
       accessorKey: "name",
       meta: { label: "Nome" },
@@ -104,23 +91,31 @@ export default function TenantsClient({
       cell: ({ row }) => <span className="font-medium">{row.original.name}</span>,
     },
     {
-      accessorKey: "slug",
-      meta: { label: "Slug" },
-      header: () => <DataTableColumnHeader label="Slug" sortKey="slug" />,
-      cell: ({ row }) => <span className="font-mono text-sm">{row.original.slug}</span>,
+      accessorKey: "price",
+      meta: { label: "Preço" },
+      header: () => <DataTableColumnHeader label="Preço" sortKey="price" />,
+      cell: ({ row }) => brl.format(Number(row.original.price)),
     },
     {
-      id: "niche",
-      meta: { label: "Nicho" },
-      header: () => <DataTableColumnHeader label="Nicho" />,
-      cell: ({ row }) => row.original.niche.name,
+      accessorKey: "billingPeriod",
+      meta: { label: "Período" },
+      header: () => <DataTableColumnHeader label="Período" sortKey="billingPeriod" />,
+      cell: ({ row }) => PERIOD_LABELS[row.original.billingPeriod] ?? row.original.billingPeriod,
+    },
+    {
+      id: "features",
+      meta: { label: "Features" },
+      header: () => <DataTableColumnHeader label="Features" />,
+      cell: ({ row }) => (
+        <span className="text-xs text-zinc-500">{row.original.featureNames.join(", ") || "—"}</span>
+      ),
     },
     {
       accessorKey: "status",
       meta: { label: "Status" },
       header: () => <DataTableColumnHeader label="Status" sortKey="status" />,
       cell: ({ row }) => (
-        <Badge variant={row.original.status === "blocked" ? "destructive" : "default"}>
+        <Badge variant={row.original.status === "active" ? "default" : "secondary"}>
           {STATUS_LABELS[row.original.status] ?? row.original.status}
         </Badge>
       ),
@@ -135,47 +130,43 @@ export default function TenantsClient({
       id: "actions",
       enableHiding: false,
       header: () => null,
-      cell: ({ row }) => (
-        <div className="text-right">
-          <RowActionsMenu>
-            <DropdownMenuItem render={<Link href={`/admin/tenants/${row.original.id}`} />}>
-              Detalhes
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setEditing(toInitial(row.original))}>Editar</DropdownMenuItem>
-            <DropdownMenuSeparator />
-            {STATUS_OPTIONS.filter((s) => s !== row.original.status).map((s) => (
+      cell: ({ row }) => {
+        const isActive = row.original.status === "active";
+        return (
+          <div className="text-right">
+            <RowActionsMenu>
+              <DropdownMenuItem onClick={() => setEditing(toInitial(row.original))}>Editar</DropdownMenuItem>
               <DropdownMenuItem
-                key={s}
-                variant={DESTRUCTIVE_STATUSES.has(s) ? "destructive" : "default"}
-                onClick={() => setStatusChange({ tenant: row.original, target: s })}
+                variant={isActive ? "destructive" : "default"}
+                onClick={() => setToggling(row.original)}
               >
-                Mudar para {STATUS_LABELS[s]}
+                {isActive ? "Inativar" : "Ativar"}
               </DropdownMenuItem>
-            ))}
-          </RowActionsMenu>
-        </div>
-      ),
+            </RowActionsMenu>
+          </div>
+        );
+      },
     },
   ];
 
   return (
     <div className="flex flex-col gap-4">
       <PageHeader
-        title="Tenants"
-        description="Empresas clientes da plataforma."
-        action={<Button onClick={() => setCreating(true)}>Novo tenant</Button>}
+        title="Planos comerciais"
+        description="Planos e as features que cada um inclui."
+        action={<Button onClick={() => setCreating(true)}>Novo plano</Button>}
       />
 
       <DataTable
-        tableId="admin-tenants"
+        tableId="admin-billing-plans"
         columns={columns}
         data={rows}
         hasActiveFilters={activeFilters.length > 0}
         onClearFilters={clearAll}
-        toolbarStart={<SearchInput placeholder="Buscar por nome ou slug..." />}
+        toolbarStart={<SearchInput placeholder="Buscar por nome ou key..." />}
         resultCount={<ResultCount filtered={filtered} total={total} />}
         toolbarEnd={
-          <FilterDialog activeCount={(status ? 1 : 0) + (nicheId ? 1 : 0)} onClear={clearAll}>
+          <FilterDialog activeCount={(status ? 1 : 0) + (period ? 1 : 0)} onClear={clearAll}>
             <div className="flex flex-col gap-2">
               <Label>Status</Label>
               <Select value={status ?? "all"} onValueChange={(v) => setStatus(v === "all" ? null : v)}>
@@ -193,16 +184,16 @@ export default function TenantsClient({
               </Select>
             </div>
             <div className="flex flex-col gap-2">
-              <Label>Nicho</Label>
-              <Select value={nicheId ?? "all"} onValueChange={(v) => setNicheId(v === "all" ? null : v)}>
+              <Label>Período</Label>
+              <Select value={period ?? "all"} onValueChange={(v) => setPeriod(v === "all" ? null : v)}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Todos</SelectItem>
-                  {niches.map((n) => (
-                    <SelectItem key={n.id} value={n.id}>
-                      {n.name}
+                  {PERIOD_OPTIONS.map((p) => (
+                    <SelectItem key={p} value={p}>
+                      {PERIOD_LABELS[p]}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -213,61 +204,51 @@ export default function TenantsClient({
         activeFilters={<ActiveFiltersBar filters={activeFilters} onClearAll={clearAll} />}
         emptyState={
           <EmptyState
-            title="Nenhum tenant cadastrado ainda"
-            description="Crie o primeiro tenant para começar."
-            action={<Button onClick={() => setCreating(true)}>Novo tenant</Button>}
+            title="Nenhum plano cadastrado ainda"
+            action={<Button onClick={() => setCreating(true)}>Novo plano</Button>}
           />
         }
       />
 
       <PaginationControls total={filtered} />
 
-      <CrudDrawer
-        open={creating}
-        onOpenChange={setCreating}
-        title="Novo tenant"
-        description="Crie uma empresa cliente vinculada a um nicho ativo."
-      >
-        <TenantForm
-          niches={niches}
+      <CrudDrawer open={creating} onOpenChange={setCreating} title="Novo plano comercial">
+        <BillingPlanForm
+          features={features}
           onSuccess={() => {
             setCreating(false);
-            toast.success("Tenant criado.");
+            toast.success("Plano criado.");
           }}
         />
       </CrudDrawer>
 
-      <CrudDrawer
-        open={editing !== null}
-        onOpenChange={(open) => !open && setEditing(null)}
-        title="Editar tenant"
-      >
+      <CrudDrawer open={editing !== null} onOpenChange={(o) => !o && setEditing(null)} title="Editar plano comercial">
         {editing && (
-          <TenantForm
-            niches={niches}
+          <BillingPlanForm
+            features={features}
             initial={editing}
             onSuccess={() => {
               setEditing(null);
-              toast.success("Tenant atualizado.");
+              toast.success("Plano atualizado.");
             }}
           />
         )}
       </CrudDrawer>
 
       <ConfirmActionDialog
-        open={statusChange !== null}
-        onOpenChange={(open) => !open && setStatusChange(null)}
-        title="Alterar status do tenant"
+        open={toggling !== null}
+        onOpenChange={(o) => !o && setToggling(null)}
+        title={toggling?.status === "active" ? "Inativar plano" : "Ativar plano"}
         description={
-          statusChange
-            ? `Mudar o status de "${statusChange.tenant.name}" para ${STATUS_LABELS[statusChange.target]} pode afetar o acesso do tenant.`
-            : ""
+          toggling?.status === "active"
+            ? `Inativar "${toggling?.name}" impede que ele seja oferecido a novos tenants.`
+            : `Reativar "${toggling?.name}" volta a disponibilizá-lo.`
         }
-        destructive={statusChange ? DESTRUCTIVE_STATUSES.has(statusChange.target) : false}
-        confirmLabel="Confirmar"
+        destructive={toggling?.status === "active"}
+        confirmLabel={toggling?.status === "active" ? "Inativar" : "Ativar"}
         onConfirm={async () => {
-          if (!statusChange) return;
-          await setTenantStatusAction(statusChange.tenant.id, statusChange.target);
+          if (!toggling) return;
+          await toggleBillingPlanStatusAction(toggling.id);
           toast.success("Status atualizado.");
         }}
       />
