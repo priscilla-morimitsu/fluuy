@@ -24,6 +24,16 @@ export const tenantSchema = z.object({
 
 export type TenantInput = z.infer<typeof tenantSchema>;
 
+// `slug` is part of the tenant's public URL (/t/[slug]) and is treated as a
+// stable identifier, so it cannot change after creation.
+export const tenantUpdateSchema = tenantSchema.omit({ slug: true });
+
+export type TenantUpdateInput = z.infer<typeof tenantUpdateSchema>;
+
+export const TENANT_STATUSES = ["active", "trial", "suspended", "blocked"] as const;
+export const tenantStatusSchema = z.enum(TENANT_STATUSES);
+export type TenantStatusValue = z.infer<typeof tenantStatusSchema>;
+
 export const tenantProfileSchema = z.object({
   name: z.string().min(2).max(150),
   legalName: z.string().max(150).optional().or(z.literal("")),

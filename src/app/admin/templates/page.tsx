@@ -12,6 +12,7 @@ export default async function TemplatesPage() {
     prisma.template.findMany({ include: { niche: true }, orderBy: { createdAt: "desc" } }),
     prisma.niche.findMany({ where: { status: "active" }, orderBy: { name: "asc" } }),
   ]);
+  const nicheOptions = niches.map((n) => ({ id: n.id, name: n.name }));
 
   return (
     <div className="flex flex-col gap-6">
@@ -29,22 +30,41 @@ export default async function TemplatesPage() {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {templates.map((template) => (
-            <TableRow key={template.id}>
-              <TableCell>{template.niche.name}</TableCell>
-              <TableCell className="font-mono text-sm">{template.entityType}</TableCell>
-              <TableCell>{template.name}</TableCell>
-              <TableCell>{template.version}</TableCell>
-              <TableCell>
-                <Badge variant={template.status === "active" ? "default" : "secondary"}>
-                  {template.status}
-                </Badge>
-              </TableCell>
-              <TableCell>
-                <TemplateRowActions templateId={template.id} status={template.status} />
+          {templates.length === 0 ? (
+            <TableRow>
+              <TableCell colSpan={6} className="py-8 text-center text-sm text-zinc-500">
+                Nenhum template cadastrado ainda.
               </TableCell>
             </TableRow>
-          ))}
+          ) : (
+            templates.map((template) => (
+              <TableRow key={template.id}>
+                <TableCell>{template.niche.name}</TableCell>
+                <TableCell className="font-mono text-sm">{template.entityType}</TableCell>
+                <TableCell>{template.name}</TableCell>
+                <TableCell>{template.version}</TableCell>
+                <TableCell>
+                  <Badge variant={template.status === "active" ? "default" : "secondary"}>
+                    {template.status}
+                  </Badge>
+                </TableCell>
+                <TableCell>
+                  <TemplateRowActions
+                    niches={nicheOptions}
+                    template={{
+                      id: template.id,
+                      nicheId: template.nicheId,
+                      entityType: template.entityType,
+                      name: template.name,
+                      description: template.description,
+                      fields: template.fields,
+                      status: template.status,
+                    }}
+                  />
+                </TableCell>
+              </TableRow>
+            ))
+          )}
         </TableBody>
       </Table>
     </div>

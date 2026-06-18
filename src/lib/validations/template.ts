@@ -14,13 +14,21 @@ export const TEMPLATE_ENTITY_TYPES = [
 // One entry per custom_data field this template defines for its entity_type.
 // This is what runtime validation of custom_data on tenants/customers/etc.
 // must check against — see .devrails/rules/multi-tenant.md.
-export const templateFieldSchema = z.object({
-  key: z.string().regex(/^[a-z][a-z0-9_]*$/, "Use snake_case"),
-  label: z.string().min(1).max(120),
-  type: z.enum(["text", "number", "boolean", "select", "multiselect", "textarea"]),
-  required: z.boolean().default(false),
-  options: z.array(z.string()).optional(),
-});
+export const templateFieldSchema = z
+  .object({
+    key: z.string().regex(/^[a-z][a-z0-9_]*$/, "Use snake_case"),
+    label: z.string().min(1).max(120),
+    type: z.enum(["text", "number", "boolean", "select", "multiselect", "textarea"]),
+    required: z.boolean().default(false),
+    options: z.array(z.string().min(1)).optional(),
+  })
+  // select/multiselect are meaningless without at least one option to pick.
+  .refine(
+    (field) =>
+      (field.type !== "select" && field.type !== "multiselect") ||
+      (field.options !== undefined && field.options.length > 0),
+    { message: "Campos select/multiselect exigem ao menos uma opção.", path: ["options"] },
+  );
 
 export type TemplateField = z.infer<typeof templateFieldSchema>;
 
@@ -29,7 +37,15 @@ export const templateSchema = z.object({
   entityType: z.enum(TEMPLATE_ENTITY_TYPES),
   name: z.string().min(2).max(120),
   description: z.string().max(2000).optional().or(z.literal("")),
-  fields: z.array(templateFieldSchema).default([]),
+  fields: z
+    .array(templateFieldSchema)
+    .default([])
+    // Field keys are the custom_data property names — they must be unique
+    // within a template or a later field silently shadows an earlier one.
+    .refine(
+      (fields) => new Set(fields.map((f) => f.key)).size === fields.length,
+      { message: "Há chaves de campo duplicadas no template." },
+    ),
 });
 
 export type TemplateInput = z.infer<typeof templateSchema>;

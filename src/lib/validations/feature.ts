@@ -13,6 +13,12 @@ export const featureSchema = z.object({
 
 export type FeatureInput = z.infer<typeof featureSchema>;
 
+// `key` is the contract checked by UI/endpoints, so it is immutable after
+// creation — edits only touch the descriptive fields.
+export const featureUpdateSchema = featureSchema.omit({ key: true });
+
+export type FeatureUpdateInput = z.infer<typeof featureUpdateSchema>;
+
 export const billingPlanSchema = z.object({
   key: z
     .string()

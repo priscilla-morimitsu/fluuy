@@ -12,6 +12,7 @@ export default async function TenantsPage() {
     prisma.tenant.findMany({ include: { niche: true }, orderBy: { createdAt: "desc" } }),
     prisma.niche.findMany({ where: { status: "active" }, orderBy: { name: "asc" } }),
   ]);
+  const nicheOptions = niches.map((n) => ({ id: n.id, name: n.name }));
 
   return (
     <div className="flex flex-col gap-6">
@@ -28,21 +29,50 @@ export default async function TenantsPage() {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {tenants.map((tenant) => (
-            <TableRow key={tenant.id}>
-              <TableCell>{tenant.name}</TableCell>
-              <TableCell className="font-mono text-sm">{tenant.slug}</TableCell>
-              <TableCell>{tenant.niche.name}</TableCell>
-              <TableCell>
-                <Badge variant={tenant.status === "blocked" ? "destructive" : "default"}>
-                  {tenant.status}
-                </Badge>
-              </TableCell>
-              <TableCell>
-                <TenantRowActions tenantId={tenant.id} status={tenant.status} />
+          {tenants.length === 0 ? (
+            <TableRow>
+              <TableCell colSpan={5} className="py-8 text-center text-sm text-zinc-500">
+                Nenhum tenant cadastrado ainda.
               </TableCell>
             </TableRow>
-          ))}
+          ) : (
+            tenants.map((tenant) => (
+              <TableRow key={tenant.id}>
+                <TableCell>{tenant.name}</TableCell>
+                <TableCell className="font-mono text-sm">{tenant.slug}</TableCell>
+                <TableCell>{tenant.niche.name}</TableCell>
+                <TableCell>
+                  <Badge variant={tenant.status === "blocked" ? "destructive" : "default"}>
+                    {tenant.status}
+                  </Badge>
+                </TableCell>
+                <TableCell>
+                  <TenantRowActions
+                    niches={nicheOptions}
+                    tenant={{
+                      id: tenant.id,
+                      nicheId: tenant.nicheId,
+                      name: tenant.name,
+                      slug: tenant.slug,
+                      legalName: tenant.legalName,
+                      document: tenant.document,
+                      description: tenant.description,
+                      publicPhone: tenant.publicPhone,
+                      publicEmail: tenant.publicEmail,
+                      notificationPhone: tenant.notificationPhone,
+                      hasProducts: tenant.hasProducts,
+                      hasServices: tenant.hasServices,
+                      hasPlans: tenant.hasPlans,
+                      hasDelivery: tenant.hasDelivery,
+                      hasPickup: tenant.hasPickup,
+                      acceptsOnlinePayment: tenant.acceptsOnlinePayment,
+                      status: tenant.status,
+                    }}
+                  />
+                </TableCell>
+              </TableRow>
+            ))
+          )}
         </TableBody>
       </Table>
     </div>

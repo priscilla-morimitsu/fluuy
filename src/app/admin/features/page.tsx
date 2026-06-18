@@ -25,21 +25,38 @@ export default async function FeaturesPage() {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {features.map((feature) => (
-            <TableRow key={feature.id}>
-              <TableCell className="font-mono text-sm">{feature.key}</TableCell>
-              <TableCell>{feature.name}</TableCell>
-              <TableCell>{feature.group}</TableCell>
-              <TableCell>
-                <Badge variant={feature.status === "active" ? "default" : "secondary"}>
-                  {feature.status}
-                </Badge>
-              </TableCell>
-              <TableCell>
-                <FeatureRowActions featureId={feature.id} status={feature.status} />
+          {features.length === 0 ? (
+            <TableRow>
+              <TableCell colSpan={5} className="py-8 text-center text-sm text-zinc-500">
+                Nenhuma feature cadastrada ainda.
               </TableCell>
             </TableRow>
-          ))}
+          ) : (
+            features.map((feature) => (
+              <TableRow key={feature.id}>
+                <TableCell className="font-mono text-sm">{feature.key}</TableCell>
+                <TableCell>{feature.name}</TableCell>
+                <TableCell>{feature.group}</TableCell>
+                <TableCell>
+                  <Badge variant={feature.status === "active" ? "default" : "secondary"}>
+                    {feature.status}
+                  </Badge>
+                </TableCell>
+                <TableCell>
+                  <FeatureRowActions
+                    feature={{
+                      id: feature.id,
+                      key: feature.key,
+                      name: feature.name,
+                      description: feature.description,
+                      group: feature.group,
+                      status: feature.status,
+                    }}
+                  />
+                </TableCell>
+              </TableRow>
+            ))
+          )}
         </TableBody>
       </Table>
     </div>

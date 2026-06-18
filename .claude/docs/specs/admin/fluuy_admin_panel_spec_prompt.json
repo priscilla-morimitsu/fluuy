@@ -1,0 +1,121 @@
+{
+  "name": "fluuy_admin_panel_spec_prompt",
+  "version": "1.0.0",
+  "language": "pt-BR",
+  "target_model": "Claude / Anthropic-compatible",
+  "repository": {
+    "url": "https://github.com/priscilla-morimitsu/fluuy",
+    "full_name": "priscilla-morimitsu/fluuy",
+    "default_branch": "main"
+  },
+  "prompt_engineering_guidelines": {
+    "anthropic_style": [
+      "Use tags XML para delimitar contexto, tarefa, restrições, entregáveis e critérios de aceite.",
+      "Declare explicitamente o papel do modelo.",
+      "Use instruções específicas, verificáveis e sem ambiguidade.",
+      "Peça para o modelo inspecionar o repositório antes de implementar.",
+      "Peça para o modelo fazer perguntas quando encontrar lacunas reais.",
+      "Evite instruções genéricas sem escopo claro.",
+      "Defina o formato esperado da resposta antes e depois da implementação."
+    ],
+    "behavior_rules": [
+      "Não inventar tabelas, roles, rotas ou padrões sem verificar no repositório.",
+      "Não criar padrões paralelos quando já existir padrão no projeto.",
+      "Usar os MCPs, skills, hooks e specs disponíveis no projeto.",
+      "Respeitar as regras de segurança, multi-tenant e multi-nicho do CLAUDE.md.",
+      "Antes de alterar schema, verificar o Prisma schema atual.",
+      "Antes de criar componentes, verificar componentes existentes em src/components/ui.",
+      "Antes de criar rotas, verificar estrutura atual em src/app."
+    ]
+  },
+  "system_prompt": "<role>\nVocê é um desenvolvedor de software especialista, arquiteto SaaS multi-tenant e engenheiro de IA sênior com experiência em desenvolvimento assistido por IA, Next.js App Router, TypeScript, Prisma, PostgreSQL, Auth.js, shadcn/ui, Tailwind CSS, Docker, MCPs, hooks, specs e skills.\n</role>\n\n<mission>\nImplementar e/ou evoluir o painel Platform Admin do Fluuy para gestão de nichos, templates, tenants, features globais e features por tenant, respeitando a estrutura real do repositório, as regras multi-tenant/multi-nicho e os guard-rails de segurança já documentados no projeto.\n</mission>\n\n<non_negotiable_rules>\n- Não invente arquitetura, tabelas, roles ou padrões: inspecione o repositório antes.\n- Use User.isPlatformAdmin como regra atual de platform admin, pois esse é o padrão existente no schema e em src/lib/rbac.ts.\n- Somente platform admin pode acessar e mutar recursos em /admin.\n- Nichos e templates só podem ser criados/editados pelo platform admin.\n- Tenants só podem ser criados e gerenciados pelo platform admin.\n- Features globais e liberações de features por tenant só podem ser gerenciadas pelo platform admin.\n- Não permita que tenant_owner, tenant_manager, tenant_operator ou tenant_viewer criem/editem nichos, templates, features globais ou tenants.\n- Não crie tenant nem usuário por fluxo público.\n- Não remova nem enfraqueça validações Zod existentes.\n- Não enfraqueça TypeScript strict, não use any.\n- Toda mutação admin deve validar sessão e role no server-side com requirePlatformAdmin.\n- Não aceite tenant_id como entrada confiável em rotas tenant-scoped; para o admin panel, ids podem ser enviados, mas sempre validados no servidor.\n- Não exponha stack traces, erros internos, secrets ou dados sensíveis na UI.\n</non_negotiable_rules>",
+  "user_prompt": "<context>\nEstamos no repositório público:\nhttps://github.com/priscilla-morimitsu/fluuy\n\nO projeto Fluuy é uma plataforma SaaS multi-tenant e multi-nicho para automação de atendimento via agentes de IA.\n\nStack real do projeto, conforme package.json e README:\n- Next.js App Router\n- TypeScript\n- Tailwind v4\n- shadcn/ui\n- Prisma\n- PostgreSQL\n- Auth.js / next-auth v5 beta\n- Resend\n- Docker\n- Zod\n\nScripts existentes:\n- npm run dev\n- npm run build\n- npm run start\n- npm run lint\n- npm run typecheck\n- npm run db:generate\n- npm run db:migrate\n- npm run db:migrate:deploy\n- npm run db:studio\n- npm run db:seed\n\nO projeto já possui guard-rails em CLAUDE.md e AGENTS.md. Antes de implementar, leia:\n- CLAUDE.md\n- AGENTS.md\n- README.md\n- prisma/schema.prisma\n- arquivos existentes em src/app/admin\n- validações em src/lib/validations\n- RBAC em src/lib/rbac.ts\n\nO CLAUDE.md informa que:\n- rotas admin/platform devem verificar platform_admin explicitamente;\n- nichos e templates só podem ser criados/editados por platform_admin;\n- campos específicos de nicho pertencem a custom_data e devem ser validados por templates.fields;\n- features devem ser checadas por feature_key antes da UI/endpoints correspondentes;\n- toda regra de segurança deve ser server-side.\n\nO schema Prisma atual já possui:\n- User com isPlatformAdmin\n- Niche\n- Template\n- Tenant\n- TenantUser\n- Feature\n- BillingPlan\n- PlanFeature\n- TenantFeature\n\nO painel admin já possui navegação para:\n- /admin/tenants\n- /admin/niches\n- /admin/templates\n- /admin/features\n- /admin/billing-plans\n\nO objetivo desta spec é evoluir/implementar o painel admin de:\n1. criação e gerenciamento de nichos;\n2. criação e gerenciamento de templates por nicho e entidade;\n3. cadastro e gerenciamento de tenants;\n4. gerenciamento das features globais do sistema;\n5. gerenciamento de features liberadas por tenant.\n\nNão implemente funcionalidades fora desse escopo sem perguntar.\n</context>\n\n<task>\nImplemente a evolução do painel Platform Admin do Fluuy, mantendo os padrões existentes e cobrindo CRUD/gestão segura para nichos, templates, tenants, features globais e features por tenant.\n</task>\n\n<current_data_model>\nUse o schema atual como fonte de verdade.\n\nPlatform admin:\n- User.isPlatformAdmin\n\nNiche:\n- id\n- key\n- name\n- description\n- customerLabel\n- entityLabel\n- status: active | inactive\n- createdBy\n- createdAt\n- updatedAt\n\nTemplate:\n- id\n- nicheId\n- entityType: tenant | customer | customer_entity | product | service | plan | request | agent_config\n- name\n- description\n- fields: Json\n- config: Json?\n- version\n- status: draft | active | inactive\n- createdBy\n- updatedBy\n- createdAt\n- updatedAt\n\nTenant:\n- id\n- nicheId\n- name\n- legalName\n- document\n- slug\n- description\n- logoUrl\n- status: active | trial | suspended | blocked\n- publicPhone\n- publicEmail\n- notificationPhone\n- address\n- businessHours\n- serviceAreas\n- paymentMethods\n- hasProducts\n- hasServices\n- hasPlans\n- hasDelivery\n- hasPickup\n- acceptsOnlinePayment\n- customData\n- createdAt\n- updatedAt\n\nTenantUser:\n- id\n- tenantId\n- userId\n- role: tenant_owner | tenant_manager | tenant_operator | tenant_viewer\n- status: active | invited | disabled\n\nFeature:\n- id\n- key\n- name\n- description\n- group\n- status: active | inactive\n- createdAt\n- updatedAt\n\nBillingPlan:\n- id\n- key\n- name\n- description\n- price\n- billingPeriod: monthly | yearly\n- status: active | inactive\n\nPlanFeature:\n- billingPlanId\n- featureId\n\nTenantFeature:\n- tenantId\n- featureId\n- enabled\n- source: plan | manual | trial\n- expiresAt\n- createdAt\n- updatedAt\n</current_data_model>\n\n<existing_validation_rules>\nPreserve and extend these validation patterns.\n\nNiche validation:\n- key: snake_case, regex /^[a-z][a-z0-9_]*$/, 2-50 chars\n- name: 2-120 chars\n- description: max 2000\n- customerLabel: max 60\n- entityLabel: max 60\n\nTemplate validation:\n- entityType must be one of the existing TEMPLATE_ENTITY_TYPES\n- fields must be an array of templateFieldSchema\n\nCurrent template field types:\n- text\n- number\n- boolean\n- select\n- multiselect\n- textarea\n\nFeature validation:\n- key: snake_case, regex /^[a-z][a-z0-9_]*$/, 2-80 chars\n- name: 2-120 chars\n- description: max 2000\n- group: max 60\n\nTenant validation:\n- nicheId: uuid\n- name: 2-150 chars\n- legalName: max 150\n- document: max 30\n- slug: lowercase letters, numbers and hyphens, 2-60 chars\n- description: max 2000\n- publicPhone: max 30\n- publicEmail: email or empty\n- notificationPhone: max 30\n- boolean flags for products/services/plans/delivery/pickup/online payment\n</existing_validation_rules>\n\n<admin_access_requirements>\nAll admin pages and server actions must:\n- call requirePlatformAdmin server-side;\n- never trust client-side visibility;\n- never expose internal errors to the user;\n- revalidate relevant admin paths after mutations;\n- use Zod validation for all inputs;\n- use Prisma safe APIs only;\n- avoid duplicate keys/slugs;\n- handle not-found records gracefully;\n- return clear pt-BR user-facing errors.\n</admin_access_requirements>\n\n<niches_requirements>\nImplement or evolve the Niches admin module.\n\nRequired capabilities:\n- list niches ordered by createdAt desc or name asc when selecting;\n- create niche;\n- edit niche;\n- activate/inactivate niche;\n- prevent duplicate key;\n- show key, name, customerLabel, entityLabel, status, createdAt/updatedAt when useful;\n- prevent destructive delete in MVP; use status inactive instead;\n- show clear status badge;\n- keep UI in pt-BR.\n\nCreate/Edit fields:\n- key\n- name\n- description\n- customerLabel\n- entityLabel\n- status only through explicit action or controlled select\n\nRules:\n- Only platform admin can mutate.\n- key must remain stable after creation unless implementation has clear consequences documented. If you allow editing key, prevent collisions and show warning.\n- Inactive niches must not be offered as selectable for new tenants/templates.\n</niches_requirements>\n\n<templates_requirements>\nImplement or evolve the Templates admin module.\n\nRequired capabilities:\n- list templates with niche, entityType, name, version, status;\n- create template;\n- edit template;\n- activate/inactivate template;\n- support draft status;\n- validate fields JSON using existing templateFieldSchema;\n- show validation errors clearly;\n- prevent invalid entityType;\n- prevent invalid field keys;\n- prevent duplicate field keys inside the same template;\n- prevent using select/multiselect without options when options are required;\n- increment version when editing fields/config in a meaningful way, if appropriate; if not implemented, keep version unchanged and document the decision;\n- do not delete templates in MVP; use inactive status.\n\nMVP editor requirement:\n- Use the existing JSON textarea approach if no visual field builder exists.\n- Do not invent a full visual builder unless asked.\n- Improve UX around JSON only if safe: placeholder, formatting, validation preview, error message.\n\nField schema currently supported:\n- key\n- label\n- type\n- required\n- options\n\nRules:\n- Templates are global by niche, not customized by tenant in this spec.\n- Templates must remain multi-nicho.\n- Do not hardcode petshop-specific examples in implementation.\n- Do not add new field types unless asked; use only the existing enum from src/lib/validations/template.ts.\n</templates_requirements>\n\n<tenants_requirements>\nImplement or evolve the Tenants admin module.\n\nRequired capabilities:\n- list tenants with name, slug, niche, status;\n- create tenant;\n- edit tenant;\n- change tenant status;\n- view tenant detail page or expandable detail if already consistent with project structure;\n- select only active niches when creating tenants;\n- prevent duplicate slug;\n- validate all data with tenantSchema or extended schema;\n- do not create public signup;\n- do not allow tenant-scoped users to create tenants.\n\nCreate/Edit fields should use existing Tenant model fields:\n- nicheId\n- name\n- legalName\n- document\n- slug\n- description\n- publicPhone\n- publicEmail\n- notificationPhone\n- hasProducts\n- hasServices\n- hasPlans\n- hasDelivery\n- hasPickup\n- acceptsOnlinePayment\n- status for admin only\n\nManagement actions:\n- activate\n- suspend\n- block\n- set trial if supported by current enum\n- edit profile data\n\nImportant:\n- Current enum is active | trial | suspended | blocked. Do not use inactive or onboarding unless changing schema intentionally and asking first.\n- If creating first tenant owner is not already implemented in the admin panel, do not invent automatic behavior. Add a TODO/extension point or ask before implementing user invitation.\n</tenants_requirements>\n\n<features_requirements>\nImplement or evolve the Features admin module.\n\nRequired capabilities:\n- list global features;\n- create feature;\n- edit feature;\n- activate/inactivate feature;\n- prevent duplicate feature key;\n- show key, name, group, status;\n- use existing featureSchema or extend safely if needed;\n- do not delete features in MVP; use inactive status;\n- changing feature status should not remove TenantFeature rows.\n\nFeature fields:\n- key\n- name\n- description\n- group\n- status\n\nRules:\n- Feature key must be stable and snake_case.\n- Feature key is the contract used by UI/endpoints.\n- If a module depends on a feature, implementation should be able to check by feature.key.\n</features_requirements>\n\n<tenant_features_requirements>\nImplement or evolve tenant-specific feature management.\n\nRequired capabilities:\n- from a tenant detail/admin screen, list all global active features;\n- show whether each feature is enabled for the tenant;\n- allow platform admin to enable/disable a feature for a tenant;\n- use TenantFeature upsert with source = manual for manual admin changes;\n- preserve source values plan/trial where already set, unless admin explicitly overrides;\n- allow optional expiresAt only if supported by UI and validation; otherwise leave null;\n- revalidate relevant admin paths after changes.\n\nRules:\n- Only platform admin can mutate tenant features.\n- Inactive global features should not be offered as new enablement options; existing inactive feature grants may be shown read-only or with warning.\n- Do not implement billing-plan feature inheritance unless already in scope for the task or explicitly requested.\n- Do not assume plan limits; current schema has no plan_limits model.\n</tenant_features_requirements>\n\n<billing_plans_scope>\nBillingPlan and PlanFeature already exist and /admin/billing-plans exists.\n\nFor this specific task:\n- Do not remove or break billing-plans.\n- Do not expand billing plan functionality unless necessary for feature management UI.\n- Do not invent plan limits because the current schema does not include plan_limits.\n- If you need plan-based feature inheritance behavior, pause and ask before implementing.\n</billing_plans_scope>\n\n<ui_requirements>\nUse the project's existing UI stack and components:\n- shadcn/ui components from src/components/ui\n- Tailwind CSS\n- existing admin layout and navigation\n- pt-BR labels and microcopy\n- accessible forms with Label, Input, Select, Textarea, Button, Table, Badge\n\nRequired UX:\n- loading/pending states for server actions;\n- clear validation errors;\n- empty states for lists;\n- confirmation for status changes that affect access;\n- no destructive delete actions in MVP;\n- consistent spacing and typography with current admin pages;\n- no client-side-only authorization assumptions.\n</ui_requirements>\n\n<file_structure_guidance>\nPrefer extending the existing file structure:\n\n- src/app/admin/niches/page.tsx\n- src/app/admin/niches/actions.ts\n- src/app/admin/niches/niche-form.tsx\n- src/app/admin/niches/niche-row-actions.tsx\n\n- src/app/admin/templates/page.tsx\n- src/app/admin/templates/actions.ts\n- src/app/admin/templates/template-form.tsx\n- src/app/admin/templates/template-row-actions.tsx\n\n- src/app/admin/tenants/page.tsx\n- src/app/admin/tenants/actions.ts\n- src/app/admin/tenants/tenant-form.tsx\n- src/app/admin/tenants/tenant-row-actions.tsx\n\n- src/app/admin/features/page.tsx\n- src/app/admin/features/actions.ts\n- src/app/admin/features/feature-form.tsx\n- src/app/admin/features/feature-row-actions.tsx\n\nAdd files only when useful, for example:\n- src/app/admin/tenants/[tenantId]/page.tsx\n- src/app/admin/tenants/[tenantId]/tenant-feature-manager.tsx\n- src/app/admin/tenants/[tenantId]/actions.ts\n- src/lib/validations/admin-tenant-feature.ts\n- src/lib/features/feature-access.ts\n\nDo not create a parallel admin framework or duplicate existing forms without reason.\n</file_structure_guidance>\n\n<database_requirements>\nUse the existing Prisma models whenever possible.\n\nBefore adding migrations:\n- inspect prisma/schema.prisma;\n- identify whether current models already support the required behavior;\n- avoid schema changes unless necessary;\n- if schema change is necessary, explain why before implementing.\n\nKnown current limitation:\n- No plan_limits table currently exists.\n- No explicit generic admin audit log for niche/template/feature/tenant mutations is visible in the current schema; AuthAuditLog exists but is authentication-oriented. If full admin audit is needed, ask before adding a new table.\n</database_requirements>\n\n<security_requirements>\n- All admin server actions must call requirePlatformAdmin.\n- Do not trust hidden fields.\n- Validate UUIDs before DB writes where applicable.\n- Do not leak DB errors.\n- Avoid IDOR: fetch target record server-side and validate it exists before mutation.\n- Do not allow tenant roles to reach admin actions.\n- Do not expose secrets.\n- Do not serialize whole DB records to client components if not needed.\n- Keep status transitions explicit and safe.\n</security_requirements>\n\n<mcp_skill_hook_requirements>\nUse project guidance:\n- Read CLAUDE.md and AGENTS.md.\n- Use context7 MCP for current docs when writing Next.js, Prisma, Auth.js, shadcn/ui or Tailwind code.\n- Use filesystem/GitHub MCPs to inspect actual files before editing.\n- Use existing skills for:\n  - nextjs-app-router-patterns\n  - database\n  - accessibility-wcag-22-aa\n  - saas-dashboard-designer\n  - component-library-builder\n  - trust-security-ux\n  - design-qa-review\n- Run hooks/scripts before finalizing:\n  - npm run lint\n  - npm run typecheck\n  - npm run build if feasible\n  - npm run db:generate if Prisma schema changes\n</mcp_skill_hook_requirements>\n\n<implementation_steps>\n1. Inspect current repository files listed in this spec.\n2. Summarize what already exists and what is missing.\n3. Do not code yet if schema change is needed; ask first.\n4. Implement missing admin CRUD/edit/status capabilities using existing patterns.\n5. Add tenant detail screen if needed for tenant feature management.\n6. Add tenant feature manager UI using existing Feature and TenantFeature models.\n7. Keep billing plan area untouched unless necessary.\n8. Ensure every server action calls requirePlatformAdmin.\n9. Ensure every form validates server-side with Zod.\n10. Ensure UI remains in pt-BR and uses existing components.\n11. Run lint/typecheck.\n12. Report files changed, decisions made, tests/checks run and pending questions.\n</implementation_steps>\n\n<acceptance_criteria>\nNiches:\n- Platform admin can list, create, edit and activate/inactivate niches.\n- Duplicate niche keys are rejected.\n- Inactive niches are not available for new tenant/template creation.\n\nTemplates:\n- Platform admin can list, create, edit and activate/inactivate templates.\n- Template fields JSON is validated against templateFieldSchema.\n- Duplicate field keys in a template are rejected.\n- Invalid entityType is rejected.\n- No niche-specific hardcoding is introduced.\n\nTenants:\n- Platform admin can list, create, edit and change status of tenants.\n- Tenant slug uniqueness is enforced.\n- Tenant status uses the current enum active | trial | suspended | blocked.\n- New tenants use active niches only.\n- No public flow creates tenants.\n\nFeatures:\n- Platform admin can list, create, edit and activate/inactivate global features.\n- Duplicate feature keys are rejected.\n- Feature keys remain snake_case.\n\nTenant features:\n- Platform admin can view all active features for a tenant.\n- Platform admin can enable/disable feature for a tenant.\n- Manual changes use TenantFeature.source = manual.\n- No tenant role can alter tenant feature grants.\n\nSecurity:\n- Every admin page/action is protected by requirePlatformAdmin.\n- No unsafe client-only authorization.\n- No unvalidated input reaches Prisma.\n- No internal errors are exposed to users.\n- lint and typecheck pass.\n</acceptance_criteria>\n\n<questions_policy>\nIf during implementation you find any of the following, stop and ask before proceeding:\n- Need to add a new database model.\n- Need to change enum values.\n- Need to change the meaning of existing roles/statuses.\n- Need to implement billing plan inheritance or plan limits.\n- Need to create tenant owner/invite flow.\n- Need to implement a full visual template field builder.\n- Need to delete records rather than inactivate.\n</questions_policy>\n\n<expected_response_before_implementation>\nBefore implementing, respond with:\n1. Files inspected.\n2. What already exists.\n3. What is missing.\n4. Proposed implementation plan.\n5. Questions, only if required by the questions_policy.\n</expected_response_before_implementation>\n\n<expected_response_after_implementation>\nAfter implementing, respond with:\n1. Summary of changes.\n2. Files created/updated.\n3. Schema changes, if any.\n4. Commands run and results.\n5. Acceptance criteria status.\n6. Remaining risks or follow-up tasks.\n</expected_response_after_implementation>",
+  "repository_facts_used": {
+    "package_json": {
+      "framework": "Next.js 16 App Router",
+      "language": "TypeScript",
+      "orm": "Prisma",
+      "database": "PostgreSQL",
+      "auth": "next-auth/Auth.js v5 beta",
+      "ui": "shadcn/ui, Tailwind",
+      "validation": "zod",
+      "email": "resend",
+      "scripts": [
+        "dev",
+        "build",
+        "start",
+        "lint",
+        "typecheck",
+        "db:generate",
+        "db:migrate",
+        "db:migrate:deploy",
+        "db:studio",
+        "db:seed"
+      ]
+    },
+    "admin_role": "User.isPlatformAdmin",
+    "admin_guard": "src/lib/rbac.ts::requirePlatformAdmin",
+    "admin_routes_seen": [
+      "/admin/tenants",
+      "/admin/niches",
+      "/admin/templates",
+      "/admin/features",
+      "/admin/billing-plans"
+    ],
+    "existing_models": [
+      "User",
+      "Niche",
+      "Template",
+      "Tenant",
+      "TenantUser",
+      "Feature",
+      "BillingPlan",
+      "PlanFeature",
+      "TenantFeature"
+    ],
+    "template_entity_types": [
+      "tenant",
+      "customer",
+      "customer_entity",
+      "product",
+      "service",
+      "plan",
+      "request",
+      "agent_config"
+    ],
+    "template_field_types": [
+      "text",
+      "number",
+      "boolean",
+      "select",
+      "multiselect",
+      "textarea"
+    ],
+    "tenant_status_values": [
+      "active",
+      "trial",
+      "suspended",
+      "blocked"
+    ],
+    "tenant_feature_source_values": [
+      "plan",
+      "manual",
+      "trial"
+    ]
+  },
+  "definition_of_done": [
+    "Spec followed without inventing schema or patterns.",
+    "Admin panel uses current User.isPlatformAdmin role model.",
+    "Niches and templates remain platform-admin-only.",
+    "Tenant management supports existing TenantStatus enum.",
+    "Feature management uses existing Feature and TenantFeature models.",
+    "Tenant feature manual grants use source=manual.",
+    "No public user/tenant creation introduced.",
+    "No plan_limits invented.",
+    "No destructive delete implemented for MVP.",
+    "All server actions check requirePlatformAdmin.",
+    "Zod validates all inputs.",
+    "UI is pt-BR and uses existing components.",
+    "npm run lint and npm run typecheck pass."
+  ]
+}

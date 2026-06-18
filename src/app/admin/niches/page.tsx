@@ -24,20 +24,38 @@ export default async function NichesPage() {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {niches.map((niche) => (
-            <TableRow key={niche.id}>
-              <TableCell className="font-mono text-sm">{niche.key}</TableCell>
-              <TableCell>{niche.name}</TableCell>
-              <TableCell>
-                <Badge variant={niche.status === "active" ? "default" : "secondary"}>
-                  {niche.status}
-                </Badge>
-              </TableCell>
-              <TableCell>
-                <NicheRowActions nicheId={niche.id} status={niche.status} />
+          {niches.length === 0 ? (
+            <TableRow>
+              <TableCell colSpan={4} className="py-8 text-center text-sm text-zinc-500">
+                Nenhum nicho cadastrado ainda.
               </TableCell>
             </TableRow>
-          ))}
+          ) : (
+            niches.map((niche) => (
+              <TableRow key={niche.id}>
+                <TableCell className="font-mono text-sm">{niche.key}</TableCell>
+                <TableCell>{niche.name}</TableCell>
+                <TableCell>
+                  <Badge variant={niche.status === "active" ? "default" : "secondary"}>
+                    {niche.status}
+                  </Badge>
+                </TableCell>
+                <TableCell>
+                  <NicheRowActions
+                    niche={{
+                      id: niche.id,
+                      key: niche.key,
+                      name: niche.name,
+                      description: niche.description,
+                      customerLabel: niche.customerLabel,
+                      entityLabel: niche.entityLabel,
+                      status: niche.status,
+                    }}
+                  />
+                </TableCell>
+              </TableRow>
+            ))
+          )}
         </TableBody>
       </Table>
     </div>
