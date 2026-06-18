@@ -46,5 +46,5 @@ next-env.d.ts
 # claude code — local-only, per-developer
 .claude/settings.local.json
 
-# devrails session logger output
-/logs/
+# devrails session logger output — anywhere the hook's cwd lands it
+logs/
