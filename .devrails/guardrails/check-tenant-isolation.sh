@@ -46,7 +46,10 @@ for file in "$@"; do
     END {
       for (ln in pending) {
         found = 0
-        for (i = ln; i <= ln + 6 && i <= NR; i++) {
+        # ln is a string key from for-in; coerce to a number so the bounds
+        # compare numerically (else "47" <= NR is a lexicographic test that
+        # wrongly skips the window for 2-digit lines in 100+-line files).
+        for (i = ln + 0; i <= ln + 6 && i <= NR; i++) {
           # userId also counts: querying my-own-rows-across-tenants (e.g. a
           # users own tenant_user memberships) is a valid isolation strategy,
           # not a leak, since it never crosses into another users data. This
