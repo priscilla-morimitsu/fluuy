@@ -3,9 +3,9 @@
 import { useActionState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { Combobox } from "@/components/ui/combobox";
+import { FormField } from "@/components/ui/form-field";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import type { TemplateField } from "@/lib/validations/template";
 
@@ -36,42 +36,32 @@ export default function TenantProfileForm({
 
   return (
     <form action={action} className="flex max-w-2xl flex-col gap-6">
-      <fieldset className="flex flex-col gap-4 rounded-lg border p-4">
+      <fieldset className="glass flex flex-col gap-4 rounded-xl p-4">
         <legend className="px-1 text-sm font-medium">Dados fixos</legend>
         <div className="grid grid-cols-2 gap-4">
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="name">Nome</Label>
+          <FormField label="Nome" htmlFor="name" required>
             <Input id="name" name="name" defaultValue={tenant.name} required />
-          </div>
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="legalName">Razão social</Label>
+          </FormField>
+          <FormField label="Razão social" htmlFor="legalName">
             <Input id="legalName" name="legalName" defaultValue={tenant.legalName} />
-          </div>
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="publicPhone">Telefone público</Label>
+          </FormField>
+          <FormField label="Telefone público" htmlFor="publicPhone">
             <Input id="publicPhone" name="publicPhone" defaultValue={tenant.publicPhone} />
-          </div>
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="publicEmail">E-mail público</Label>
+          </FormField>
+          <FormField label="E-mail público" htmlFor="publicEmail">
             <Input id="publicEmail" name="publicEmail" type="email" defaultValue={tenant.publicEmail} />
-          </div>
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="notificationPhone">Telefone de notificação</Label>
-            <Input
-              id="notificationPhone"
-              name="notificationPhone"
-              defaultValue={tenant.notificationPhone}
-            />
-          </div>
+          </FormField>
+          <FormField label="Telefone de notificação" htmlFor="notificationPhone">
+            <Input id="notificationPhone" name="notificationPhone" defaultValue={tenant.notificationPhone} />
+          </FormField>
         </div>
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="description">Descrição</Label>
+        <FormField label="Descrição" htmlFor="description">
           <Textarea id="description" name="description" rows={2} defaultValue={tenant.description} />
-        </div>
+        </FormField>
       </fieldset>
 
       {templateFields.length > 0 && (
-        <fieldset className="flex flex-col gap-4 rounded-lg border p-4">
+        <fieldset className="glass flex flex-col gap-4 rounded-xl p-4">
           <legend className="px-1 text-sm font-medium">Campos do nicho</legend>
           <div className="grid grid-cols-2 gap-4">
             {templateFields.map((field) => {
@@ -87,26 +77,21 @@ export default function TenantProfileForm({
               }
               if (field.type === "select" && field.options) {
                 return (
-                  <div key={field.key} className="flex flex-col gap-2">
-                    <Label htmlFor={name}>{field.label}</Label>
-                    <Select name={name} defaultValue={value ? String(value) : undefined} required={field.required}>
-                      <SelectTrigger id={name}>
-                        <SelectValue placeholder="Selecione" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {field.options.map((option) => (
-                          <SelectItem key={option} value={option}>
-                            {option}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                  <FormField key={field.key} label={field.label} htmlFor={name} required={field.required}>
+                    <Combobox
+                      id={name}
+                      name={name}
+                      defaultValue={value ? String(value) : ""}
+                      options={field.options.map((option) => ({ value: option, label: option }))}
+                      placeholder="Selecione"
+                      searchPlaceholder="Buscar…"
+                      emptyText="Sem opções."
+                    />
+                  </FormField>
                 );
               }
               return (
-                <div key={field.key} className="flex flex-col gap-2">
-                  <Label htmlFor={name}>{field.label}</Label>
+                <FormField key={field.key} label={field.label} htmlFor={name} required={field.required}>
                   <Input
                     id={name}
                     name={name}
@@ -114,15 +99,15 @@ export default function TenantProfileForm({
                     defaultValue={value !== undefined && value !== null ? String(value) : ""}
                     required={field.required}
                   />
-                </div>
+                </FormField>
               );
             })}
           </div>
         </fieldset>
       )}
 
-      {state?.error && <p className="text-sm text-red-600">{state.error}</p>}
-      <Button type="submit" disabled={pending} className="w-fit">
+      {state?.error && <p className="text-sm text-destructive">{state.error}</p>}
+      <Button type="submit" variant="brand" disabled={pending} className="w-fit">
         {pending ? "Salvando..." : "Salvar"}
       </Button>
     </form>
