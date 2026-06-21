@@ -28,6 +28,9 @@ ENV PORT=3000
 # HOSTNAME to the container ID by default — which is only reachable on the
 # container's own network IP, not localhost/0.0.0.0. Override it.
 ENV HOSTNAME="0.0.0.0"
+# Filesystem storage for tenant uploads — back with a Docker volume so files
+# survive restarts/redeploys (see docker-compose.yml).
+ENV UPLOAD_DIR="/app/uploads"
 
 RUN addgroup --system --gid 1001 nodejs && adduser --system --uid 1001 nextjs
 
@@ -35,6 +38,8 @@ COPY --from=build /app/public ./public
 COPY --from=build --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=build --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=build /app/prisma ./prisma
+
+RUN mkdir -p /app/uploads && chown -R nextjs:nodejs /app/uploads
 
 USER nextjs
 EXPOSE 3000

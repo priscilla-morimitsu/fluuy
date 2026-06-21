@@ -21,9 +21,13 @@ services:
       - AUTH_SECRET=${AUTH_SECRET}
       - AUTH_URL=${AUTH_URL:-http://localhost:3001}
       - NEXT_PUBLIC_BASE_URL=${NEXT_PUBLIC_BASE_URL:-http://localhost:3001}
+      - UPLOAD_DIR=/app/uploads
     depends_on:
       fluuy_db:
         condition: service_healthy
+    volumes:
+      # Persist tenant uploads (product images, etc.) across container rebuilds.
+      - fluuy_uploads:/app/uploads
     networks:
       - fluuy_network
     # In production the shared VPS reverse-proxy talks to this container over
@@ -67,3 +71,5 @@ networks:
 volumes:
   fluuy_db_data:
     name: fluuy_db_data
+  fluuy_uploads:
+    name: fluuy_uploads
