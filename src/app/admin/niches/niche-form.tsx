@@ -1,10 +1,10 @@
 "use client";
 
-import { useActionState, useEffect } from "react";
+import { Hash, Tag } from "lucide-react";
+import { useActionState, useEffect, useState } from "react";
 
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { AffixInput, Field } from "@/components/ui/field";
+import { FormDrawerForm, FormSection } from "@/components/ui/form-drawer";
 import { Textarea } from "@/components/ui/textarea";
 import { actionError, actionOk } from "@/lib/admin/action-result";
 
@@ -22,66 +22,55 @@ export type NicheInitial = {
 export default function NicheForm({
   initial,
   onSuccess,
+  onCancel,
 }: {
   initial?: NicheInitial;
   onSuccess?: () => void;
+  onCancel?: () => void;
 }) {
   const isEdit = Boolean(initial);
   // In edit mode the action is bound to the niche id; key is immutable.
   const action = isEdit ? updateNicheAction.bind(null, initial!.id) : createNicheAction;
   const [state, formAction, pending] = useActionState<ActionResult, FormData>(action, undefined);
+  const [descLen, setDescLen] = useState(initial?.description?.length ?? 0);
 
   useEffect(() => {
     if (actionOk(state)) onSuccess?.();
   }, [state, onSuccess]);
 
-  const error = actionError(state);
-
   return (
-    <form action={formAction} className="flex flex-col gap-4 rounded-lg border p-4">
-      <div className="grid grid-cols-2 gap-4">
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="key">Key</Label>
-          <Input
-            id="key"
-            name="key"
-            placeholder="pet_services"
-            required={!isEdit}
-            defaultValue={initial?.key}
-            disabled={isEdit}
+    <FormDrawerForm
+      action={formAction}
+      pending={pending}
+      error={actionError(state)}
+      onCancel={onCancel}
+      submitLabel={isEdit ? "Salvar alterações" : "Criar nicho"}
+    >
+      <FormSection title="Identificação">
+        <Field label="Key" htmlFor="key" required={!isEdit} hint={isEdit ? "Imutável após a criação." : "snake_case (ex: pet_services)"}>
+          <AffixInput id="key" name="key" leadIcon={<Hash />} placeholder="pet_services" required={!isEdit} disabled={isEdit} defaultValue={initial?.key} />
+        </Field>
+        <Field label="Nome" htmlFor="name" required>
+          <AffixInput id="name" name="name" leadIcon={<Tag />} placeholder="Petshops" required defaultValue={initial?.name} />
+        </Field>
+        <Field label="Label do cliente" htmlFor="customerLabel" hint="Como o nicho chama o cliente">
+          <AffixInput id="customerLabel" name="customerLabel" placeholder="Tutor" defaultValue={initial?.customerLabel ?? ""} />
+        </Field>
+        <Field label="Label da entidade" htmlFor="entityLabel" hint="Entidade principal do nicho">
+          <AffixInput id="entityLabel" name="entityLabel" placeholder="Pet" defaultValue={initial?.entityLabel ?? ""} />
+        </Field>
+        <Field label="Descrição" htmlFor="description" className="col-span-full" counter={`${descLen}/2000`}>
+          <Textarea
+            id="description"
+            name="description"
+            rows={2}
+            maxLength={2000}
+            className="min-h-[84px]"
+            defaultValue={initial?.description ?? ""}
+            onChange={(e) => setDescLen(e.target.value.length)}
           />
-        </div>
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="name">Nome</Label>
-          <Input id="name" name="name" placeholder="Petshops" required defaultValue={initial?.name} />
-        </div>
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="customerLabel">Label do cliente</Label>
-          <Input
-            id="customerLabel"
-            name="customerLabel"
-            placeholder="Tutor"
-            defaultValue={initial?.customerLabel ?? ""}
-          />
-        </div>
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="entityLabel">Label da entidade</Label>
-          <Input
-            id="entityLabel"
-            name="entityLabel"
-            placeholder="Pet"
-            defaultValue={initial?.entityLabel ?? ""}
-          />
-        </div>
-      </div>
-      <div className="flex flex-col gap-2">
-        <Label htmlFor="description">Descrição</Label>
-        <Textarea id="description" name="description" rows={2} defaultValue={initial?.description ?? ""} />
-      </div>
-      {error && <p className="text-sm text-red-600">{error}</p>}
-      <Button type="submit" disabled={pending} className="w-fit">
-        {pending ? "Salvando..." : isEdit ? "Salvar alterações" : "Criar nicho"}
-      </Button>
-    </form>
+        </Field>
+      </FormSection>
+    </FormDrawerForm>
   );
 }

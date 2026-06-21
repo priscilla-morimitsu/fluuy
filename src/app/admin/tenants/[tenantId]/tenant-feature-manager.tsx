@@ -87,7 +87,7 @@ export default function TenantFeatureManager({
               </TableCell>
               <TableCell className="text-sm text-zinc-500">{feature.group ?? "—"}</TableCell>
               <TableCell>
-                <Badge variant={feature.enabled ? "default" : "secondary"}>
+                <Badge variant={feature.enabled ? "success" : "secondary"}>
                   {feature.enabled ? "habilitada" : "desabilitada"}
                 </Badge>
               </TableCell>

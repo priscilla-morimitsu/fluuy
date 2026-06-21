@@ -1,16 +1,17 @@
 "use client";
 
 import type { ColumnDef } from "@tanstack/react-table";
+import { Plus } from "lucide-react";
 import { parseAsString, useQueryState } from "nuqs";
 import { useState } from "react";
 import { toast } from "sonner";
 
 import { ActiveFiltersBar, type ActiveFilter } from "@/components/crud/active-filters-bar";
 import { ConfirmActionDialog } from "@/components/crud/confirm-action-dialog";
-import { CrudDrawer } from "@/components/crud/crud-drawer";
+import { FormDrawer } from "@/components/ui/form-drawer";
 import { DataTable } from "@/components/crud/data-table";
 import { DataTableColumnHeader } from "@/components/crud/data-table-column-header";
-import { FilterDialog } from "@/components/crud/filter-dialog";
+import { FilterButton } from "@/components/crud/filter-button";
 import { PageHeader } from "@/components/crud/page-header";
 import { PaginationControls } from "@/components/crud/pagination-controls";
 import { ResultCount } from "@/components/crud/result-count";
@@ -20,9 +21,9 @@ import { EmptyState } from "@/components/crud/states";
 import { useTableParams } from "@/components/crud/use-table-params";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Combobox } from "@/components/ui/combobox";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 import { toggleBillingPlanStatusAction } from "./actions";
 import type { BillingPlanListRow } from "./data";
@@ -115,7 +116,7 @@ export default function BillingPlansClient({
       meta: { label: "Status" },
       header: () => <DataTableColumnHeader label="Status" sortKey="status" />,
       cell: ({ row }) => (
-        <Badge variant={row.original.status === "active" ? "default" : "secondary"}>
+        <Badge variant={row.original.status === "active" ? "success" : "secondary"}>
           {STATUS_LABELS[row.original.status] ?? row.original.status}
         </Badge>
       ),
@@ -154,7 +155,7 @@ export default function BillingPlansClient({
       <PageHeader
         title="Planos comerciais"
         description="Planos e as features que cada um inclui."
-        action={<Button onClick={() => setCreating(true)}>Novo plano</Button>}
+        action={<Button onClick={() => setCreating(true)}><Plus /> Novo plano</Button>}
       />
 
       <DataTable
@@ -166,74 +167,66 @@ export default function BillingPlansClient({
         toolbarStart={<SearchInput placeholder="Buscar por nome ou key..." />}
         resultCount={<ResultCount filtered={filtered} total={total} />}
         toolbarEnd={
-          <FilterDialog activeCount={(status ? 1 : 0) + (period ? 1 : 0)} onClear={clearAll}>
+          <FilterButton activeCount={(status ? 1 : 0) + (period ? 1 : 0)} onClear={clearAll}>
             <div className="flex flex-col gap-2">
               <Label>Status</Label>
-              <Select value={status ?? "all"} onValueChange={(v) => setStatus(v === "all" ? null : v)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos</SelectItem>
-                  {STATUS_OPTIONS.map((s) => (
-                    <SelectItem key={s} value={s}>
-                      {STATUS_LABELS[s]}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Combobox
+                value={status ?? "all"}
+                onValueChange={(v) => setStatus(v === "all" ? null : v)}
+                options={[{ value: "all", label: "Todos" }, ...STATUS_OPTIONS.map((s) => ({ value: s, label: STATUS_LABELS[s] }))]}
+              />
             </div>
             <div className="flex flex-col gap-2">
               <Label>Período</Label>
-              <Select value={period ?? "all"} onValueChange={(v) => setPeriod(v === "all" ? null : v)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos</SelectItem>
-                  {PERIOD_OPTIONS.map((p) => (
-                    <SelectItem key={p} value={p}>
-                      {PERIOD_LABELS[p]}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Combobox
+                value={period ?? "all"}
+                onValueChange={(v) => setPeriod(v === "all" ? null : v)}
+                options={[{ value: "all", label: "Todos" }, ...PERIOD_OPTIONS.map((p) => ({ value: p, label: PERIOD_LABELS[p] }))]}
+              />
             </div>
-          </FilterDialog>
+          </FilterButton>
         }
         activeFilters={<ActiveFiltersBar filters={activeFilters} onClearAll={clearAll} />}
         emptyState={
           <EmptyState
             title="Nenhum plano cadastrado ainda"
-            action={<Button onClick={() => setCreating(true)}>Novo plano</Button>}
+            action={<Button onClick={() => setCreating(true)}><Plus /> Novo plano</Button>}
           />
         }
       />
 
       <PaginationControls total={filtered} />
 
-      <CrudDrawer open={creating} onOpenChange={setCreating} title="Novo plano comercial">
+      <FormDrawer open={creating} onOpenChange={setCreating} title="Novo plano comercial" hideFooter contentScrolls={false}>
         <BillingPlanForm
           features={features}
+          onCancel={() => setCreating(false)}
           onSuccess={() => {
             setCreating(false);
             toast.success("Plano criado.");
           }}
         />
-      </CrudDrawer>
+      </FormDrawer>
 
-      <CrudDrawer open={editing !== null} onOpenChange={(o) => !o && setEditing(null)} title="Editar plano comercial">
+      <FormDrawer
+        open={editing !== null}
+        onOpenChange={(o) => !o && setEditing(null)}
+        title="Editar plano comercial"
+        hideFooter
+        contentScrolls={false}
+      >
         {editing && (
           <BillingPlanForm
             features={features}
             initial={editing}
+            onCancel={() => setEditing(null)}
             onSuccess={() => {
               setEditing(null);
               toast.success("Plano atualizado.");
             }}
           />
         )}
-      </CrudDrawer>
+      </FormDrawer>
 
       <ConfirmActionDialog
         open={toggling !== null}

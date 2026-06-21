@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { prisma } from "@/lib/prisma";
 import { requirePlatformAdmin } from "@/lib/rbac";
+import { tenantStatusVariant } from "@/lib/status-variants";
 
 import TenantFeatureManager from "./tenant-feature-manager";
 
@@ -46,7 +47,7 @@ export default async function TenantDetailPage({
         </Link>
         <div className="flex items-center gap-3">
           <h2 className="text-xl font-semibold">{tenant.name}</h2>
-          <Badge variant={tenant.status === "blocked" ? "destructive" : "default"}>
+          <Badge variant={tenantStatusVariant(tenant.status)}>
             {STATUS_LABELS[tenant.status] ?? tenant.status}
           </Badge>
         </div>

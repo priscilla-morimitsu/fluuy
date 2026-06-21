@@ -1,6 +1,7 @@
 "use client";
 
 import type { ColumnDef } from "@tanstack/react-table";
+import { Plus } from "lucide-react";
 import Link from "next/link";
 import { parseAsString, useQueryState } from "nuqs";
 import { useState } from "react";
@@ -8,10 +9,10 @@ import { toast } from "sonner";
 
 import { ActiveFiltersBar, type ActiveFilter } from "@/components/crud/active-filters-bar";
 import { ConfirmActionDialog } from "@/components/crud/confirm-action-dialog";
-import { CrudDrawer } from "@/components/crud/crud-drawer";
+import { FormDrawer } from "@/components/ui/form-drawer";
 import { DataTable } from "@/components/crud/data-table";
 import { DataTableColumnHeader } from "@/components/crud/data-table-column-header";
-import { FilterDialog } from "@/components/crud/filter-dialog";
+import { FilterButton } from "@/components/crud/filter-button";
 import { PageHeader } from "@/components/crud/page-header";
 import { PaginationControls } from "@/components/crud/pagination-controls";
 import { ResultCount } from "@/components/crud/result-count";
@@ -21,9 +22,10 @@ import { EmptyState } from "@/components/crud/states";
 import { useTableParams } from "@/components/crud/use-table-params";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Combobox } from "@/components/ui/combobox";
 import { DropdownMenuItem, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { tenantStatusVariant } from "@/lib/status-variants";
 
 import { setTenantStatusAction } from "./actions";
 import type { TenantListRow } from "./data";
@@ -120,7 +122,7 @@ export default function TenantsClient({
       meta: { label: "Status" },
       header: () => <DataTableColumnHeader label="Status" sortKey="status" />,
       cell: ({ row }) => (
-        <Badge variant={row.original.status === "blocked" ? "destructive" : "default"}>
+        <Badge variant={tenantStatusVariant(row.original.status)}>
           {STATUS_LABELS[row.original.status] ?? row.original.status}
         </Badge>
       ),
@@ -163,7 +165,7 @@ export default function TenantsClient({
       <PageHeader
         title="Tenants"
         description="Empresas clientes da plataforma."
-        action={<Button onClick={() => setCreating(true)}>Novo tenant</Button>}
+        action={<Button onClick={() => setCreating(true)}><Plus /> Novo tenant</Button>}
       />
 
       <DataTable
@@ -175,84 +177,75 @@ export default function TenantsClient({
         toolbarStart={<SearchInput placeholder="Buscar por nome ou slug..." />}
         resultCount={<ResultCount filtered={filtered} total={total} />}
         toolbarEnd={
-          <FilterDialog activeCount={(status ? 1 : 0) + (nicheId ? 1 : 0)} onClear={clearAll}>
+          <FilterButton activeCount={(status ? 1 : 0) + (nicheId ? 1 : 0)} onClear={clearAll}>
             <div className="flex flex-col gap-2">
               <Label>Status</Label>
-              <Select value={status ?? "all"} onValueChange={(v) => setStatus(v === "all" ? null : v)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos</SelectItem>
-                  {STATUS_OPTIONS.map((s) => (
-                    <SelectItem key={s} value={s}>
-                      {STATUS_LABELS[s]}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Combobox
+                value={status ?? "all"}
+                onValueChange={(v) => setStatus(v === "all" ? null : v)}
+                options={[{ value: "all", label: "Todos" }, ...STATUS_OPTIONS.map((s) => ({ value: s, label: STATUS_LABELS[s] }))]}
+              />
             </div>
             <div className="flex flex-col gap-2">
               <Label>Nicho</Label>
-              <Select value={nicheId ?? "all"} onValueChange={(v) => setNicheId(v === "all" ? null : v)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos</SelectItem>
-                  {niches.map((n) => (
-                    <SelectItem key={n.id} value={n.id}>
-                      {n.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Combobox
+                value={nicheId ?? "all"}
+                onValueChange={(v) => setNicheId(v === "all" ? null : v)}
+                options={[{ value: "all", label: "Todos" }, ...niches.map((n) => ({ value: n.id, label: n.name }))]}
+                searchPlaceholder="Buscar nicho…"
+              />
             </div>
-          </FilterDialog>
+          </FilterButton>
         }
         activeFilters={<ActiveFiltersBar filters={activeFilters} onClearAll={clearAll} />}
         emptyState={
           <EmptyState
             title="Nenhum tenant cadastrado ainda"
             description="Crie o primeiro tenant para começar."
-            action={<Button onClick={() => setCreating(true)}>Novo tenant</Button>}
+            action={<Button onClick={() => setCreating(true)}><Plus /> Novo tenant</Button>}
           />
         }
       />
 
       <PaginationControls total={filtered} />
 
-      <CrudDrawer
+      <FormDrawer
         open={creating}
         onOpenChange={setCreating}
         title="Novo tenant"
         description="Crie uma empresa cliente vinculada a um nicho ativo."
+        hideFooter
+        contentScrolls={false}
       >
         <TenantForm
           niches={niches}
+          onCancel={() => setCreating(false)}
           onSuccess={() => {
             setCreating(false);
             toast.success("Tenant criado.");
           }}
         />
-      </CrudDrawer>
+      </FormDrawer>
 
-      <CrudDrawer
+      <FormDrawer
         open={editing !== null}
         onOpenChange={(open) => !open && setEditing(null)}
         title="Editar tenant"
+        hideFooter
+        contentScrolls={false}
       >
         {editing && (
           <TenantForm
             niches={niches}
             initial={editing}
+            onCancel={() => setEditing(null)}
             onSuccess={() => {
               setEditing(null);
               toast.success("Tenant atualizado.");
             }}
           />
         )}
-      </CrudDrawer>
+      </FormDrawer>
 
       <ConfirmActionDialog
         open={statusChange !== null}

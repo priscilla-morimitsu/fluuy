@@ -1,10 +1,10 @@
 "use client";
 
-import { useActionState, useEffect } from "react";
+import { FolderTree, Hash, Puzzle } from "lucide-react";
+import { useActionState, useEffect, useState } from "react";
 
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { AffixInput, Field } from "@/components/ui/field";
+import { FormDrawerForm, FormSection } from "@/components/ui/form-drawer";
 import { Textarea } from "@/components/ui/textarea";
 import { actionError, actionOk } from "@/lib/admin/action-result";
 
@@ -21,51 +21,51 @@ export type FeatureInitial = {
 export default function FeatureForm({
   initial,
   onSuccess,
+  onCancel,
 }: {
   initial?: FeatureInitial;
   onSuccess?: () => void;
+  onCancel?: () => void;
 }) {
   const isEdit = Boolean(initial);
   const action = isEdit ? updateFeatureAction.bind(null, initial!.id) : createFeatureAction;
   const [state, formAction, pending] = useActionState<ActionResult, FormData>(action, undefined);
+  const [descLen, setDescLen] = useState(initial?.description?.length ?? 0);
 
   useEffect(() => {
     if (actionOk(state)) onSuccess?.();
   }, [state, onSuccess]);
 
-  const error = actionError(state);
-
   return (
-    <form action={formAction} className="flex flex-col gap-4 rounded-lg border p-4">
-      <div className="grid grid-cols-3 gap-4">
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="key">Key</Label>
-          <Input
-            id="key"
-            name="key"
-            placeholder="product_catalog"
-            required={!isEdit}
-            defaultValue={initial?.key}
-            disabled={isEdit}
+    <FormDrawerForm
+      action={formAction}
+      pending={pending}
+      error={actionError(state)}
+      onCancel={onCancel}
+      submitLabel={isEdit ? "Salvar alterações" : "Criar feature"}
+    >
+      <FormSection title="Identificação">
+        <Field label="Key" htmlFor="key" required={!isEdit} hint={isEdit ? "Imutável após a criação." : "snake_case"}>
+          <AffixInput id="key" name="key" leadIcon={<Hash />} placeholder="product_catalog" required={!isEdit} disabled={isEdit} defaultValue={initial?.key} />
+        </Field>
+        <Field label="Nome" htmlFor="name" required>
+          <AffixInput id="name" name="name" leadIcon={<Puzzle />} required defaultValue={initial?.name} />
+        </Field>
+        <Field label="Grupo" htmlFor="group" hint="Agrupa features relacionadas">
+          <AffixInput id="group" name="group" leadIcon={<FolderTree />} placeholder="catalog" defaultValue={initial?.group ?? ""} />
+        </Field>
+        <Field label="Descrição" htmlFor="description" className="col-span-full" counter={`${descLen}/2000`}>
+          <Textarea
+            id="description"
+            name="description"
+            rows={2}
+            maxLength={2000}
+            className="min-h-[84px]"
+            defaultValue={initial?.description ?? ""}
+            onChange={(e) => setDescLen(e.target.value.length)}
           />
-        </div>
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="name">Nome</Label>
-          <Input id="name" name="name" required defaultValue={initial?.name} />
-        </div>
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="group">Grupo</Label>
-          <Input id="group" name="group" placeholder="catalog" defaultValue={initial?.group ?? ""} />
-        </div>
-      </div>
-      <div className="flex flex-col gap-2">
-        <Label htmlFor="description">Descrição</Label>
-        <Textarea id="description" name="description" rows={2} defaultValue={initial?.description ?? ""} />
-      </div>
-      {error && <p className="text-sm text-red-600">{error}</p>}
-      <Button type="submit" disabled={pending} className="w-fit">
-        {pending ? "Salvando..." : isEdit ? "Salvar alterações" : "Criar feature"}
-      </Button>
-    </form>
+        </Field>
+      </FormSection>
+    </FormDrawerForm>
   );
 }

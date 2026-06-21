@@ -1,16 +1,17 @@
 "use client";
 
 import type { ColumnDef } from "@tanstack/react-table";
+import { Plus } from "lucide-react";
 import { parseAsString, useQueryState } from "nuqs";
 import { useState } from "react";
 import { toast } from "sonner";
 
 import { ActiveFiltersBar, type ActiveFilter } from "@/components/crud/active-filters-bar";
 import { ConfirmActionDialog } from "@/components/crud/confirm-action-dialog";
-import { CrudDrawer } from "@/components/crud/crud-drawer";
+import { FormDrawer } from "@/components/ui/form-drawer";
 import { DataTable } from "@/components/crud/data-table";
 import { DataTableColumnHeader } from "@/components/crud/data-table-column-header";
-import { FilterDialog } from "@/components/crud/filter-dialog";
+import { FilterButton } from "@/components/crud/filter-button";
 import { PageHeader } from "@/components/crud/page-header";
 import { PaginationControls } from "@/components/crud/pagination-controls";
 import { ResultCount } from "@/components/crud/result-count";
@@ -20,9 +21,9 @@ import { EmptyState } from "@/components/crud/states";
 import { useTableParams } from "@/components/crud/use-table-params";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Combobox } from "@/components/ui/combobox";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { TEMPLATE_ENTITY_TYPES } from "@/lib/validations/template";
 
 import { toggleTemplateStatusAction } from "./actions";
@@ -112,7 +113,7 @@ export default function TemplatesClient({
       meta: { label: "Status" },
       header: () => <DataTableColumnHeader label="Status" sortKey="status" />,
       cell: ({ row }) => (
-        <Badge variant={row.original.status === "active" ? "default" : "secondary"}>
+        <Badge variant={row.original.status === "active" ? "success" : "secondary"}>
           {STATUS_LABELS[row.original.status] ?? row.original.status}
         </Badge>
       ),
@@ -151,7 +152,7 @@ export default function TemplatesClient({
       <PageHeader
         title="Templates"
         description="Campos e comportamentos por nicho e entidade."
-        action={<Button onClick={() => setCreating(true)}>Novo template</Button>}
+        action={<Button onClick={() => setCreating(true)}><Plus /> Novo template</Button>}
       />
 
       <DataTable
@@ -163,90 +164,75 @@ export default function TemplatesClient({
         toolbarStart={<SearchInput placeholder="Buscar por nome..." />}
         resultCount={<ResultCount filtered={filtered} total={total} />}
         toolbarEnd={
-          <FilterDialog activeCount={activeCount} onClear={clearAll}>
+          <FilterButton activeCount={activeCount} onClear={clearAll}>
             <div className="flex flex-col gap-2">
               <Label>Nicho</Label>
-              <Select value={nicheId ?? "all"} onValueChange={(v) => setNicheId(v === "all" ? null : v)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos</SelectItem>
-                  {niches.map((n) => (
-                    <SelectItem key={n.id} value={n.id}>
-                      {n.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Combobox
+                value={nicheId ?? "all"}
+                onValueChange={(v) => setNicheId(v === "all" ? null : v)}
+                options={[{ value: "all", label: "Todos" }, ...niches.map((n) => ({ value: n.id, label: n.name }))]}
+                searchPlaceholder="Buscar nicho…"
+              />
             </div>
             <div className="flex flex-col gap-2">
               <Label>Entidade</Label>
-              <Select value={entityType ?? "all"} onValueChange={(v) => setEntityType(v === "all" ? null : v)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todas</SelectItem>
-                  {TEMPLATE_ENTITY_TYPES.map((t) => (
-                    <SelectItem key={t} value={t}>
-                      {t}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Combobox
+                value={entityType ?? "all"}
+                onValueChange={(v) => setEntityType(v === "all" ? null : v)}
+                options={[{ value: "all", label: "Todos" }, ...TEMPLATE_ENTITY_TYPES.map((t) => ({ value: t, label: t }))]}
+              />
             </div>
             <div className="flex flex-col gap-2">
               <Label>Status</Label>
-              <Select value={status ?? "all"} onValueChange={(v) => setStatus(v === "all" ? null : v)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos</SelectItem>
-                  {STATUS_OPTIONS.map((s) => (
-                    <SelectItem key={s} value={s}>
-                      {STATUS_LABELS[s]}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Combobox
+                value={status ?? "all"}
+                onValueChange={(v) => setStatus(v === "all" ? null : v)}
+                options={[{ value: "all", label: "Todos" }, ...STATUS_OPTIONS.map((s) => ({ value: s, label: STATUS_LABELS[s] }))]}
+              />
             </div>
-          </FilterDialog>
+          </FilterButton>
         }
         activeFilters={<ActiveFiltersBar filters={activeFilters} onClearAll={clearAll} />}
         emptyState={
           <EmptyState
             title="Nenhum template cadastrado ainda"
-            action={<Button onClick={() => setCreating(true)}>Novo template</Button>}
+            action={<Button onClick={() => setCreating(true)}><Plus /> Novo template</Button>}
           />
         }
       />
 
       <PaginationControls total={filtered} />
 
-      <CrudDrawer open={creating} onOpenChange={setCreating} title="Novo template">
+      <FormDrawer open={creating} onOpenChange={setCreating} title="Novo template" hideFooter contentScrolls={false}>
         <TemplateForm
           niches={niches}
+          onCancel={() => setCreating(false)}
           onSuccess={() => {
             setCreating(false);
             toast.success("Template criado.");
           }}
         />
-      </CrudDrawer>
+      </FormDrawer>
 
-      <CrudDrawer open={editing !== null} onOpenChange={(o) => !o && setEditing(null)} title="Editar template">
+      <FormDrawer
+        open={editing !== null}
+        onOpenChange={(o) => !o && setEditing(null)}
+        title="Editar template"
+        hideFooter
+        contentScrolls={false}
+      >
         {editing && (
           <TemplateForm
             niches={niches}
             initial={editing}
+            onCancel={() => setEditing(null)}
             onSuccess={() => {
               setEditing(null);
               toast.success("Template atualizado.");
             }}
           />
         )}
-      </CrudDrawer>
+      </FormDrawer>
 
       <ConfirmActionDialog
         open={toggling !== null}

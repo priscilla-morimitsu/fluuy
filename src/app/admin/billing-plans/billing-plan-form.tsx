@@ -1,11 +1,13 @@
 "use client";
 
-import { useActionState, useEffect } from "react";
+import { Hash, Tag } from "lucide-react";
+import { useActionState, useEffect, useState } from "react";
 
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { AffixInput, Field } from "@/components/ui/field";
+import { FormDrawerForm, FormSection } from "@/components/ui/form-drawer";
+import { CurrencyInput } from "@/components/ui/masked-inputs";
+import { MultiSelect } from "@/components/ui/multiselect";
+import { Segmented } from "@/components/ui/segmented";
 import { Textarea } from "@/components/ui/textarea";
 import { actionError, actionOk } from "@/lib/admin/action-result";
 
@@ -25,90 +27,77 @@ export default function BillingPlanForm({
   features,
   initial,
   onSuccess,
+  onCancel,
 }: {
   features: { id: string; name: string }[];
   initial?: BillingPlanInitial;
   onSuccess?: () => void;
+  onCancel?: () => void;
 }) {
   const isEdit = Boolean(initial);
   const action = isEdit ? updateBillingPlanAction.bind(null, initial!.id) : createBillingPlanAction;
   const [state, formAction, pending] = useActionState<ActionResult, FormData>(action, undefined);
+  const [descLen, setDescLen] = useState(initial?.description?.length ?? 0);
 
   useEffect(() => {
     if (actionOk(state)) onSuccess?.();
   }, [state, onSuccess]);
 
-  const error = actionError(state);
-  const selected = new Set(initial?.featureIds ?? []);
-
   return (
-    <form action={formAction} className="flex flex-col gap-4 rounded-lg border p-4">
-      <div className="grid grid-cols-2 gap-4">
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="key">Key</Label>
-          <Input
-            id="key"
-            name="key"
-            placeholder="plano_piloto"
-            required={!isEdit}
-            defaultValue={initial?.key}
-            disabled={isEdit}
+    <FormDrawerForm
+      action={formAction}
+      pending={pending}
+      error={actionError(state)}
+      onCancel={onCancel}
+      submitLabel={isEdit ? "Salvar alterações" : "Criar plano"}
+    >
+      <FormSection title="Plano">
+        <Field label="Key" htmlFor="key" required={!isEdit} hint={isEdit ? "Imutável após a criação." : "snake_case"}>
+          <AffixInput id="key" name="key" leadIcon={<Hash />} placeholder="plano_piloto" required={!isEdit} disabled={isEdit} defaultValue={initial?.key} />
+        </Field>
+        <Field label="Nome" htmlFor="name" required>
+          <AffixInput id="name" name="name" leadIcon={<Tag />} required defaultValue={initial?.name} />
+        </Field>
+        <Field label="Preço (mensalidade)" htmlFor="price" required>
+          <CurrencyInput id="price" name="price" suffix="/mês" required defaultValue={initial?.price ?? ""} />
+        </Field>
+        <Field label="Periodicidade" htmlFor="billingPeriod">
+          <Segmented
+            name="billingPeriod"
+            ariaLabel="Periodicidade"
+            defaultValue={initial?.billingPeriod ?? "monthly"}
+            options={[
+              { value: "monthly", label: "Mensal" },
+              { value: "yearly", label: "Anual" },
+            ]}
           />
-        </div>
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="name">Nome</Label>
-          <Input id="name" name="name" required defaultValue={initial?.name} />
-        </div>
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="price">Preço (mensalidade)</Label>
-          <Input
-            id="price"
-            name="price"
-            type="number"
-            step="0.01"
-            min="0"
-            required
-            defaultValue={initial?.price}
+        </Field>
+        <Field label="Descrição" htmlFor="description" className="col-span-full" counter={`${descLen}/2000`}>
+          <Textarea
+            id="description"
+            name="description"
+            rows={2}
+            maxLength={2000}
+            className="min-h-[84px]"
+            defaultValue={initial?.description ?? ""}
+            onChange={(e) => setDescLen(e.target.value.length)}
           />
-        </div>
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="billingPeriod">Periodicidade</Label>
-          <Select name="billingPeriod" required defaultValue={initial?.billingPeriod ?? "monthly"}>
-            <SelectTrigger id="billingPeriod">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="monthly">Mensal</SelectItem>
-              <SelectItem value="yearly">Anual</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-      <div className="flex flex-col gap-2">
-        <Label htmlFor="description">Descrição</Label>
-        <Textarea id="description" name="description" rows={2} defaultValue={initial?.description ?? ""} />
-      </div>
-      <div className="flex flex-col gap-2">
-        <Label>Features inclusas</Label>
-        <div className="flex flex-wrap gap-4 text-sm">
-          {features.map((feature) => (
-            <label key={feature.id} className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                name="featureIds"
-                value={feature.id}
-                className="size-4"
-                defaultChecked={selected.has(feature.id)}
-              />
-              {feature.name}
-            </label>
-          ))}
-        </div>
-      </div>
-      {error && <p className="text-sm text-red-600">{error}</p>}
-      <Button type="submit" disabled={pending} className="w-fit">
-        {pending ? "Salvando..." : isEdit ? "Salvar alterações" : "Criar plano"}
-      </Button>
-    </form>
+        </Field>
+      </FormSection>
+
+      <FormSection title="Features inclusas">
+        <Field label="Features" htmlFor="featureIds" className="col-span-full" hint="Selecione as features do plano">
+          <MultiSelect
+            id="featureIds"
+            name="featureIds"
+            defaultValue={initial?.featureIds ?? []}
+            options={features.map((f) => ({ value: f.id, label: f.name }))}
+            placeholder="Selecione as features…"
+            searchPlaceholder="Buscar feature…"
+            emptyText="Nenhuma feature."
+          />
+        </Field>
+      </FormSection>
+    </FormDrawerForm>
   );
 }

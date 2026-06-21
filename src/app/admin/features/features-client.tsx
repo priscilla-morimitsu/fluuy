@@ -1,16 +1,17 @@
 "use client";
 
 import type { ColumnDef } from "@tanstack/react-table";
+import { Plus } from "lucide-react";
 import { parseAsString, useQueryState } from "nuqs";
 import { useState } from "react";
 import { toast } from "sonner";
 
 import { ActiveFiltersBar, type ActiveFilter } from "@/components/crud/active-filters-bar";
 import { ConfirmActionDialog } from "@/components/crud/confirm-action-dialog";
-import { CrudDrawer } from "@/components/crud/crud-drawer";
+import { FormDrawer } from "@/components/ui/form-drawer";
 import { DataTable } from "@/components/crud/data-table";
 import { DataTableColumnHeader } from "@/components/crud/data-table-column-header";
-import { FilterDialog } from "@/components/crud/filter-dialog";
+import { FilterButton } from "@/components/crud/filter-button";
 import { PageHeader } from "@/components/crud/page-header";
 import { PaginationControls } from "@/components/crud/pagination-controls";
 import { ResultCount } from "@/components/crud/result-count";
@@ -20,9 +21,9 @@ import { EmptyState } from "@/components/crud/states";
 import { useTableParams } from "@/components/crud/use-table-params";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Combobox } from "@/components/ui/combobox";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 import { toggleFeatureStatusAction } from "./actions";
 import type { FeatureListRow } from "./data";
@@ -90,7 +91,7 @@ export default function FeaturesClient({
       meta: { label: "Status" },
       header: () => <DataTableColumnHeader label="Status" sortKey="status" />,
       cell: ({ row }) => (
-        <Badge variant={row.original.status === "active" ? "default" : "secondary"}>
+        <Badge variant={row.original.status === "active" ? "success" : "secondary"}>
           {STATUS_LABELS[row.original.status] ?? row.original.status}
         </Badge>
       ),
@@ -129,7 +130,7 @@ export default function FeaturesClient({
       <PageHeader
         title="Features"
         description="Catálogo global de features da plataforma."
-        action={<Button onClick={() => setCreating(true)}>Nova feature</Button>}
+        action={<Button onClick={() => setCreating(true)}><Plus /> Nova feature</Button>}
       />
 
       <DataTable
@@ -141,76 +142,64 @@ export default function FeaturesClient({
         toolbarStart={<SearchInput placeholder="Buscar por nome ou key..." />}
         resultCount={<ResultCount filtered={filtered} total={total} />}
         toolbarEnd={
-          <FilterDialog activeCount={(status ? 1 : 0) + (group ? 1 : 0)} onClear={clearAll}>
+          <FilterButton activeCount={(status ? 1 : 0) + (group ? 1 : 0)} onClear={clearAll}>
             <div className="flex flex-col gap-2">
               <Label>Status</Label>
-              <Select value={status ?? "all"} onValueChange={(v) => setStatus(v === "all" ? null : v)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos</SelectItem>
-                  {STATUS_OPTIONS.map((s) => (
-                    <SelectItem key={s} value={s}>
-                      {STATUS_LABELS[s]}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Combobox
+                value={status ?? "all"}
+                onValueChange={(v) => setStatus(v === "all" ? null : v)}
+                options={[{ value: "all", label: "Todos" }, ...STATUS_OPTIONS.map((s) => ({ value: s, label: STATUS_LABELS[s] }))]}
+              />
             </div>
             <div className="flex flex-col gap-2">
               <Label>Grupo</Label>
-              <Select value={group ?? "all"} onValueChange={(v) => setGroup(v === "all" ? null : v)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos</SelectItem>
-                  {groups.map((g) => (
-                    <SelectItem key={g} value={g}>
-                      {g}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Combobox
+                value={group ?? "all"}
+                onValueChange={(v) => setGroup(v === "all" ? null : v)}
+                options={[{ value: "all", label: "Todos" }, ...groups.map((g) => ({ value: g, label: g }))]}
+              />
             </div>
-          </FilterDialog>
+          </FilterButton>
         }
         activeFilters={<ActiveFiltersBar filters={activeFilters} onClearAll={clearAll} />}
         emptyState={
           <EmptyState
             title="Nenhuma feature cadastrada ainda"
-            action={<Button onClick={() => setCreating(true)}>Nova feature</Button>}
+            action={<Button onClick={() => setCreating(true)}><Plus /> Nova feature</Button>}
           />
         }
       />
 
       <PaginationControls total={filtered} />
 
-      <CrudDrawer open={creating} onOpenChange={setCreating} title="Nova feature">
+      <FormDrawer open={creating} onOpenChange={setCreating} title="Nova feature" hideFooter contentScrolls={false}>
         <FeatureForm
+          onCancel={() => setCreating(false)}
           onSuccess={() => {
             setCreating(false);
             toast.success("Feature criada.");
           }}
         />
-      </CrudDrawer>
+      </FormDrawer>
 
-      <CrudDrawer
+      <FormDrawer
         open={editing !== null}
         onOpenChange={(open) => !open && setEditing(null)}
         title="Editar feature"
+        hideFooter
+        contentScrolls={false}
       >
         {editing && (
           <FeatureForm
             initial={editing}
+            onCancel={() => setEditing(null)}
             onSuccess={() => {
               setEditing(null);
               toast.success("Feature atualizada.");
             }}
           />
         )}
-      </CrudDrawer>
+      </FormDrawer>
 
       <ConfirmActionDialog
         open={toggling !== null}
