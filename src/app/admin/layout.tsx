@@ -1,15 +1,10 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 
-import { auth } from "@/lib/auth";
-
-const NAV = [
-  { href: "/admin/tenants", label: "Tenants" },
-  { href: "/admin/niches", label: "Nichos" },
-  { href: "/admin/templates", label: "Templates" },
-  { href: "/admin/features", label: "Features" },
-  { href: "/admin/billing-plans", label: "Planos comerciais" },
-];
+import { AdminCommandMenu } from "@/components/admin/admin-command-menu";
+import { AdminMobileNav } from "@/components/admin/admin-mobile-nav";
+import { AdminSidebar } from "@/components/admin/admin-sidebar";
+import { AdminTopbar } from "@/components/admin/admin-topbar";
+import { auth, signOut } from "@/lib/auth";
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const session = await auth();
@@ -20,19 +15,22 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     redirect("/");
   }
 
+  async function logout() {
+    "use server";
+    await signOut({ redirectTo: "/login" });
+  }
+
+  const email = session.user.email ?? undefined;
+
   return (
-    <div className="flex min-h-screen flex-col">
-      <header className="border-b px-6 py-4">
-        <h1 className="text-lg font-semibold">Fluuy — Platform Admin</h1>
-        <nav className="mt-2 flex gap-4 text-sm">
-          {NAV.map((item) => (
-            <Link key={item.href} href={item.href} className="text-zinc-600 hover:text-zinc-950 dark:text-zinc-400 dark:hover:text-zinc-50">
-              {item.label}
-            </Link>
-          ))}
-        </nav>
-      </header>
-      <main className="flex-1 p-6">{children}</main>
+    <div className="gradient-bg flex min-h-screen flex-col">
+      <AdminTopbar user={{ name: session.user.name ?? email ?? "Admin", email }} logoutAction={logout} />
+      <div className="flex flex-1 gap-4 p-4">
+        <AdminSidebar />
+        <main className="min-w-0 flex-1 pt-2 pb-28 md:pb-2">{children}</main>
+      </div>
+      <AdminCommandMenu />
+      <AdminMobileNav />
     </div>
   );
 }
