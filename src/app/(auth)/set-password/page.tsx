@@ -12,7 +12,7 @@ export default async function SetPasswordPage() {
   if (existing) redirect("/");
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 px-4 dark:bg-black">
+    <div className="flex min-h-screen items-center justify-center gradient-bg px-4">
       <SetPasswordForm />
     </div>
   );

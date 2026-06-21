@@ -4,8 +4,8 @@ import { useActionState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Combobox } from "@/components/ui/combobox";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 import { selectTenantAction, type ActionResult } from "./actions";
 
@@ -28,18 +28,14 @@ export default function SelectTenantForm({
         <form action={action} className="flex flex-col gap-4">
           <div className="flex flex-col gap-2">
             <Label htmlFor="tenantId">Empresa</Label>
-            <Select name="tenantId" required>
-              <SelectTrigger id="tenantId">
-                <SelectValue placeholder="Selecione" />
-              </SelectTrigger>
-              <SelectContent>
-                {tenants.map((tenant) => (
-                  <SelectItem key={tenant.id} value={tenant.id}>
-                    {tenant.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Combobox
+              id="tenantId"
+              name="tenantId"
+              options={tenants.map((tenant) => ({ value: tenant.id, label: tenant.name }))}
+              placeholder="Selecione"
+              searchPlaceholder="Buscar empresa…"
+              emptyText="Nenhuma empresa."
+            />
           </div>
           {state?.error && <p className="text-sm text-red-600">{state.error}</p>}
           <Button type="submit" disabled={pending}>

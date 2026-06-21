@@ -4,7 +4,12 @@ import { useActionState } from "react";
 
 import { PasswordField } from "@/components/auth/password-field";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  GlassCard,
+  GlassCardContent,
+  GlassCardHeader,
+  GlassCardTitle,
+} from "@/components/ui/glass-card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -20,11 +25,11 @@ export default function LoginForm({ callbackUrl }: { callbackUrl?: string }) {
   );
 
   return (
-    <Card className="w-full max-w-sm">
-      <CardHeader>
-        <CardTitle>Entrar no Fluuy</CardTitle>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-4">
+    <GlassCard className="w-full max-w-sm">
+      <GlassCardHeader>
+        <GlassCardTitle>Entrar no Fluuy</GlassCardTitle>
+      </GlassCardHeader>
+      <GlassCardContent className="flex flex-col gap-4">
         <Tabs defaultValue="password">
           <TabsList className="w-full">
             <TabsTrigger value="password">Senha</TabsTrigger>
@@ -46,7 +51,7 @@ export default function LoginForm({ callbackUrl }: { callbackUrl?: string }) {
                 </a>
               </div>
               {state?.error && <p className="text-sm text-red-600">{state.error}</p>}
-              <Button type="submit" disabled={pending}>
+              <Button type="submit" variant="brand" disabled={pending}>
                 {pending ? "Entrando..." : "Entrar"}
               </Button>
             </form>
@@ -70,7 +75,7 @@ export default function LoginForm({ callbackUrl }: { callbackUrl?: string }) {
         <div className="text-center text-sm">
           <LeadForm />
         </div>
-      </CardContent>
-    </Card>
+      </GlassCardContent>
+    </GlassCard>
   );
 }
