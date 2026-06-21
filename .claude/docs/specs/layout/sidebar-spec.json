@@ -1,0 +1,550 @@
+{
+  "$schema": "fluuy-sidebar-spec/v1",
+  "component": "Sidebar",
+  "framework": "Next.js (App Router) + React + TypeScript",
+  "uiBase": "shadcn/ui + Ein UI (Liquid Glass, SEM glow)",
+  "iconLibrary": "lucide-react",
+  "prompt": "Implemente o componente Sidebar do Fluuy seguindo EXATAMENTE esta especificação. Use shadcn/ui como base estrutural, camada visual Ein UI / Liquid Glass (sempre sem glow), tokens do design system Fluuy (CSS custom properties), lucide-react para ícones, e priorize acessibilidade e usabilidade. Não invente cores, fontes ou raios fora dos tokens.",
+
+  "designTokens": {
+    "surface": {
+      "--glass-bg": "fundo da sidebar (glass)",
+      "--glass-bg-hover": "hover de item",
+      "--glass-border": "borda da sidebar e divisor do header",
+      "--glass-blur": "backdrop-filter da sidebar",
+      "--glass-shadow": "sombra da sidebar (sem glow)"
+    },
+    "brand": {
+      "--lime-200": "badge claro (fundo)",
+      "--lime-300": "item ativo (fundo) e toggle fixado / #D6F272",
+      "--lime-500": "dot de badge no modo recolhido (item ativo)"
+    },
+    "neutral": {
+      "--neutral-200": "divisor entre grupos no modo recolhido",
+      "--neutral-800": "texto do badge",
+      "--neutral-900": "texto sobre lime (item ativo, toggle fixado)",
+      "--foreground": "texto padrão dos itens",
+      "--muted-foreground": "labels de grupo, subtítulo do tenant, ícone do chevron/toggle desmarcado",
+      "--card": "borda do dot de badge (1.5px)"
+    },
+    "radius": {
+      "--radius-md": "itens, toggle",
+      "--radius-lg": "segmented control",
+      "--radius-card": "container da sidebar"
+    },
+    "typography": {
+      "--font-sans": "família",
+      "--text-sm": "label dos itens e nome do tenant",
+      "--text-xs": "segmented control",
+      "--tracking-tight": "nome do tenant",
+      "groupLabel": {
+        "fontSize": "10px",
+        "fontWeight": 700,
+        "letterSpacing": "0.07em",
+        "textTransform": "uppercase",
+        "color": "--muted-foreground"
+      },
+      "badge": { "fontSize": "10px", "fontWeight": 600 }
+    }
+  },
+
+  "layout": {
+    "container": {
+      "element": "aside",
+      "height": "100% (ocupa altura máxima do viewport — pai com height:100vh)",
+      "widthExpanded": 256,
+      "widthCollapsed": 68,
+      "background": "--glass-bg",
+      "backdropFilter": "--glass-blur",
+      "border": "1px solid --glass-border",
+      "boxShadow": "--glass-shadow",
+      "borderRadius": "--radius-card",
+      "padding": 8,
+      "transition": "width 180ms ease",
+      "flexDirection": "column"
+    },
+    "nav": { "flex": 1, "overflowY": "auto", "overflowX": "hidden", "gap": 1 },
+    "scrollbar": {
+      "width": "8px",
+      "thumb": "--glass-border",
+      "track": "transparent"
+    }
+  },
+
+  "header": {
+    "description": "Header NÃO-CLICÁVEL com logo + identidade do tenant/empresa logada. Diferenciado dos itens por borda inferior (1px --glass-border) e tipografia.",
+    "clickable": false,
+    "borderBottom": "1px solid --glass-border",
+    "marginBottom": 6,
+    "userSelect": "none",
+    "logo": {
+      "src": "logo da empresa/tenant (ou marca Fluuy adaptativa por tema)",
+      "size": 30,
+      "borderRadius": 7
+    },
+    "identity": {
+      "name": {
+        "source": "tenant logado (ex: 'Petshop da Maria')",
+        "fontSize": "--text-sm",
+        "fontWeight": 700,
+        "letterSpacing": "--tracking-tight",
+        "truncate": true
+      },
+      "sub": {
+        "source": "nicho · plano (ex: 'Pets · Plano Pro')",
+        "fontSize": "10px",
+        "fontWeight": 500,
+        "color": "--muted-foreground",
+        "truncate": true
+      }
+    },
+    "collapsedBehavior": "Quando recolhido (sem hover), exibe apenas o logo centralizado — esconde nome, subtítulo e botão de toggle.",
+    "toggleButton": {
+      "ref": "#behaviors.pinToggle",
+      "position": "à direita das informações do tenant, dentro do header",
+      "visibility": "visível APENAS quando o menu está expandido (fixado OU expandido por hover). Oculto no estado recolhido."
+    }
+  },
+
+  "behaviors": {
+    "pinToggle": {
+      "type": "toggle (aria-pressed)",
+      "state": "pinned: boolean (default true)",
+      "checked": {
+        "meaning": "menu expandido de forma FIXA",
+        "icon": "PinOff",
+        "style": "fundo --lime-300, cor --neutral-900, sem borda",
+        "ariaLabel": "Desafixar menu (expandir só no hover)"
+      },
+      "unchecked": {
+        "meaning": "menu recolhido; expande SÓ no hover",
+        "icon": "Pin",
+        "style": "transparente, borda 1px --glass-border, cor --muted-foreground; hover bg --glass-bg-hover",
+        "ariaLabel": "Fixar menu expandido"
+      },
+      "size": 30
+    },
+    "hoverExpand": {
+      "description": "Quando NÃO fixado (pinned=false), a sidebar fica recolhida (68px) e expande para 256px ao passar o mouse (onMouseEnter no aside), recolhendo ao sair (onMouseLeave).",
+      "derived": "isCollapsed = !pinned && !hover"
+    },
+    "collapsed": {
+      "width": 68,
+      "items": "apenas ícone centralizado, sem label; title=label (tooltip nativo)",
+      "groups": "título do grupo substituído por um divisor horizontal (1px --neutral-200, margin 7px 10px)",
+      "submenus": "parents (com children) viram ícone único; clicar seleciona o primeiro filho",
+      "badges": "exibidos como DOT (7px) no canto superior-direito do ícone — --lime-300 (inativo) / --lime-500 (ativo), borda 1.5px --card"
+    },
+    "submenu": {
+      "description": "Itens com 'children' são expansíveis (acordeão). Chevron (ChevronRight) rotaciona 90° quando aberto. Filhos indentados (paddingLeft +20px, ícone size 15).",
+      "defaultOpen": "aberto se o item ativo for um dos filhos",
+      "parentActive": "parent destacado (fontWeight 500) quando algum filho está ativo"
+    },
+    "activeItem": {
+      "style": "fundo --lime-300, cor --neutral-900, fontWeight 500",
+      "aria": "aria-current='page'"
+    },
+    "hoverItem": {
+      "background": "--neutral-100 (cinza bem leve, visível no fundo claro — NÃO usar --glass-bg-hover que é branco translúcido)",
+      "cursor": "pointer"
+    }
+  },
+
+  "responsiveMobile": {
+    "breakpoint": "Em telas de celular, OCULTAR a sidebar lateral por completo e exibir um dock flutuante + drawer full-screen. Use um breakpoint (~max-width: 768px) ou layout condicional.",
+    "dock": {
+      "base": "Dock horizontal (Ein UI) flutuante, glass (--glass-bg + --glass-blur-lg + --glass-shadow-lg), cantos 100% arredondados (999px).",
+      "position": "fixo, centralizado no rodapé (left:50%, translateX(-50%), bottom ~16px).",
+      "maxWidth": "no máximo 85% da largura da tela",
+      "shortcuts": "ícones das páginas principais (ex.: Dashboard, Conversas, Agenda, Pedidos) — botões circulares 44px; ativo em --lime-300/--neutral-900; dot de não-vistos no canto do ícone.",
+      "hamburger": "Botão de menu (ícone 'Menu') VISUALMENTE DISTINTO dos atalhos: separado por um divisor vertical (1px --glass-border) e com fundo escuro --neutral-900 e ícone --lime-300. Abre o drawer full-screen."
+    },
+    "fullScreenDrawer": {
+      "description": "Ao tocar no hamburger, abre um drawer que ocupa TODA a tela com o menu completo.",
+      "surface": "--card, inset 0, coluna flex; entrada por slide/fade (gated em prefers-reduced-motion).",
+      "header": "logo + identidade do tenant (nome + nicho·plano) + botão fechar (X).",
+      "body": "o MESMO menu data-driven da sidebar (grupos, submenus expansíveis, badges) rolando; selecionar um item navega e FECHA o drawer.",
+      "accessibility": "role=dialog aria-modal, focus trap, Esc fecha, retorno de foco ao hamburger."
+    },
+    "note": "O dock dá acesso rápido às rotas principais; o drawer cobre o menu completo. Item ativo do dock reflete o pathname atual."
+  },
+
+  "badges": {
+    "purpose": "Contador de itens NÃO VISTOS por menu.",
+    "appliesTo": ["conversations", "appointments", "orders", "customers"],
+    "dataExample": {
+      "orders": 5,
+      "appointments": 3,
+      "conversations": 8,
+      "customers": 2
+    },
+    "position": "ao lado do label (logo após o texto), NÃO alinhado à direita (label não usa flex:1)",
+    "expandedStyle": {
+      "minWidth": 17,
+      "height": 17,
+      "padding": "0 5px",
+      "borderRadius": 999,
+      "background": "--lime-200",
+      "color": "--neutral-800",
+      "fontSize": "10px",
+      "fontWeight": 600,
+      "overflow": "99+ acima de 99"
+    },
+    "collapsedStyle": "dot (ver behaviors.collapsed.badges)",
+    "clearOnClick": "Ao clicar no item (abrir a página), o badge daquele item zera (some). Implementar: select(id) => setActive(id) + zerar contador do id.",
+    "sourceInProduction": "Substituir o estado mock por contadores reais vindos da API (ex: GET /t/[tenantSlug]/unseen-counts) com revalidação/realtime."
+  },
+
+  "itemSchema": {
+    "id": "string (único; usado como chave de rota e de badge)",
+    "label": "string (pt-BR, sentence case)",
+    "icon": "string (nome lucide-react PascalCase)",
+    "href": "string (rota; tenant usa prefixo /t/[tenantSlug])",
+    "scope": "'tenant' | 'platform'",
+    "featureKey": "string opcional — esconder item se a feature não estiver habilitada para o tenant",
+    "allowedRoles": "string[] opcional — exibir só se o papel do usuário estiver na lista",
+    "platformAdminOnly": "boolean opcional — apenas superadmin",
+    "children": "Item[] opcional — submenu",
+    "type": "'group' (somente em nós agrupadores; nesse caso usa 'items' em vez de campos de item)"
+  },
+
+  "roles": [
+    "tenant_owner",
+    "tenant_manager",
+    "tenant_operator",
+    "tenant_viewer"
+  ],
+  "visibilityRules": {
+    "featureKey": "Ocultar item quando tenant.features[featureKey] !== true.",
+    "allowedRoles": "Ocultar item quando !allowedRoles.includes(user.role) (quando definido).",
+    "platformAdminOnly": "Ocultar item quando !user.isPlatformAdmin.",
+    "emptyGroup": "Ocultar grupo inteiro se todos os seus itens forem ocultados."
+  },
+
+  "sidebarMenus": {
+    "tenant": [
+      {
+        "id": "group_acompanhe",
+        "type": "group",
+        "label": "ACOMPANHE",
+        "items": [
+          {
+            "id": "dashboard",
+            "label": "Dashboard",
+            "icon": "LayoutDashboard",
+            "href": "/t/[tenantSlug]",
+            "scope": "tenant",
+            "allowedRoles": [
+              "tenant_owner",
+              "tenant_manager",
+              "tenant_operator",
+              "tenant_viewer"
+            ]
+          },
+          {
+            "id": "conversations",
+            "label": "Conversas",
+            "icon": "MessageCircle",
+            "href": "/t/[tenantSlug]/conversations",
+            "scope": "tenant",
+            "featureKey": "conversation_history",
+            "badge": true,
+            "allowedRoles": [
+              "tenant_owner",
+              "tenant_manager",
+              "tenant_operator",
+              "tenant_viewer"
+            ]
+          },
+          {
+            "id": "appointments",
+            "label": "Agenda",
+            "icon": "CalendarDays",
+            "href": "/t/[tenantSlug]/appointments",
+            "scope": "tenant",
+            "featureKey": "appointment_request",
+            "badge": true,
+            "allowedRoles": [
+              "tenant_owner",
+              "tenant_manager",
+              "tenant_operator",
+              "tenant_viewer"
+            ]
+          },
+          {
+            "id": "orders",
+            "label": "Pedidos",
+            "icon": "ShoppingCart",
+            "href": "/t/[tenantSlug]/orders",
+            "scope": "tenant",
+            "featureKey": "product_order_request",
+            "badge": true,
+            "allowedRoles": [
+              "tenant_owner",
+              "tenant_manager",
+              "tenant_operator",
+              "tenant_viewer"
+            ]
+          },
+          {
+            "id": "sales",
+            "label": "Vendas",
+            "icon": "ShoppingBag",
+            "scope": "tenant",
+            "allowedRoles": [
+              "tenant_owner",
+              "tenant_manager",
+              "tenant_operator",
+              "tenant_viewer"
+            ],
+            "children": [
+              {
+                "id": "deliveries",
+                "label": "Entregas",
+                "icon": "Truck",
+                "href": "/t/[tenantSlug]/deliveries",
+                "featureKey": "delivery_management"
+              },
+              {
+                "id": "sales_report",
+                "label": "Relatórios",
+                "icon": "ChartNoAxesCombined",
+                "href": "/t/[tenantSlug]/reports",
+                "featureKey": "basic_dashboard"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "group_cadastre",
+        "type": "group",
+        "label": "CADASTRE",
+        "items": [
+          {
+            "id": "customers",
+            "label": "Clientes",
+            "icon": "Users",
+            "href": "/t/[tenantSlug]/customers",
+            "scope": "tenant",
+            "featureKey": "customer_management",
+            "badge": true,
+            "allowedRoles": [
+              "tenant_owner",
+              "tenant_manager",
+              "tenant_operator",
+              "tenant_viewer"
+            ]
+          },
+          {
+            "id": "collaborators",
+            "label": "Colaboradores",
+            "icon": "UserCog",
+            "href": "/t/[tenantSlug]/collaborators",
+            "scope": "tenant",
+            "allowedRoles": ["tenant_owner", "tenant_manager"]
+          },
+          {
+            "id": "catalog",
+            "label": "Catálogo",
+            "icon": "Boxes",
+            "scope": "tenant",
+            "allowedRoles": [
+              "tenant_owner",
+              "tenant_manager",
+              "tenant_operator",
+              "tenant_viewer"
+            ],
+            "children": [
+              {
+                "id": "products",
+                "label": "Produtos",
+                "icon": "Package",
+                "href": "/t/[tenantSlug]/products",
+                "featureKey": "product_catalog"
+              },
+              {
+                "id": "services",
+                "label": "Serviços",
+                "icon": "BriefcaseBusiness",
+                "href": "/t/[tenantSlug]/services",
+                "featureKey": "service_catalog"
+              },
+              {
+                "id": "plans",
+                "label": "Planos",
+                "icon": "BadgePercent",
+                "href": "/t/[tenantSlug]/plans",
+                "featureKey": "plans_catalog"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "group_personalize",
+        "type": "group",
+        "label": "PERSONALIZE",
+        "items": [
+          {
+            "id": "automation",
+            "label": "Automação",
+            "icon": "Bot",
+            "scope": "tenant",
+            "allowedRoles": ["tenant_owner", "tenant_manager"],
+            "children": [
+              {
+                "id": "ai_agent",
+                "label": "Agente IA",
+                "icon": "Bot",
+                "href": "/t/[tenantSlug]/agents",
+                "featureKey": "agent_configuration"
+              },
+              {
+                "id": "workflows",
+                "label": "Workflows",
+                "icon": "Workflow",
+                "href": "/t/[tenantSlug]/workflows",
+                "featureKey": "tenant_workflows"
+              },
+              {
+                "id": "knowledge_base",
+                "label": "Base de conhecimento",
+                "icon": "BookOpenText",
+                "href": "/t/[tenantSlug]/knowledge-base",
+                "featureKey": "knowledge_base"
+              }
+            ]
+          },
+          {
+            "id": "settings",
+            "label": "Configurações",
+            "icon": "Settings",
+            "scope": "tenant",
+            "allowedRoles": ["tenant_owner", "tenant_manager"],
+            "children": [
+              {
+                "id": "business_settings",
+                "label": "Meu negócio",
+                "icon": "Store",
+                "href": "/t/[tenantSlug]/settings"
+              },
+              {
+                "id": "integrations",
+                "label": "Integrações",
+                "icon": "Cable",
+                "href": "/t/[tenantSlug]/integrations"
+              },
+              {
+                "id": "users_permissions",
+                "label": "Usuários",
+                "icon": "ShieldCheck",
+                "href": "/t/[tenantSlug]/users",
+                "allowedRoles": ["tenant_owner"]
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "platformAdmin": [
+      {
+        "id": "admin_dashboard",
+        "label": "Dashboard",
+        "icon": "LayoutDashboard",
+        "href": "/admin",
+        "scope": "platform",
+        "platformAdminOnly": true
+      },
+      {
+        "id": "admin_tenants",
+        "label": "Tenants",
+        "icon": "Building2",
+        "href": "/admin/tenants",
+        "scope": "platform",
+        "platformAdminOnly": true
+      },
+      {
+        "id": "admin_niches_templates",
+        "label": "Nichos e Templates",
+        "icon": "Layers3",
+        "scope": "platform",
+        "platformAdminOnly": true,
+        "children": [
+          {
+            "id": "admin_niches",
+            "label": "Nichos",
+            "icon": "Layers3",
+            "href": "/admin/niches"
+          },
+          {
+            "id": "admin_templates",
+            "label": "Templates",
+            "icon": "FileCode2",
+            "href": "/admin/templates"
+          }
+        ]
+      },
+      {
+        "id": "admin_features_plans",
+        "label": "Features e Planos",
+        "icon": "Puzzle",
+        "scope": "platform",
+        "platformAdminOnly": true,
+        "children": [
+          {
+            "id": "admin_features",
+            "label": "Features",
+            "icon": "Puzzle",
+            "href": "/admin/features"
+          },
+          {
+            "id": "admin_billing_plans",
+            "label": "Planos comerciais",
+            "icon": "BadgeDollarSign",
+            "href": "/admin/billing-plans"
+          }
+        ]
+      },
+      {
+        "id": "admin_leads",
+        "label": "Leads",
+        "icon": "UserPlus",
+        "href": "/admin/leads",
+        "scope": "platform",
+        "platformAdminOnly": true
+      },
+      {
+        "id": "admin_settings",
+        "label": "Configurações",
+        "icon": "Settings",
+        "href": "/admin/settings",
+        "scope": "platform",
+        "platformAdminOnly": true
+      }
+    ]
+  },
+
+  "accessibility": {
+    "nav": "Envolver em <nav aria-label='Navegação principal'>.",
+    "activeItem": "aria-current='page' no item ativo.",
+    "toggle": "aria-pressed reflete pinned; aria-label descritivo; foco visível.",
+    "submenu": "Botão de parent com aria-expanded; região dos filhos associada.",
+    "collapsedLabels": "title (tooltip) no item recolhido; idealmente tooltip acessível shadcn.",
+    "keyboard": "Itens e toggles navegáveis por teclado (Tab) com foco visível (ring --ring).",
+    "hitTarget": "Altura mínima de ~36px por item."
+  },
+
+  "implementationNotes": [
+    "Renderizar a estrutura a partir de dados (data-driven): um array de nós onde cada nó é um grupo (type:'group' + items) ou um item (com children opcional).",
+    "Estado: pinned (persistir em localStorage/cookie), hover (UI), activeId (derivar do pathname atual em vez de useState em produção), unseenCounts (API).",
+    "isCollapsed = !pinned && !hover controla largura, header e renderização de labels/badges.",
+    "Em produção, 'active' deve derivar de usePathname() (Next.js), não de clique — o clearOnClick do badge dispara em paralelo à navegação.",
+    "Aplicar visibilityRules (featureKey, allowedRoles, platformAdminOnly) ANTES de renderizar; ocultar grupos vazios.",
+    "Logo do header é adaptativo por tema (light/dark) — usar a marca correta por tema.",
+    "Liquid Glass SEM glow: usar apenas --glass-shadow (sombra neutra), nunca box-shadow colorido/halo.",
+    "Ícones via lucide-react pelos nomes em PascalCase indicados em cada item.",
+    "Hover de item inativo: fundo --neutral-100 (sutil, visível no fundo claro) + cursor pointer; itens ativos permanecem em --lime-300.",
+    "Responsivo: em celular, esconder a sidebar e renderizar o dock flutuante (máx 85% da largura, hamburger distinto) + drawer full-screen com o menu completo (ver responsiveMobile)."
+  ]
+}

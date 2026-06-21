@@ -1,0 +1,208 @@
+{
+  "$schema": "fluuy-form-drawer-spec/v1",
+  "name": "fluuy_form_drawer_and_fields_spec_prompt",
+  "version": "1.0.0",
+  "language": "pt-BR",
+  "target_model": "Claude / Claude Code",
+  "repository": { "url": "https://github.com/priscilla-morimitsu/fluuy", "full_name": "priscilla-morimitsu/fluuy" },
+  "framework": "Next.js (App Router) + React + TypeScript + Zod + react-hook-form",
+  "uiBase": "shadcn/ui + Ein UI (Liquid Glass, SEM glow) + Tailwind CSS",
+  "iconLibrary": "lucide-react",
+  "relatedSpec": "uploads/fluuy_form_validation_masks_spec_prompt.json — validações/máscaras/normalização canônica (Zod server-side). ESTE spec cobre o DRAWER + os COMPONENTES de campo; o relacionado cobre as REGRAS de dado. Use ambos juntos.",
+
+  "prompt": "Implemente o padrão de Drawer de Formulário do Fluuy e o conjunto completo de tipos de campo seguindo EXATAMENTE esta especificação. Base estrutural shadcn/ui (Sheet, Popover, Calendar, Select, Switch, Checkbox, RadioGroup, Input, Textarea, Button), camada visual Ein UI / Liquid Glass sempre SEM glow, tokens Fluuy (CSS custom properties), lucide-react para ícones, react-hook-form + Zod para estado e validação. Máscara no front é só UX; validação canônica é server-side (ver relatedSpec). Acessibilidade e responsividade são obrigatórias. Não invente cores/raios/fontes fora dos tokens.",
+
+  "designTokens": {
+    "radius": {
+      "rule": "PADRÃO ÚNICO de arredondamento: TODOS os controles e contêineres de campo usam --radius-lg (igual a inputs e botões). Pílulas/badges usam 999px; nada usa --radius-md para controles.",
+      "--radius-lg": "inputs, botões, selects, textarea, datepicker trigger/popover, opt-cards, segmented, switch-cards, upload, file-row, icon-buttons",
+      "--radius-input": "= --radius-lg",
+      "--radius-button": "= --radius-lg",
+      "pill": "999px (chips, badges, switch track)"
+    },
+    "surface": {
+      "--card": "fundo de inputs e contêineres (sólido, melhor leitura)",
+      "--muted": "fundo de addons e disabled",
+      "--border": "borda neutra de campos",
+      "--neutral-300": "borda hover de campos",
+      "--ring": "borda no foco (lime)",
+      "--drawer-bg": "fundo do painel do drawer (glass bem menos transparente que --glass-bg: light alpha 0.8875, dark 0.855). Aplicado via classe .glass-drawer.",
+      "--glass-bg": "fundo de superfícies glass gerais (sidebar, topbar, cards) — NÃO usar no painel do drawer",
+      "--glass-blur-lg": "backdrop do drawer — blur(28px) (levemente mais forte que --glass-blur 20px); usado pela classe .glass-drawer",
+      "--glass-shadow-lg": "sombra do drawer e popovers (sem glow)",
+      "--overlay": "scrim claro frosted atrás do drawer"
+    },
+    "brand": {
+      "--lime-300": "ação primária, item/dia selecionado",
+      "--lime-400": "accent de seleção (radio/switch on, hover do botão brand)",
+      "--lime-200": "chips/tags claras",
+      "--lime-50": "fundo sutil de opção/switch selecionado"
+    },
+    "feedback": {
+      "error": "--destructive (borda, ícone, mensagem)",
+      "success": "oklch(0.52 0.13 150) — verde legível para mensagens de sucesso (NÃO usar --success lime como texto: baixo contraste)",
+      "loading": "spinner: anel --neutral-300 com topo --lime-500"
+    },
+    "typography": {
+      "--font-sans": "família",
+      "label": { "fontSize": "--text-sm", "fontWeight": 500 },
+      "hint/err/ok/counter": { "fontSize": "--text-xs" },
+      "sectionTitle": { "fontSize": "--text-xs", "fontWeight": 700, "letterSpacing": "0.06em", "textTransform": "uppercase", "color": "--muted-foreground" }
+    },
+    "focusRing": "box-shadow 0 0 0 3px oklch(0.902 0.193 121 / 0.25); em erro usar oklch(0.584 0.157 22.3 / 0.22)"
+  },
+
+  "multiStep": {
+    "when": "Use o modo em STEPS (timeline) quando o formulário for grande (muitos campos / múltiplos contextos). Para formulários curtos, mantenha passo único com seções.",
+    "grouping": "Agrupe os campos por CONTEXTO, um step por contexto (ex.: Identificação · Contato · Plano e acesso · Preferências).",
+    "timeline": {
+      "ui": "Stepper horizontal: cada etapa é uma coluna com um círculo (~36px) contendo o ÍCONE do contexto (lucide) e o NOME da etapa centralizado logo abaixo do círculo; concluído mostra check + linha lime; atual = lime preenchido com label em destaque; futuro = neutro. Linha conectora fina (1px) alinhada ao centro vertical dos círculos. Abaixo do stepper, legenda curta 'Etapa X de N'.",
+      "navigation": "Dots clicáveis (role=tab, aria-selected) para pular entre etapas; footer com Voltar (ou Cancelar no 1º) e Avançar (ou Salvar no último).",
+      "responsive": "Em telas estreitas, mostrar apenas os dots + a legenda da etapa atual (não rótulos inline em cada dot)."
+    },
+    "statePersistence": {
+      "rule": "Os dados devem ser mantidos ao voltar e avançar entre os steps.",
+      "implementation": "Mantenha TODOS os step-panels MONTADOS e alterne visibilidade via atributo `hidden` (display:none) — nunca desmonte/remonte (isso perderia o valor de inputs não controlados). Em produção, prefira um único estado de formulário (react-hook-form/useState) compartilhado por todos os steps."
+    },
+    "validationFocus": {
+      "rule": "Ao tentar salvar, se houver erro em algum campo, o foco vai IMEDIATAMENTE para o primeiro campo com erro.",
+      "algorithm": [
+        "Percorrer os campos obrigatórios/inválidos na ORDEM do DOM (todos os steps montados).",
+        "Achar o primeiro inválido (vazio quando obrigatório, ou data-invalid=true por regra/Zod).",
+        "Descobrir o step do campo (closest('.step-panel').dataset.step).",
+        "Se for outro step, trocar para esse step ANTES de focar.",
+        "Focar o campo e scrollIntoView({block:'center'}) — também marcar aria-invalid + aria-describedby na mensagem de erro."
+      ],
+      "frozenTimelineNote": "NÃO usar requestAnimationFrame para o foco pós-troca-de-step (ambientes de preview/captura congelam o rAF). Foque direto no efeito que roda após o commit (o painel já está visível) ou via setTimeout(0).",
+      "production": "Validação canônica com Zod no submit; mapear erros do resolver para os campos e aplicar o mesmo foco-no-primeiro-erro (react-hook-form: setFocus no primeiro path com erro)."
+    },
+    "advanceValidation": "Opcional: validar o step atual antes de avançar; o foco-no-primeiro-erro do submit final é obrigatório."
+  },
+
+  "drawer": {
+    "component": "shadcn Sheet (side='right') ou equivalente",
+    "responsiveWidth": {
+      "mobile": "100% (largura total)",
+      "tablet (>=600px)": "460px, max 90vw",
+      "hd+ (>=1280px)": "40% da largura, min 480px, max 620px"
+    },
+    "structure": {
+      "overlay": "scrim --overlay + blur(6px) (frosted claro), fecha ao clicar fora",
+      "panel": "coluna flex: header (fixo) + body (rolável) + footer (fixo); drawer-bg (.glass-drawer, menos transparente que glass-bg) + blur-lg + shadow-lg + border-left",
+      "header": { "clickable": false, "content": "título + descrição + botão fechar (X)", "borderBottom": "1px --glass-border" },
+      "body": { "overflowY": "auto", "padding": 20, "containerType": "inline-size (habilita container queries)" },
+      "footer": { "borderTop": "1px --glass-border", "content": "hint de obrigatórios à esquerda + Cancelar + Salvar (com loading)" }
+    },
+    "entranceAnimation": "Em produção, animar slide-in (translateX 100%→0, 260ms) + fade do scrim, gated em prefers-reduced-motion; aplicar via classe pós-mount. NUNCA deixar o estado base off-screen (entrance frozen-frame esconde conteúdo).",
+    "sections": "Agrupar campos em <section> com sectionTitle (ex: Identificação, Contato, Acesso, Plano, Preferências, Anexos).",
+    "footerActions": { "cancel": "btn ghost", "submit": "btn brand com estado loading ('Salvando…' + spinner) e disabled durante submit" }
+  },
+
+  "layoutSystem": {
+    "grid": {
+      "rule": "Grid responsivo por CONTAINER QUERY (responde à largura do drawer, não da tela).",
+      "base": "1 coluna",
+      "@container (min-width: 440px)": "2 colunas",
+      "col-full": "campos longos (nome, descrição, slug, tags, termos) ocupam a linha inteira (grid-column: 1 / -1)",
+      "gap": 14
+    },
+    "fieldAnatomy": ["label (+ * obrigatório)", "control (com ícone lead / addon / trail opcional)", "hint OU err OU ok (mutuamente exclusivos) OU counter"],
+    "organizationGuidance": [
+      "Campos curtos relacionados (CEP+cidade, valor+período) lado a lado.",
+      "Campos longos e textareas em largura total.",
+      "Agrupar por significado em seções; ordem do mais essencial ao opcional.",
+      "Toggles relacionados em switch-cards empilhados."
+    ]
+  },
+
+  "fieldStates": {
+    "default": "borda --border, fundo --card",
+    "hover": "borda --neutral-300",
+    "focus": "borda --ring + focusRing",
+    "disabled": "fundo --muted, cor --muted-foreground, cursor not-allowed",
+    "error": "classe is-error: borda --destructive + focusRing vermelho + ícone trail CircleAlert + mensagem .err",
+    "success": "classe is-ok: borda verde + ícone trail Check + mensagem .ok",
+    "loading": "spinner no trail + texto auxiliar ('Verificando…'/'Carregando…'); control disabled enquanto carrega"
+  },
+
+  "fieldTypes": [
+    { "id": "text", "component": "Input", "lead_icon": "contextual (ex: Building2, User)", "notes": "Texto simples; trim na normalização." },
+    { "id": "textarea", "component": "Textarea", "extras": "contador de caracteres (maxLength), min-height 84px, resize vertical" },
+    { "id": "email", "component": "Input type=email", "lead_icon": "Mail", "mask": null, "validation": "z.string().email()", "states": "loading (checando disponibilidade) → ok/erro", "persist": "lowercase_trimmed" },
+    { "id": "url", "component": "Input type=url", "addon_prefix": "https://", "validation": "z.string().url()", "persist": "normalized_with_https" },
+    { "id": "slug", "component": "Input", "addon_prefix": "fluuy.com/", "addon_suffix_state": "Check verde quando disponível", "mask": "lowercase, espaços→hífen, remove acentos/inválidos", "validation": "regex slug + checagem de unicidade async", "feedback": "ok 'Disponível' / err 'Já em uso'" },
+    { "id": "br_phone_whatsapp", "component": "PhoneInput (seletor de país embutido, default BR +55)", "addon_prefix": "bandeira + +55", "mask": "## #####-#### (11) ou ## ####-#### (10)", "persist": "e164_when_possible", "lead_icon": "Phone" },
+    { "id": "cep", "component": "CepInput", "lead_icon": "MapPin", "mask": "#####-###", "trail": "botão Search (busca endereço) → dispara loading de cidade/UF", "persist": "digits_only" },
+    { "id": "cpf_cnpj", "component": "DocumentInput", "lead_icon": "Hash", "mask": "CPF ###.###.###-## / CNPJ ##.###.###/####-##", "validation": "algoritmo oficial de dígitos (NÃO regex simples)", "feedback": "err 'incompleto/ inválido' enquanto digita, ok 'válido' ao completar", "persist": "digits_only" },
+    { "id": "brl_currency", "component": "CurrencyInput", "addon_prefix": "R$", "addon_suffix": "/mês (opcional)", "mask": "milhar . e decimal , (ex 1.234,56)", "persist": "Decimal/decimal_string", "inputMode": "decimal" },
+    { "id": "number", "component": "Input type=number/text inputMode=numeric", "extras": "min/max/step; addon de unidade opcional" },
+    { "id": "percentage", "component": "Input", "addon_suffix": "%", "validation": "0–100" },
+    { "id": "select", "component": "shadcn Select", "extras": "estado loading (spinner + 'Carregando…') quando opções vêm de API; placeholder 'Selecione…'" },
+    { "id": "multiselect", "component": "shadcn Combobox/MultiSelect", "extras": "itens selecionados como chips removíveis" },
+    { "id": "tags", "component": "ChipsInput", "behavior": "digita + Enter adiciona chip; X remove; chips em --lime-200" },
+    { "id": "date", "component": "DatePicker (ver datePicker abaixo)", "notes": "SEMPRE usar o DatePicker shadcn (Popover + Calendar), NUNCA input type=date nativo." },
+    { "id": "datetime", "component": "DatePicker + TimeInput", "notes": "data via Calendar, hora via select/stepper" },
+    { "id": "time", "component": "Input type=time ou TimeSelect" },
+    { "id": "date_range", "component": "DateRangePicker (Calendar mode=range)", "notes": "para filtros de período (duas datas)" },
+    { "id": "boolean_switch", "component": "Switch dentro de switch-card", "pattern": "ver switchCard abaixo" },
+    { "id": "boolean_checkbox", "component": "Checkbox", "use": "aceite de termos, flags simples; <label> envolve o input (clicar no texto alterna)" },
+    { "id": "single_choice", "component": "RadioGroup como opt-cards", "pattern": "cards clicáveis; selecionado: borda --lime-400 + fundo --lime-50" },
+    { "id": "single_choice_compact", "component": "Segmented control", "use": "2–3 opções curtas (ex: Mensal/Anual); selecionado em --card sobre trilha --muted" },
+    { "id": "range_slider", "component": "Input type=range", "extras": "exibir valor atual no label; accent --lime-400" },
+    { "id": "file_upload", "component": "Upload dropzone + lista", "states": "dropzone (dashed) → arquivo em progresso (ícone + nome + barra de progresso + cancelar) → concluído", "limits": "tipos e tamanho no hint" }
+  ],
+
+  "switchCard": {
+    "description": "Toggles ficam dentro de um card/box clicável. Clicar em QUALQUER parte do box alterna o switch.",
+    "implementation": "Elemento <label class='switch-card'> envolvendo o texto (título + hint) e o <input type=checkbox> visual (track+thumb). O clique no label alterna nativamente.",
+    "style": { "padding": "12px 14px", "border": "1px --border", "borderRadius": "--radius-lg", "background": "--card", "hover": "borda --neutral-300", "checked": ":has(input:checked) → borda --lime-400 + fundo --lime-50" }
+  },
+
+  "datePicker": {
+    "component": "shadcn DatePicker = Popover (trigger) + Calendar",
+    "trigger": { "look": "igual a um input (--card, borda --border, --radius-lg, altura 2.5rem)", "content": "ícone Calendar + data formatada pt-BR ('01 de junho de 2026') ou placeholder 'Selecione uma data' + chevron", "state": "foco mostra focusRing" },
+    "popover": { "surface": "--card + border + --radius-lg + --glass-shadow-lg", "width": "~268px", "close": "ao selecionar dia ou clicar fora (backdrop)" },
+    "calendar": { "header": "mês/ano (capitalize) + navegação ‹ ›", "weekdays": "iniciais pt-BR (D S T Q Q S S)", "day": "32px, --radius-md; hover --glass-bg-hover; selecionado --lime-300/--neutral-900; hoje: ring inset --lime-400", "shortcut": "link 'Hoje'" },
+    "locale": "pt-BR para mês, dias e formatação"
+  },
+
+  "masksValidationRef": {
+    "note": "Regras canônicas de máscara/validação/normalização/persistência estão no relatedSpec (fluuy_form_validation_masks_spec_prompt.json). Resumo de decisões padrão:",
+    "phone_default": "BR / +55",
+    "persist_cpf_cnpj": "digits_only",
+    "persist_cep": "digits_only",
+    "persist_email": "lowercase_trimmed",
+    "persist_url": "normalized_with_https",
+    "persist_phone": "e164_when_possible",
+    "currency_storage": "Decimal / decimal string",
+    "rule": "Máscara durante a digitação sem prejudicar edição/colagem/seleção; validação crítica SEMPRE server-side com Zod; mensagens em pt-BR."
+  },
+
+  "accessibility": {
+    "labels": "Todo campo com <label htmlFor>; obrigatórios marcam aria-required e '*' visual.",
+    "errors": "aria-invalid + aria-describedby apontando para a mensagem .err.",
+    "drawer": "role=dialog aria-modal, foco preso (focus trap), Esc fecha, foco inicial no primeiro campo, retorno de foco ao gatilho.",
+    "datepicker": "trigger aria-haspopup=dialog aria-expanded; navegação por teclado no calendário.",
+    "switchCard": "input checkbox/switch real com label associado; estado por aria-checked.",
+    "hitTarget": "altura mínima ~40px nos controles; alvos de toque >=44px no mobile.",
+    "keyboard": "tudo operável por teclado; foco visível (--ring)."
+  },
+
+  "definition_of_done": [
+    "Drawer responsivo: 100% mobile, 460px tablet, ~40% (480–620px) em HD+.",
+    "Grid interno por container query (1→2 colunas) com col-full para campos longos.",
+    "Todos os tipos de campo implementados com componente shadcn/Ein UI adequado.",
+    "Ícones lead, addons (prefixo/sufixo) e trail conforme o tipo.",
+    "Estados visuais: default/hover/focus/disabled/error/success/loading.",
+    "Máscaras aplicadas durante a digitação (telefone, CEP, CPF/CNPJ, moeda) — UX apenas.",
+    "Validação canônica server-side com Zod (ver relatedSpec); mensagens pt-BR.",
+    "DatePicker shadcn (Popover+Calendar) em todos os campos de data — sem input nativo.",
+    "Switches dentro de switch-cards clicáveis.",
+    "Arredondamento unificado em --radius-lg em todos os controles/contêineres.",
+    "Liquid Glass SEM glow; sombras neutras.",
+    "Acessibilidade: dialog modal com focus trap, labels, aria-invalid/describedby, teclado.",
+    "Footer com Cancelar + Salvar (loading) e hint de obrigatórios.",
+    "Formulários grandes: dividir em steps (timeline) agrupados por contexto, mantendo os dados ao navegar (panels montados + hidden).",
+    "Ao salvar com erro: focar imediatamente o primeiro campo inválido, trocando de step se necessário (sem depender de requestAnimationFrame)."
+  ]
+}

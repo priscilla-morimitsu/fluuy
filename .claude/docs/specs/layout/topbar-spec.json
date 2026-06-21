@@ -1,0 +1,127 @@
+{
+  "$schema": "fluuy-topbar-spec/v1",
+  "name": "fluuy_topbar_spec_prompt",
+  "version": "1.0.0",
+  "language": "pt-BR",
+  "target_model": "Claude / Claude Code",
+  "repository": { "url": "https://github.com/priscilla-morimitsu/fluuy", "full_name": "priscilla-morimitsu/fluuy" },
+  "framework": "Next.js (App Router) + React + TypeScript",
+  "uiBase": "shadcn/ui + Ein UI (Liquid Glass, SEM glow) + Tailwind CSS",
+  "iconLibrary": "lucide-react",
+
+  "prompt": "Implemente o componente Topbar do Fluuy seguindo EXATAMENTE esta especificação. Base estrutural shadcn/ui (DropdownMenu, Sheet, Popover), camada visual Ein UI / Liquid Glass sempre SEM glow, tokens Fluuy (CSS custom properties), lucide-react para ícones. Foque em responsividade impecável e acessibilidade. Não invente cores/raios/fontes fora dos tokens.",
+
+  "designTokens": {
+    "surface": {
+      "--card": "fundo de superfícies sólidas (dropdowns, sheets, input de busca usa --muted)",
+      "--muted": "fundo do campo de busca (levemente mais escuro que a barra)",
+      "--border": "bordas e divisores",
+      "--glass-blur-lg": "backdrop-filter da barra",
+      "--glass-shadow-lg": "sombra de dropdowns e bottom sheets (sem glow)",
+      "--overlay": "scrim claro frosted atrás dos bottom sheets",
+      "barBg": "oklch(from var(--card) l c h / 0.85) — barra glass translúcida"
+    },
+    "brand": {
+      "--lime-300": "avatar, badge de contagem, dot ativo",
+      "--lime-400": "dot de não-vistos"
+    },
+    "neutral": {
+      "--neutral-900": "texto sobre lime (badge/avatar)",
+      "--foreground": "texto padrão",
+      "--muted-foreground": "ícones, e-mail, placeholders, time"
+    },
+    "radius": { "--radius-button": "icon buttons e menu items", "--radius-card": "dropdowns desktop", "pill": "999px (busca, avatar, badges)", "sheetTop": "18px (cantos superiores do bottom sheet)" },
+    "typography": { "--font-sans": "família", "--text-lg": "wordmark", "--text-sm": "nome do usuário, labels", "--text-xs": "e-mail, time, footer" }
+  },
+
+  "anatomy": {
+    "bar": "header sticky no topo, z-index alto, glass (barBg + blur-lg), borda inferior 1px --border, min-height 60, padding 0 14px, LINHA ÚNICA (sem wrap), container-type:inline-size para responsividade.",
+    "left": "Logo (marca adaptativa por tema) + wordmark 'fluuy'. É um LINK para a home.",
+    "center": "Busca geral — input pill, fundo --muted, SEM borda, ícone de lupa à esquerda; flex:1 com min-width:0 e max-width 420, margin:0 auto (encolhe graciosamente).",
+    "right": "Ações: [lupa-mobile] · notificações (mensagens) · solicitações · divisor · avatar+identidade. Ícones 36px (var(--radius-button)).",
+    "badges": "Contador nos ícones de mensagens/solicitações: pílula --lime-300/--neutral-900, 15px, '99+' acima de 99."
+  },
+
+  "logoHome": {
+    "rule": "O clique no logo/wordmark redireciona para a HOME.",
+    "implementation": "Renderizar como <a href={homeHref}> (padrão '/'). Se onLogoClick for passado, previne o default e chama o handler (ex: router.push). aria-label='Ir para a home'.",
+    "props": { "homeHref": "string (padrão '/')", "onLogoClick": "() => void (opcional; sobrescreve a navegação)" }
+  },
+
+  "menus": {
+    "messages": { "trigger": "ícone Bell + badge (messageCount/messages.length)", "content": "lista de mensagens não vistas (título, texto truncado, time, dot lime); footer 'Ver todas as conversas' (onViewMessages); vazio: 'Nenhuma mensagem nova'." },
+    "requests": { "trigger": "ícone Calendar + badge (requestCount/requests.length)", "content": "lista de solicitações (tag de tipo em --warning, texto, time); footer 'Ver pedidos e agendamentos' (onViewRequests); vazio: 'Nenhuma solicitação pendente'." },
+    "user": { "trigger": "avatar (iniciais do nome) + nome + e-mail + chevron", "content": "header com avatar/nome/e-mail + itens 'Alterar senha' (onChangePassword) e 'Sair' (onLogout, estilo destrutivo)." },
+    "closing": "fecham ao clicar fora (mousedown) e Esc."
+  },
+
+  "responsive": {
+    "detection": "Medir a largura da própria barra com ResizeObserver; compact = largura <= 600px. (container-type:inline-size permite usar @container no CSS para esconder/mostrar.)",
+    "desktop": {
+      "search": "input inline visível, centralizado, encolhe (flex:1; min-width:0; max-width:420).",
+      "userInfo": "nome + e-mail visíveis ao lado do avatar.",
+      "menus": "abrem como DROPDOWN absoluto ancorado ao gatilho (top:100%, alinhado à direita), superfície --card + --radius-card + --glass-shadow-lg."
+    },
+    "breakpoints": {
+      "<=600px": "Esconder a busca inline e mostrar um BOTÃO LUPA nas ações; esconder nome+e-mail (só avatar). Todos os painéis viram BOTTOM SHEET (ver bottomSheet).",
+      "<=420px": "Esconder também o wordmark 'fluuy' (apenas a marca/logo)."
+    },
+    "noOverflow": "A barra mantém UMA linha; a busca encolhe e, quando não cabe, é substituída pela lupa. NÃO usar flex-wrap nem busca absolute-centered (quebram o layout)."
+  },
+
+  "bottomSheet": {
+    "rule": "Em mobile (compact), TODOS os conteúdos — busca (ao tocar na lupa), notificações, solicitações e menu do avatar — abrem como DRAWER ocupando 100% da largura, partindo do CANTO INFERIOR da tela (bottom sheet), no mesmo padrão.",
+    "style": "position:fixed; left:0; right:0; bottom:0; width:100%; max-height:80vh; coluna flex; fundo --card; cantos superiores 18px; --glass-shadow-lg; scrim --overlay + blur atrás (fecha ao tocar). Alça (grabber) 36x4 --neutral-300 no topo. Título/header opcional; conteúdo rolável; footer de ação quando houver.",
+    "implementation": "Renderizar o sheet via PORTAL no document.body (ReactDOM.createPortal) para escapar do containing-block criado por container-type no header e fixar à viewport. Em produção, prefira o componente Sheet (side='bottom') do shadcn/Ein UI.",
+    "search": "Tocar na lupa abre um sheet com título 'Buscar' e o campo de busca em destaque (autofocus, pill, --muted).",
+    "accessibility": "role=dialog aria-modal; foco inicial no conteúdo; Esc e toque no scrim fecham; retorno de foco ao gatilho."
+  },
+
+  "props": {
+    "user": "{ name: string; email?: string; initials?: string }",
+    "brand": "string (wordmark, padrão 'fluuy')",
+    "logo": "ReactNode (opcional; padrão = marca .fluuy-logo adaptativa por tema)",
+    "homeHref": "string (padrão '/')",
+    "onLogoClick": "() => void (opcional)",
+    "searchPlaceholder": "string",
+    "searchValue": "string",
+    "onSearch": "(value: string) => void",
+    "messages": "{ title; text; time }[]",
+    "requests": "{ type; text; time }[]",
+    "messageCount": "number (opcional; sobrescreve o badge)",
+    "requestCount": "number (opcional; sobrescreve o badge)",
+    "onChangePassword": "() => void",
+    "onLogout": "() => void",
+    "onViewMessages": "() => void",
+    "onViewRequests": "() => void"
+  },
+
+  "accessibility": {
+    "bar": "<header> landmark; busca com <label> acessível (aria-label).",
+    "iconButtons": "aria-label em todos (Mensagens não lidas, Solicitações, Conta, Buscar); foco visível.",
+    "menus": "aria-haspopup/aria-expanded; foco gerenciado; Esc fecha.",
+    "logo": "aria-label='Ir para a home'.",
+    "sheets": "role=dialog aria-modal; focus trap; retorno de foco."
+  },
+
+  "implementationNotes": [
+    "Liquid Glass SEM glow: apenas sombras neutras (--glass-shadow-lg).",
+    "Detecção compact via ResizeObserver na própria barra (não window) — funciona embutido em qualquer largura de container.",
+    "Bottom sheets via portal no body para fixar à viewport (container-type do header cria containing block).",
+    "Badges de não-vistos derivam de messages/requests.length ou messageCount/requestCount; em produção, contadores reais via API.",
+    "Avatar deriva iniciais de user.name (ou user.initials).",
+    "Logo é um link para a home (homeHref) ou onLogoClick.",
+    "Ícones lucide-react por nome PascalCase."
+  ],
+
+  "definition_of_done": [
+    "Barra glass sticky, linha única, sem overflow.",
+    "Logo clicável → home (href ou onLogoClick).",
+    "Busca pill --muted sem borda; encolhe no desktop.",
+    "Notificações, solicitações e avatar como dropdowns no desktop.",
+    "<=600px: busca vira lupa; nome/e-mail ocultos; <=420px esconde wordmark.",
+    "Mobile: busca, notificações, solicitações e avatar abrem como bottom sheet full-width a partir do rodapé (mesmo padrão), via portal.",
+    "Acessibilidade: landmarks, aria, foco, Esc/scrim fecham.",
+    "Sem glow; tokens Fluuy; ícones lucide-react."
+  ]
+}

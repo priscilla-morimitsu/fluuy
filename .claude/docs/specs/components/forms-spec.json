@@ -1,0 +1,128 @@
+{
+  "$schema": "fluuy-forms-spec/v1",
+  "name": "fluuy_forms_spec_prompt",
+  "version": "1.0.0",
+  "language": "pt-BR",
+  "target_model": "Claude / Claude Code",
+  "repository": { "url": "https://github.com/priscilla-morimitsu/fluuy", "full_name": "priscilla-morimitsu/fluuy" },
+  "framework": "Next.js (App Router) + React + TypeScript + react-hook-form + Zod",
+  "uiBase": "shadcn/ui + Ein UI (Liquid Glass, SEM glow) + Tailwind CSS",
+  "iconLibrary": "lucide-react",
+  "relatedSpecs": {
+    "validationMasks": "uploads/fluuy_form_validation_masks_spec_prompt.json — regras canônicas de validação/máscara/normalização (Zod server-side).",
+    "buttons": "handoff/buttons-spec.json — variantes de botão por contexto + group/toggle/dropdown/filtros.",
+    "formDrawer": "handoff/form-drawer-spec.json — drawer em steps, persistência e foco-no-primeiro-erro."
+  },
+
+  "prompt": "Implemente a biblioteca de COMPONENTES DE FORMULÁRIO do Fluuy seguindo EXATAMENTE esta especificação. Base shadcn/ui; tokens Fluuy (CSS custom properties); lucide-react; Liquid Glass SEM glow. Máscara no front é só UX — validação canônica é server-side com Zod (ver relatedSpecs.validationMasks). react-hook-form para estado. Acessibilidade e responsividade obrigatórias. Não invente cores/raios/fontes fora dos tokens.",
+
+  "designTokens": {
+    "field": {
+      "height": "50px (default; busca/datepicker idem). Variações compactas 44px aceitas.",
+      "radius": "var(--radius-2xl) (16px) em TODOS os campos/controles; popovers idem; raio interno de group compartilhado.",
+      "padding": "0 14px horizontal; textarea/itens 14px; addon .px 0 13–14px",
+      "surface": "fundo var(--card); borda 1px var(--border); hover borda var(--neutral-300)",
+      "focus": "borda var(--ring) + box-shadow 0 0 0 3px oklch(0.902 0.193 121 / 0.25)",
+      "disabled": "fundo var(--muted), cor var(--muted-foreground), cursor not-allowed",
+      "addonBg": "var(--muted) com texto var(--muted-foreground), separado por borda var(--border)"
+    },
+    "feedback": {
+      "error": "borda var(--destructive) + box-shadow 0 0 0 3px oklch(0.584 0.157 22.3/0.22); ícone CircleAlert + mensagem .err (text-xs destructive)",
+      "success": "borda/ícone verde legível oklch(0.52 0.13 150) — NÃO usar --success lime como texto",
+      "loading": "spinner anel --neutral-300 topo --lime-500"
+    },
+    "brand": { "--lime-300": "seleção/ativo (dia selecionado, item escolhido)", "--lime-400": "accent (checkbox/radio/switch on, borda de Choice Card selecionado)", "--lime-200": "chips/tags", "--lime-50": "fundo sutil de Choice Card selecionado / dias intermediários do range" },
+    "typography": { "--font-sans": "família", "label": "text-sm weight 500", "hint/err": "text-xs" }
+  },
+
+  "fieldAnatomy": {
+    "wrapper": "componente Field({ label, required, info, hint, error, children }) — label com '*' (required, --destructive) e ícone Info+Tooltip (info); abaixo, mensagem de erro (substitui hint quando presente).",
+    "iconLead": "ícone à esquerda dentro do campo (padding-left ~40px).",
+    "iconTrail": "ícone/ação à direita (clear, busca, validação, toggle senha).",
+    "addon": "prefixo/sufixo coluna com fundo --muted (input-affix); ex.: 'fluuy.com/', 'https://', 'R$', '+55'."
+  },
+
+  "components": [
+    { "id": "text", "shadcn": "Input", "notes": "texto simples; trim na normalização." },
+    { "id": "textarea", "shadcn": "Textarea", "notes": "min-height ~84px, resize vertical, padding 14px; contador opcional (maxLength)." },
+    { "id": "search", "base": "Input", "notes": "lupa no FINAL do campo; ao digitar vira ✕ para limpar." },
+    { "id": "loading", "base": "Input", "notes": "spinner no trail + texto auxiliar; disabled enquanto carrega." },
+    { "id": "inputGroup", "base": "Input + addon", "notes": "prefixo e/ou sufixo (ex.: https:// …). Sem sufixos desnecessários." },
+    { "id": "currency", "base": "Input + addon", "mask": "milhar '.' decimal ',' (1.234,56)", "variants": ["simples (só R$)", "recorrente: sufixo /mês ⇄ /ano clicável (toggle)"], "persist": "Decimal/decimal string" },
+    { "id": "phone", "shadcn": "Input + Popover (combobox país)", "notes": "DDI integrado ao input com seletor de país buscável; default Brasil 🇧🇷 +55. FECHADO mostra só a bandeira; ABERTO mostra bandeira + código. Máscara (##) #####-#### com parênteses no DDD. SEM ícone de telefone.", "persist": "e164_when_possible" },
+    { "id": "cep", "base": "Input", "mask": "#####-###", "notes": "ícone MapPin no lead; botão Search no trail dispara busca de endereço; info opcional.", "persist": "digits_only" },
+    { "id": "cnpj", "base": "Input", "mask": "##.###.###/####-##", "icon": "Building2 (empresa)", "validation": "algoritmo oficial (não regex)", "persist": "digits_only" },
+    { "id": "cpf", "base": "Input", "mask": "###.###.###-##", "icon": "IdCard (documento pessoal)", "validation": "algoritmo oficial", "persist": "digits_only" },
+    { "id": "email", "base": "Input", "icon": "Mail (envelope, lead)", "validation": "z.string().email()", "persist": "lowercase_trimmed" },
+    { "id": "slug", "base": "Input + addon", "addon": "prefixo 'fluuy.com/'", "mask": "lowercase, espaços→hífen, remove acentos/inválidos", "feedback": "checagem de unicidade async (ok 'Disponível')" },
+    { "id": "select", "shadcn": "Combobox", "rule": "NÃO usar <select> nativo. O COMBOBOX é o componente de seleção padrão do Fluuy — buscável e acessível.", "notes": "trigger com valor/placeholder + ChevronsUpDown; popover com campo de busca + lista; item selecionado com Check." },
+    { "id": "combobox", "shadcn": "Combobox", "notes": "= select padrão (ver acima)." },
+    { "id": "autocomplete", "base": "Input + Popover", "notes": "sugestões enquanto digita; navegação por teclado (↑/↓/Enter); fecha ao escolher/clicar fora." },
+    { "id": "multiselect", "shadcn": "Combobox multiple", "notes": "valores como chips removíveis dentro do campo; popover com checkboxes." },
+    { "id": "datePicker", "shadcn": "Popover + Calendar", "notes": "trigger estilo input (ícone Calendar + data pt-BR ou placeholder); calendário 1 mês, dia selecionado em --lime-300, hoje com ring; pt-BR.", "rule": "NUNCA usar <input type=date> nativo." },
+    { "id": "rangeDatePicker", "shadcn": "Popover + Calendar mode=range (DOIS meses)", "ref": "https://ui.shadcn.com/docs/components/radix/date-picker#range-picker", "notes": "DOIS meses lado a lado com navegação única; início/fim em --lime-300, dias intermediários em --lime-50; label 'início – fim'." },
+    { "id": "otp", "shadcn": "InputOTP", "notes": "6 caixas; avança/retrocede o foco automaticamente; inputMode numeric." },
+    { "id": "slider", "shadcn": "Slider", "notes": "valor exibido no label; accent --lime-400." },
+    { "id": "imageUpload", "base": "dropzone", "sizes": { "P": "~84px (logo/avatar)", "M": "~120px", "G": "~170px" }, "states": "dropzone dashed → arquivo em progresso (ícone+nome+barra) → concluído; limites no hint." },
+    { "id": "checkbox", "shadcn": "Checkbox", "notes": "accent --lime-400; versão simples (linha) e versão Choice Card (ver choiceCard)." },
+    { "id": "radio", "shadcn": "RadioGroup", "notes": "accent --lime-400; versão simples e Choice Card." },
+    { "id": "switch", "base": "toggle", "notes": "trilha --neutral-300 → --lime-400, thumb branco; versão simples e Choice Card." }
+  ],
+
+  "choiceCard": {
+    "description": "Versão 'Item / Choice Card' do shadcn para checkbox, radio e switch: card clicável (o card inteiro alterna o controle).",
+    "style": "borda 1px --border, raio 2xl, padding 14px, align-items flex-start; título (weight 600) + descrição muted; SELECIONADO: borda --lime-400 + box-shadow ring lime + fundo --lime-50.",
+    "controlPosition": "checkbox/radio à esquerda (top-aligned); switch à direita.",
+    "use": "escolhas com explicação (planos, preferências, opções com subtítulo)."
+  },
+
+  "fieldVariations": {
+    "required": "asterisco '*' em --destructive ao lado do label; aria-required.",
+    "info": "ícone Info ao lado do label com tooltip explicando o campo (cursor help; aria-label/role=tooltip).",
+    "error": "borda destructive + ícone CircleAlert + mensagem pt-BR; aria-invalid + aria-describedby.",
+    "disabled": "fundo --muted, cursor not-allowed.",
+    "loading": "spinner no trail.",
+    "withIconLead": "ícone contextual à esquerda.",
+    "withAddon": "prefixo/sufixo (input group).",
+    "passwordToggle": "olho (Eye/EyeOff) no trail para mostrar/ocultar."
+  },
+
+  "masks": {
+    "rule": "Aplicar máscara DURANTE a digitação sem prejudicar edição/colagem/seleção. Persistir valor canônico (dígitos/normalizado), não o mascarado.",
+    "cep": "#####-###", "phone": "(##) #####-####", "cpf": "###.###.###-##", "cnpj": "##.###.###/####-##", "currency": "1.234,56",
+    "validation": "Crítica SEMPRE server-side com Zod; CPF/CNPJ por algoritmo oficial. Mensagens pt-BR. Ver relatedSpecs.validationMasks."
+  },
+
+  "accessibility": {
+    "labels": "todo campo com <label htmlFor>; obrigatórios com aria-required + '*'.",
+    "errors": "aria-invalid + aria-describedby na mensagem.",
+    "popovers": "combobox/datepicker/multiselect: aria-haspopup/expanded; teclado (↑/↓/Enter/Esc); foco gerenciado; fecha ao clicar fora.",
+    "info": "tooltip acessível (foco + hover), aria-label.",
+    "choiceCard": "label envolve o input real; estado por aria-checked.",
+    "hitTarget": "≥44px no mobile; foco visível (--ring)."
+  },
+
+  "implementationNotes": [
+    "Combobox é o select padrão — não usar <select> nativo.",
+    "DatePicker e RangeDatePicker via Popover+Calendar (range = dois meses), nunca input type=date.",
+    "Telefone: combobox de país integrado, default +55, só bandeira quando fechado, DDD entre parênteses, sem ícone de telefone.",
+    "Moeda: variação simples e recorrente (/mês ⇄ /ano).",
+    "Ícones: CNPJ=Building2, CPF=IdCard, E-mail=Mail, CEP=MapPin, Slug addon 'fluuy.com/'.",
+    "Checkbox/radio/switch têm versão simples e Choice Card (card clicável, borda lime + ring no selecionado).",
+    "Raio 2xl em tudo; Liquid Glass SEM glow (sombras neutras).",
+    "Máscara só-UX; validação canônica server-side com Zod (relatedSpecs.validationMasks).",
+    "Estado com react-hook-form; em submit, focar o primeiro campo inválido (ver relatedSpecs.formDrawer)."
+  ],
+
+  "definition_of_done": [
+    "Todos os componentes implementados com shadcn/ui + tokens Fluuy + lucide-react.",
+    "Field wrapper com required, info (tooltip), hint e error.",
+    "Combobox como select padrão; datepicker e range (dois meses) via popover.",
+    "Telefone com combobox de país (default +55, só bandeira fechado, DDD em parênteses).",
+    "Moeda simples e recorrente (/mês ⇄ /ano).",
+    "Checkbox/radio/switch em versão simples e Choice Card.",
+    "Máscaras durante a digitação; validação Zod server-side; mensagens pt-BR.",
+    "Acessibilidade (labels, aria, teclado, foco) e responsividade.",
+    "Raio 2xl, sem glow, ícones corretos por campo."
+  ]
+}
