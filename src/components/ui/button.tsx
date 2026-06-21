@@ -1,58 +1,124 @@
-import { Button as ButtonPrimitive } from "@base-ui/react/button"
-import { cva, type VariantProps } from "class-variance-authority"
+import { Button as ButtonPrimitive } from "@base-ui/react/button";
+import { cva, type VariantProps } from "class-variance-authority";
 
-import { cn } from "@/lib/utils"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { cn } from "@/lib/utils";
 
+/**
+ * Fluuy Design System — Button.
+ * Variants map to a USAGE CONTEXT, not aesthetics:
+ * - brand: primary backend actions (save/create/send/generate) — one per context
+ * - default: general UI actions (export/import/open/continue/action menus)
+ * - secondary: supporting actions (back/cancel/skip)
+ * - outline: low-emphasis alternative on filled surfaces (filter/sort/configure)
+ * - ghost: tertiary + icon buttons in dense areas (close/more/row actions)
+ * - link: inline navigation in text ("learn more", "forgot password")
+ * - destructive: irreversible actions (delete/block) — always confirm
+ * All radius 2xl, weight 600, press scale, no glow. Icon-only buttons must pass
+ * `tooltip` (sets the accessible label + a hover tooltip).
+ */
 const buttonVariants = cva(
-  "group/button inline-flex shrink-0 items-center justify-center rounded-lg border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-all outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:not-aria-[haspopup]:translate-y-px disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+  cn(
+    "inline-flex shrink-0 items-center justify-center gap-[7px] rounded-2xl border border-transparent font-semibold whitespace-nowrap transition-[background-color,transform,border-color] outline-none select-none",
+    "focus-visible:ring-3 focus-visible:ring-ring/50 active:scale-[0.98] disabled:cursor-not-allowed",
+    "[&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg]:[stroke-width:2.2] [&_svg:not([class*='size-'])]:size-[19px]",
+  ),
   {
     variants: {
       variant: {
-        default: "bg-primary text-primary-foreground hover:bg-primary/80",
-        outline:
-          "border-border bg-background hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50",
+        brand:
+          "text-[var(--lime-200)] bg-[var(--neutral-900)] hover:bg-[var(--neutral-800)] focus-visible:ring-accent/40",
+        default:
+          "text-[var(--neutral-900)] bg-[var(--lime-300)] hover:bg-[var(--lime-300)]",
         secondary:
-          "bg-secondary text-secondary-foreground hover:bg-[color-mix(in_oklch,var(--secondary),var(--foreground)_5%)] aria-expanded:bg-secondary aria-expanded:text-secondary-foreground",
+          "bg-[var(--neutral-100)] text-foreground hover:bg-[var(--neutral-200)]",
+        outline:
+          "border-border bg-transparent text-foreground hover:bg-[var(--neutral-100)] aria-expanded:bg-[var(--neutral-100)]",
         ghost:
-          "hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:hover:bg-muted/50",
+          "bg-transparent text-foreground hover:bg-[var(--neutral-100)] aria-expanded:bg-[var(--neutral-100)]",
+        link: "bg-transparent text-foreground underline underline-offset-[3px]",
         destructive:
-          "bg-destructive/10 text-destructive hover:bg-destructive/20 focus-visible:border-destructive/40 focus-visible:ring-destructive/20 dark:bg-destructive/20 dark:hover:bg-destructive/30 dark:focus-visible:ring-destructive/40",
-        link: "text-primary underline-offset-4 hover:underline",
+          "border-destructive/40 bg-destructive/12 text-destructive hover:border-destructive hover:bg-destructive hover:text-white",
       },
       size: {
-        default:
-          "h-8 gap-1.5 px-2.5 has-data-[icon=inline-end]:pr-2 has-data-[icon=inline-start]:pl-2",
-        xs: "h-6 gap-1 rounded-[min(var(--radius-md),10px)] px-2 text-xs in-data-[slot=button-group]:rounded-lg has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 [&_svg:not([class*='size-'])]:size-3",
-        sm: "h-7 gap-1 rounded-[min(var(--radius-md),12px)] px-2.5 text-[0.8rem] in-data-[slot=button-group]:rounded-lg has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 [&_svg:not([class*='size-'])]:size-3.5",
-        lg: "h-9 gap-1.5 px-2.5 has-data-[icon=inline-end]:pr-2 has-data-[icon=inline-start]:pl-2",
-        icon: "size-8",
-        "icon-xs":
-          "size-6 rounded-[min(var(--radius-md),10px)] in-data-[slot=button-group]:rounded-lg [&_svg:not([class*='size-'])]:size-3",
-        "icon-sm":
-          "size-7 rounded-[min(var(--radius-md),12px)] in-data-[slot=button-group]:rounded-lg",
-        "icon-lg": "size-9",
+        default: "h-[50px] px-[1.125rem] text-sm",
+        sm: "h-9 gap-1.5 px-3.5 text-sm",
+        lg: "h-[56px] px-5 text-base",
+        icon: "size-[50px] px-0 [&_svg:not([class*='size-'])]:size-5",
+        "icon-sm": "size-9 [&_svg:not([class*='size-'])]:size-[18px]",
       },
     },
     defaultVariants: {
       variant: "default",
       size: "default",
     },
-  }
-)
+  },
+);
+
+/** Ring spinner — the ring uses the current text color (top brighter). */
+function Spinner({ className }: { className?: string }) {
+  return (
+    <span
+      aria-hidden
+      className={cn(
+        "size-[15px] shrink-0 animate-spin rounded-full border-2 border-current/25 border-t-current",
+        className,
+      )}
+    />
+  );
+}
 
 function Button({
   className,
   variant = "default",
   size = "default",
+  loading = false,
+  tooltip,
+  disabled,
+  children,
   ...props
-}: ButtonPrimitive.Props & VariantProps<typeof buttonVariants>) {
-  return (
+}: ButtonPrimitive.Props &
+  VariantProps<typeof buttonVariants> & {
+    loading?: boolean;
+    /** Hover tooltip + accessible label — required for icon-only buttons. */
+    tooltip?: string;
+  }) {
+  const btn = (
     <ButtonPrimitive
       data-slot="button"
-      className={cn(buttonVariants({ variant, size, className }))}
+      disabled={disabled || loading}
+      aria-busy={loading || undefined}
+      aria-label={tooltip ?? props["aria-label"]}
+      className={cn(
+        buttonVariants({ variant, size }),
+        disabled && !loading && "opacity-50",
+        className,
+      )}
       {...props}
-    />
-  )
+    >
+      {loading ? (
+        <>
+          <Spinner />
+          Carregando…
+        </>
+      ) : (
+        children
+      )}
+    </ButtonPrimitive>
+  );
+
+  if (!tooltip) return btn;
+
+  return (
+    <Tooltip>
+      <TooltipTrigger render={btn} />
+      <TooltipContent>{tooltip}</TooltipContent>
+    </Tooltip>
+  );
 }
 
-export { Button, buttonVariants }
+export { Button, buttonVariants };

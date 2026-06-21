@@ -8,38 +8,45 @@
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-sans);
-  --font-serif: var(--font-serif);
   --font-mono: var(--font-geist-mono);
-  --font-heading: var(--font-serif);
-  --color-sidebar-ring: var(--sidebar-ring);
-  --color-sidebar-border: var(--sidebar-border);
-  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-  --color-sidebar-accent: var(--sidebar-accent);
-  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-  --color-sidebar-primary: var(--sidebar-primary);
-  --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-sidebar: var(--sidebar);
-  --color-chart-5: var(--chart-5);
-  --color-chart-4: var(--chart-4);
-  --color-chart-3: var(--chart-3);
-  --color-chart-2: var(--chart-2);
-  --color-chart-1: var(--chart-1);
-  --color-ring: var(--ring);
-  --color-input: var(--input);
-  --color-border: var(--border);
-  --color-destructive: var(--destructive);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-accent: var(--accent);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-muted: var(--muted);
-  --color-secondary-foreground: var(--secondary-foreground);
-  --color-secondary: var(--secondary);
-  --color-primary-foreground: var(--primary-foreground);
-  --color-primary: var(--primary);
-  --color-popover-foreground: var(--popover-foreground);
-  --color-popover: var(--popover);
-  --color-card-foreground: var(--card-foreground);
+  --font-heading: var(--font-sans);
+
   --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-info: var(--info);
+
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
@@ -49,75 +56,183 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
+/* ─── Light Mode ─────────────────────────────────────────── */
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
+  /* Fluuy brand */
+  --lime-50: oklch(0.975 0.04 121); /* subtle selected bg (opt-card/switch) */
+  --lime-100: oklch(0.96 0.06 121); /* done step dot, file icon bg */
+  --lime-200: oklch(0.945 0.09 121); /* badge bg */
+  --lime-300: oklch(0.902 0.193 121); /* #D6F272 */
+  --lime-400: oklch(0.86 0.19 121);
+  --lime-500: oklch(0.78 0.17 121); /* active badge dot (collapsed) */
+
+  /* Neutral scale (spec-referenced) */
+  --neutral-0: oklch(1 0 0); /* white — text on dark buttons/tooltip */
+  --neutral-100: oklch(0.968 0 0); /* secondary button bg, outline/ghost hover */
+  --neutral-200: oklch(0.922 0 0); /* dividers */
+  --neutral-300: oklch(0.83 0 0); /* field hover border, switch off-track */
+  --neutral-700: oklch(0.37 0 0); /* chip remove icon */
+  --neutral-800: oklch(0.3 0 0); /* badge text */
+  --neutral-900: oklch(0.196 0.004 117); /* text over lime */
+
+  /* Backgrounds */
+  --background: oklch(1 0 0); /* white */
+  --foreground: oklch(0.196 0.004 117); /* #282926 */
+
+  --card: oklch(1 0 0); /* white */
+  --card-foreground: oklch(0.196 0.004 117);
+
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --popover-foreground: oklch(0.196 0.004 117);
+
+  /* Primary — dark in light, lime in dark */
+  --primary: oklch(0.196 0.004 117);
+  --primary-foreground: oklch(1 0 0);
+
+  --secondary: oklch(0.96 0.001 110);
+  --secondary-foreground: oklch(0.196 0.004 117);
+
+  --muted: oklch(0.96 0.001 110);
+  --muted-foreground: oklch(0.6 0.003 110);
+
+  /* Accent — lime */
+  --accent: var(--lime-300);
+  --accent-foreground: oklch(0.196 0.004 117);
+
+  /* Feedback */
+  --destructive: oklch(0.584 0.157 22.3); /* #db5b4d */
+  --success: oklch(0.628 0.108 145); /* #6ba368 */
+  --warning: oklch(0.697 0.127 72.4); /* #d49a3b */
+  --info: oklch(83.186% 0.11457 220.802); /* #7ba3c4 */
+
+  --border: oklch(0.86 0.001 110);
+  --input: oklch(0.86 0.001 110);
+  --ring: var(--lime-300);
+
+  /* Glass morphism */
+  --glass-bg: oklch(1 0 0 / 0.55);
+  --glass-bg-hover: oklch(1 0 0 / 0.72);
+  --glass-border: oklch(1 0 0 / 0.75);
+  /* Drawer panel — opacity stepped up twice from --glass-bg (transparency 0.45 → 0.225 → 0.1125) */
+  --drawer-bg: oklch(1 0 0 / 0.8875);
+  /* Mobile dock — 80% less transparent than --glass-bg (transparency 0.45 → 0.09) */
+  --dock-bg: oklch(1 0 0 / 0.91);
+  --glass-blur: blur(20px) saturate(180%);
+  --glass-blur-lg: blur(28px) saturate(180%); /* drawer backdrop (slightly stronger) */
+  --glass-shadow:
+    0 4px 24px oklch(0 0 0 / 0.08), inset 0 1px 0 oklch(1 0 0 / 0.9);
+
+  /* Overlay — light frosted veil behind dialogs, drawers, modals, alerts */
+  --overlay: oklch(1 0 0 / 0.55);
+
+  /* Gradient background — flattened to a solid white surface */
+  --gradient-bg: oklch(1 0 0);
+
+  --radius: 0.5rem;
+
+  /* Sidebar */
+  --sidebar: oklch(1 0 0);
+  --sidebar-foreground: oklch(0.196 0.004 117);
+  --sidebar-primary: oklch(0.196 0.004 117);
+  --sidebar-primary-foreground: oklch(1 0 0);
+  --sidebar-accent: oklch(0.96 0.001 110);
+  --sidebar-accent-foreground: oklch(0.196 0.004 117);
+  --sidebar-border: oklch(0.86 0.001 110);
+  --sidebar-ring: var(--lime-300);
+
+  /* Charts */
+  --chart-1: var(--lime-300);
+  --chart-2: oklch(0.74 0.002 110);
+  --chart-3: oklch(0.6 0.003 110);
+  --chart-4: oklch(0.902 0.193 121);
+  --chart-5: oklch(0.657 0.068 219.8);
 }
 
+/* ─── Dark Mode ──────────────────────────────────────────── */
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  --background: oklch(0.196 0.004 117); /* #282926 */
+  --foreground: oklch(0.96 0.001 110);
+
+  /* Divider stays visible on dark surfaces (badge text/bg keep light values:
+     lime is bright in both modes, so dark text on it remains legible). */
+  --neutral-100: oklch(0.32 0.004 117); /* raised dark surface (secondary btn / hover) */
+  --neutral-200: oklch(1 0 0 / 0.12);
+  --neutral-300: oklch(1 0 0 / 0.2); /* field hover border on dark */
+
+  --card: oklch(0.27 0.004 117);
+  --card-foreground: oklch(0.96 0.001 110);
+
+  --popover: oklch(0.27 0.004 117);
+  --popover-foreground: oklch(0.96 0.001 110);
+
+  /* Primary — lime in dark mode */
+  --primary: var(--lime-300);
+  --primary-foreground: oklch(0.196 0.004 117);
+
+  --secondary: oklch(0.27 0.004 117);
+  --secondary-foreground: oklch(0.96 0.001 110);
+
+  --muted: oklch(0.27 0.004 117);
+  --muted-foreground: oklch(0.6 0.003 110);
+
+  --accent: var(--lime-300);
+  --accent-foreground: oklch(0.196 0.004 117);
+
+  --destructive: oklch(0.635 0.15 22.3);
+  --success: oklch(0.7 0.118 145);
+  --warning: oklch(0.697 0.127 72.4);
+  --info: oklch(0.657 0.068 219.8);
+
+  --border: oklch(1 0 0 / 0.1);
+  --input: oklch(1 0 0 / 0.12);
+  --ring: var(--lime-300);
+
+  /* Glass morphism — dark */
+  --glass-bg: oklch(0.27 0.004 117 / 0.42);
+  --glass-bg-hover: oklch(0.27 0.004 117 / 0.6);
+  --glass-border: oklch(1 0 0 / 0.12);
+  /* Drawer panel — opacity stepped up twice from --glass-bg (transparency 0.58 → 0.29 → 0.145) */
+  --drawer-bg: oklch(0.27 0.004 117 / 0.855);
+  /* Mobile dock — 80% less transparent than --glass-bg (transparency 0.58 → 0.116) */
+  --dock-bg: oklch(0.27 0.004 117 / 0.884);
+  --glass-blur: blur(20px) saturate(160%);
+  --glass-blur-lg: blur(28px) saturate(160%); /* drawer backdrop (slightly stronger) */
+  --glass-shadow:
+    0 4px 24px oklch(0 0 0 / 0.32), inset 0 1px 0 oklch(1 0 0 / 0.05);
+
+  /* Overlay — light frosted veil (kept light per the design system) */
+  --overlay: oklch(1 0 0 / 0.14);
+
+  --gradient-bg:
+    radial-gradient(
+      ellipse at 15% 40%,
+      oklch(0.32 0.1 121 / 0.45) 0%,
+      transparent 48%
+    ),
+    radial-gradient(
+      ellipse at 82% 75%,
+      oklch(0.22 0.04 220 / 0.22) 0%,
+      transparent 48%
+    ),
+    oklch(0.196 0.004 117);
+
+  --sidebar: oklch(0.27 0.004 117);
+  --sidebar-foreground: oklch(0.96 0.001 110);
+  --sidebar-primary: var(--lime-300);
+  --sidebar-primary-foreground: oklch(0.196 0.004 117);
+  --sidebar-accent: oklch(0.196 0.004 117);
+  --sidebar-accent-foreground: oklch(0.96 0.001 110);
+  --sidebar-border: oklch(1 0 0 / 0.08);
+  --sidebar-ring: var(--lime-300);
+
+  --chart-1: var(--lime-300);
+  --chart-2: oklch(0.6 0.003 110);
+  --chart-3: oklch(0.47 0.003 110);
+  --chart-4: oklch(0.902 0.193 121);
+  --chart-5: oklch(0.657 0.068 219.8);
 }
 
+/* ─── Base styles ────────────────────────────────────────── */
 @layer base {
   * {
     @apply border-border outline-ring/50;
@@ -127,5 +242,38 @@
   }
   html {
     @apply font-sans;
+  }
+}
+
+/* ─── Glass utility classes ─────────────────────────────── */
+@layer utilities {
+  .glass {
+    background: var(--glass-bg);
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
+    border: 1px solid var(--glass-border);
+    box-shadow: var(--glass-shadow);
+  }
+  /* Drawer panel — less transparent (--drawer-bg) + slightly stronger blur. */
+  .glass-drawer {
+    background: var(--drawer-bg);
+    backdrop-filter: var(--glass-blur-lg);
+    -webkit-backdrop-filter: var(--glass-blur-lg);
+    border: 1px solid var(--glass-border);
+    box-shadow: var(--glass-shadow);
+  }
+  /* Mobile dock — mostly opaque (--dock-bg) with a blurred backdrop. */
+  .glass-dock {
+    background: var(--dock-bg);
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
+    border: 1px solid var(--glass-border);
+    box-shadow: var(--glass-shadow);
+  }
+  .glass-hover:hover {
+    background: var(--glass-bg-hover);
+  }
+  .gradient-bg {
+    background: var(--gradient-bg);
   }
 }
