@@ -3,7 +3,7 @@
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Combobox } from "@/components/ui/combobox";
 
 import { useTableParams } from "./use-table-params";
 
@@ -18,21 +18,13 @@ export function PaginationControls({ total }: { total: number }) {
     <div className="flex flex-wrap items-center justify-between gap-3">
       <div className="flex items-center gap-2 text-sm text-zinc-500">
         <span>Por página</span>
-        <Select
+        <Combobox
           value={String(params.pageSize)}
           onValueChange={(v) => setParams({ pageSize: Number(v), page: 1 })}
-        >
-          <SelectTrigger size="sm" className="w-20">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {PAGE_SIZES.map((s) => (
-              <SelectItem key={s} value={String(s)}>
-                {s}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+          options={PAGE_SIZES.map((s) => ({ value: String(s), label: String(s) }))}
+          ariaLabel="Itens por página"
+          className="h-9 w-[84px]"
+        />
       </div>
 
       <div className="flex items-center gap-2">

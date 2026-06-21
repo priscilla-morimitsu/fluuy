@@ -15,6 +15,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuLabel,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
@@ -111,8 +112,9 @@ export function DataTable<TData>({
               }
             />
             <DropdownMenuContent align="end" className="w-44">
-              <DropdownMenuLabel>Colunas visíveis</DropdownMenuLabel>
-              {hideableColumns.map((column) => {
+              <DropdownMenuGroup>
+                <DropdownMenuLabel>Colunas visíveis</DropdownMenuLabel>
+                {hideableColumns.map((column) => {
                 const label =
                   typeof column.columnDef.meta === "object" &&
                   column.columnDef.meta &&
@@ -131,7 +133,8 @@ export function DataTable<TData>({
                     {label}
                   </label>
                 );
-              })}
+                })}
+              </DropdownMenuGroup>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
