@@ -6,6 +6,7 @@ export const TEMPLATE_ENTITY_TYPES = [
   "customer_entity",
   "product",
   "service",
+  "professional",
   "plan",
   "request",
   "agent_config",

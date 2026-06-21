@@ -39,3 +39,16 @@ export async function sendPasswordResetEmail(to: string, resetUrl: string): Prom
     text: `Recebemos uma solicitação para redefinir sua senha. Acesse o link abaixo para continuar (válido por 30 minutos):\n\n${resetUrl}\n\nSe você não solicitou isso, ignore este e-mail.`,
   });
 }
+
+export async function sendCollaboratorInviteEmail(
+  to: string,
+  tenantName: string,
+  loginUrl: string,
+): Promise<void> {
+  await getClient().emails.send({
+    from: fromAddress(),
+    to,
+    subject: `Você foi adicionado à equipe de ${tenantName} no Fluuy`,
+    text: `Você foi adicionado(a) à equipe de ${tenantName} no Fluuy.\n\nPara acessar, entre em ${loginUrl} com este e-mail — você receberá um código de acesso por e-mail.\n\nSe você não esperava este convite, ignore este e-mail.`,
+  });
+}
