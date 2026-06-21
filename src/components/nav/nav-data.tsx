@@ -17,6 +17,7 @@ import {
   Puzzle,
   Settings,
   ShieldCheck,
+  Smartphone,
   ShoppingBag,
   ShoppingCart,
   Store,
@@ -81,6 +82,15 @@ export const tenantMenu: NavNode[] = [
           { id: "ai_agent", label: "Agente IA", icon: Bot, href: "/t/[tenantSlug]/agents", featureKey: "agent_configuration" },
           { id: "workflows", label: "Workflows", icon: Workflow, href: "/t/[tenantSlug]/workflows", featureKey: "tenant_workflows" },
           { id: "knowledge_base", label: "Base de conhecimento", icon: BookOpenText, href: "/t/[tenantSlug]/knowledge-base", featureKey: "knowledge_base" },
+        ],
+      },
+      {
+        id: "whatsapp", label: "WhatsApp", icon: Smartphone, scope: "tenant", featureKey: "whatsapp_integration", allowedRoles: ["tenant_owner", "tenant_manager"],
+        children: [
+          { id: "whatsapp_overview", label: "Visão geral", icon: MessageCircle, href: "/t/[tenantSlug]/whatsapp", featureKey: "whatsapp_integration" },
+          { id: "whatsapp_numbers", label: "Números", icon: Smartphone, href: "/t/[tenantSlug]/whatsapp/numbers", featureKey: "whatsapp_integration" },
+          { id: "whatsapp_templates", label: "Templates", icon: FileCode2, href: "/t/[tenantSlug]/whatsapp/templates", featureKey: "whatsapp_integration" },
+          { id: "whatsapp_logs", label: "Logs", icon: BookOpenText, href: "/t/[tenantSlug]/whatsapp/logs", featureKey: "whatsapp_integration" },
         ],
       },
       {

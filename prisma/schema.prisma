@@ -314,6 +314,15 @@ model Tenant {
   orders                           Order[]
   orderSequence                    OrderSequence?
   appointments                     Appointment[]
+  messagingProviderAccounts        MessagingProviderAccount[]
+  whatsappAccounts                 WhatsAppAccount[]
+  conversations                    Conversation[]
+  conversationMessages             ConversationMessage[]
+  messageDeliveries                MessageDelivery[]
+  messageTemplateMappings          MessageTemplateMapping[]
+  messageWebhookEventLogs          MessageWebhookEventLog[]
+  messageConsents                  MessageConsent[]
+  conversationAssignments          ConversationAssignment[]
 
   @@index([nicheId])
   @@index([status])
@@ -890,11 +899,11 @@ model Customer {
   createdAt          DateTime            @default(now()) @map("created_at")
   updatedAt          DateTime            @updatedAt @map("updated_at")
 
-  tenant    Tenant                  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  addresses CustomerAddress[]
-  tagLinks  CustomerTagAssignment[]
-  entities  CustomerEntity[]
-  orders    Order[]
+  tenant       Tenant                  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  addresses    CustomerAddress[]
+  tagLinks     CustomerTagAssignment[]
+  entities     CustomerEntity[]
+  orders       Order[]
   appointments Appointment[]
 
   // One customer per phone, per tenant (strong WhatsApp dedup key).
@@ -1665,4 +1674,404 @@ model AppointmentReminder {
   @@index([tenantId, appointmentId])
   @@index([tenantId, scheduledFor, status])
   @@map("appointment_reminders")
+}
+
+// ============================================================================
+// WhatsApp / Messaging — provider-agnostic integration.
+// See .claude/docs/specs/integrations/whatsapp/spec-pilot-status.json.
+// The UI and business logic never talk to a provider directly: they go through
+// the MessagingProvider interface (src/lib/messaging). Provider names, endpoint
+// shapes and SDKs stay isolated in the concrete provider. Initial provider:
+// pilot_status_whatsapp. Internal status is normalized and kept separate from
+// the raw providerStatus so a future provider swap (Meta, Z-API, Twilio, …) has
+// minimal blast radius. Every table is tenant-scoped with @@index([tenantId]).
+// ============================================================================
+
+enum MessagingProvider {
+  pilot_status_whatsapp
+  meta_whatsapp
+  z_api
+  evolution_api
+  twilio
+  other
+}
+
+enum MessagingEnvironment {
+  test
+  live
+}
+
+enum MessagingAccountStatus {
+  active
+  inactive
+  error
+  pending_setup
+}
+
+// One provider account per tenant (the resolved project + environment + the
+// tenant's child API key). The parent/master API key never lives here — it
+// stays in ENV. encryptedApiKey holds the AES-GCM ciphertext of the child key.
+model MessagingProviderAccount {
+  id                String                 @id @default(uuid())
+  tenantId          String                 @map("tenant_id")
+  provider          MessagingProvider      @default(pilot_status_whatsapp)
+  environment       MessagingEnvironment   @default(test)
+  providerProjectId String?                @map("provider_project_id")
+  providerApiKeyId  String?                @map("provider_api_key_id")
+  encryptedApiKey   String?                @map("encrypted_api_key")
+  keyPrefix         String?                @map("key_prefix")
+  retentionDays     Int                    @default(30) @map("retention_days")
+  status            MessagingAccountStatus @default(pending_setup)
+  metadata          Json                   @default("{}")
+  createdAt         DateTime               @default(now()) @map("created_at")
+  updatedAt         DateTime               @updatedAt @map("updated_at")
+
+  tenant           Tenant                   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  whatsappAccounts WhatsAppAccount[]
+  templateMappings MessageTemplateMapping[]
+
+  @@unique([tenantId, provider, environment])
+  @@index([tenantId])
+  @@index([tenantId, status])
+  @@map("messaging_provider_accounts")
+}
+
+enum WhatsAppAccountStatus {
+  connecting
+  open
+  close
+  disconnected
+  error
+  pending_pairing
+}
+
+enum WhatsAppLinkMode {
+  single
+  dual
+}
+
+// A connected (or connecting) WhatsApp number. MVP keeps one primary per tenant
+// but the model supports several. qrcodeBase64 / pairingCode are transient
+// connect artifacts and are cleared once the link is OPEN.
+model WhatsAppAccount {
+  id                 String                @id @default(uuid())
+  tenantId           String                @map("tenant_id")
+  providerAccountId  String                @map("provider_account_id")
+  providerInstanceId String?               @map("provider_instance_id")
+  name               String?
+  number             String?
+  numberNormalized   String?               @map("number_normalized")
+  maskedNumber       String?               @map("masked_number")
+  status             WhatsAppAccountStatus @default(pending_pairing)
+  isPrimary          Boolean               @default(false) @map("is_primary")
+  linkMode           WhatsAppLinkMode      @default(dual) @map("link_mode")
+  primaryState       String?               @map("primary_state")
+  secondaryState     String?               @map("secondary_state")
+  isFullyConnected   Boolean               @default(false) @map("is_fully_connected")
+  remotePairingUrl   String?               @map("remote_pairing_url")
+  qrcodeBase64       String?               @map("qrcode_base64")
+  pairingCode        String?               @map("pairing_code")
+  lastStatusAt       DateTime?             @map("last_status_at")
+  connectedAt        DateTime?             @map("connected_at")
+  metadata           Json                  @default("{}")
+  createdAt          DateTime              @default(now()) @map("created_at")
+  updatedAt          DateTime              @updatedAt @map("updated_at")
+
+  tenant          Tenant                   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  providerAccount MessagingProviderAccount @relation(fields: [providerAccountId], references: [id], onDelete: Cascade)
+  conversations   Conversation[]
+
+  @@unique([tenantId, numberNormalized])
+  @@index([tenantId])
+  @@index([tenantId, status])
+  @@index([providerAccountId])
+  @@map("whatsapp_accounts")
+}
+
+enum ConversationChannel {
+  whatsapp
+}
+
+enum ConversationTargetType {
+  phone
+  group
+  newsletter
+}
+
+enum ConversationStatus {
+  open
+  pending
+  resolved
+  archived
+  blocked
+}
+
+enum ConversationAssigneeType {
+  ai
+  human
+  paused
+  unassigned
+}
+
+model Conversation {
+  id                      String                   @id @default(uuid())
+  tenantId                String                   @map("tenant_id")
+  whatsappAccountId       String?                  @map("whatsapp_account_id")
+  channel                 ConversationChannel      @default(whatsapp)
+  targetType              ConversationTargetType   @default(phone) @map("target_type")
+  targetId                String?                  @map("target_id")
+  targetName              String?                  @map("target_name")
+  contactNumber           String?                  @map("contact_number")
+  contactNumberNormalized String?                  @map("contact_number_normalized")
+  groupId                 String?                  @map("group_id")
+  newsletterId            String?                  @map("newsletter_id")
+  customerId              String?                  @map("customer_id")
+  leadId                  String?                  @map("lead_id")
+  status                  ConversationStatus       @default(open)
+  assigneeType            ConversationAssigneeType @default(unassigned) @map("assignee_type")
+  assignedUserId          String?                  @map("assigned_user_id")
+  assignedAgentId         String?                  @map("assigned_agent_id")
+  lastMessageAt           DateTime?                @map("last_message_at")
+  lastInboundAt           DateTime?                @map("last_inbound_at")
+  lastOutboundAt          DateTime?                @map("last_outbound_at")
+  unreadCount             Int                      @default(0) @map("unread_count")
+  optInStatus             MessageConsentStatus     @default(unknown) @map("opt_in_status")
+  metadata                Json                     @default("{}")
+  createdAt               DateTime                 @default(now()) @map("created_at")
+  updatedAt               DateTime                 @updatedAt @map("updated_at")
+
+  tenant          Tenant                   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  whatsappAccount WhatsAppAccount?         @relation(fields: [whatsappAccountId], references: [id], onDelete: SetNull)
+  messages        ConversationMessage[]
+  assignments     ConversationAssignment[]
+
+  // One open conversation per phone target, per tenant (NULLs stay distinct).
+  @@unique([tenantId, contactNumberNormalized])
+  @@index([tenantId])
+  @@index([tenantId, status])
+  @@index([tenantId, assigneeType])
+  @@index([tenantId, lastMessageAt])
+  @@index([customerId])
+  @@index([leadId])
+  @@map("conversations")
+}
+
+enum MessageDirection {
+  inbound
+  outbound
+}
+
+enum MessageType {
+  text
+  template
+  button
+  system
+  group
+  newsletter
+  unknown
+}
+
+enum MessageInternalStatus {
+  queued
+  sent
+  delivered
+  read
+  failed
+  canceled
+  received
+}
+
+model ConversationMessage {
+  id                        String                @id @default(uuid())
+  tenantId                  String                @map("tenant_id")
+  conversationId            String                @map("conversation_id")
+  direction                 MessageDirection
+  content                   String?
+  messageType               MessageType           @default(text) @map("message_type")
+  internalStatus            MessageInternalStatus @default(queued) @map("internal_status")
+  providerStatus            String?               @map("provider_status")
+  providerMessageId         String?               @map("provider_message_id")
+  providerInternalMessageId String?               @map("provider_internal_message_id")
+  providerCorrelationId     String?               @map("provider_correlation_id")
+  quotedMessageId           String?               @map("quoted_message_id")
+  messageRepliedId          String?               @map("message_replied_id")
+  templateMappingId         String?               @map("template_mapping_id")
+  variables                 Json                  @default("{}")
+  fromNumber                String?               @map("from_number")
+  toNumber                  String?               @map("to_number")
+  sentByUserId              String?               @map("sent_by_user_id")
+  sentByAgent               Boolean               @default(false) @map("sent_by_agent")
+  receivedAt                DateTime?             @map("received_at")
+  sentAt                    DateTime?             @map("sent_at")
+  deliveredAt               DateTime?             @map("delivered_at")
+  readAt                    DateTime?             @map("read_at")
+  failedAt                  DateTime?             @map("failed_at")
+  errorMessage              String?               @map("error_message")
+  metadata                  Json                  @default("{}")
+  createdAt                 DateTime              @default(now()) @map("created_at")
+  updatedAt                 DateTime              @updatedAt @map("updated_at")
+
+  tenant          Tenant                  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  conversation    Conversation            @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  templateMapping MessageTemplateMapping? @relation(fields: [templateMappingId], references: [id], onDelete: SetNull)
+  deliveries      MessageDelivery[]
+
+  // Idempotency: a given provider message lands once per tenant (NULLs distinct).
+  @@unique([tenantId, providerMessageId])
+  @@index([tenantId])
+  @@index([conversationId])
+  @@index([tenantId, internalStatus])
+  @@index([providerInternalMessageId])
+  @@map("conversation_messages")
+}
+
+model MessageDelivery {
+  id                    String                @id @default(uuid())
+  tenantId              String                @map("tenant_id")
+  conversationMessageId String                @map("conversation_message_id")
+  provider              MessagingProvider     @default(pilot_status_whatsapp)
+  providerStatus        String?               @map("provider_status")
+  internalStatus        MessageInternalStatus @map("internal_status")
+  rawEventId            String?               @map("raw_event_id")
+  happenedAt            DateTime?             @map("happened_at")
+  metadata              Json                  @default("{}")
+  createdAt             DateTime              @default(now()) @map("created_at")
+
+  tenant              Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  conversationMessage ConversationMessage @relation(fields: [conversationMessageId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([conversationMessageId])
+  @@map("message_deliveries")
+}
+
+enum TemplateCategory {
+  otp
+  utility
+  marketing
+  unknown
+}
+
+enum TemplateMappingStatus {
+  draft
+  approved
+  rejected
+  pending
+  unknown
+}
+
+model MessageTemplateMapping {
+  id                 String                @id @default(uuid())
+  tenantId           String                @map("tenant_id")
+  providerAccountId  String                @map("provider_account_id")
+  providerTemplateId String                @map("provider_template_id")
+  name               String
+  category           TemplateCategory      @default(unknown)
+  language           String?
+  variables          Json                  @default("[]")
+  status             TemplateMappingStatus @default(unknown)
+  isDefault          Boolean               @default(false) @map("is_default")
+  metadata           Json                  @default("{}")
+  createdAt          DateTime              @default(now()) @map("created_at")
+  updatedAt          DateTime              @updatedAt @map("updated_at")
+
+  tenant          Tenant                   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  providerAccount MessagingProviderAccount @relation(fields: [providerAccountId], references: [id], onDelete: Cascade)
+  messages        ConversationMessage[]
+
+  @@unique([tenantId, providerTemplateId])
+  @@index([tenantId])
+  @@index([providerAccountId])
+  @@index([tenantId, category])
+  @@map("message_template_mappings")
+}
+
+enum WebhookProcessingStatus {
+  received
+  processed
+  failed
+  ignored
+  duplicate
+}
+
+// Every inbound webhook is logged BEFORE processing, with a masked payload for
+// the UI. tenantId is nullable: a webhook may arrive before we can resolve the
+// owning tenant. Idempotency is enforced per provider event id.
+model MessageWebhookEventLog {
+  id                String                  @id @default(uuid())
+  tenantId          String?                 @map("tenant_id")
+  provider          MessagingProvider       @default(pilot_status_whatsapp)
+  providerAccountId String?                 @map("provider_account_id")
+  eventType         String                  @map("event_type")
+  providerEventId   String?                 @map("provider_event_id")
+  correlationId     String?                 @map("correlation_id")
+  messageId         String?                 @map("message_id")
+  internalMessageId String?                 @map("internal_message_id")
+  payload           Json                    @default("{}")
+  maskedPayload     Json                    @default("{}") @map("masked_payload")
+  processingStatus  WebhookProcessingStatus @default(received) @map("processing_status")
+  errorMessage      String?                 @map("error_message")
+  receivedAt        DateTime                @default(now()) @map("received_at")
+  processedAt       DateTime?               @map("processed_at")
+
+  tenant Tenant? @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+
+  @@unique([provider, providerEventId])
+  @@index([tenantId])
+  @@index([eventType])
+  @@index([receivedAt])
+  @@index([correlationId])
+  @@map("message_webhook_event_logs")
+}
+
+enum MessageConsentStatus {
+  unknown
+  opted_in
+  opted_out
+  required
+  not_required
+}
+
+model MessageConsent {
+  id                 String               @id @default(uuid())
+  tenantId           String               @map("tenant_id")
+  customerId         String?              @map("customer_id")
+  leadId             String?              @map("lead_id")
+  phoneNormalized    String               @map("phone_normalized")
+  channel            ConversationChannel  @default(whatsapp)
+  optInStatus        MessageConsentStatus @default(unknown) @map("opt_in_status")
+  optInSource        String?              @map("opt_in_source")
+  optInAt            DateTime?            @map("opt_in_at")
+  optOutAt           DateTime?            @map("opt_out_at")
+  lastSeenAt         DateTime?            @map("last_seen_at")
+  providerRequired   Boolean?             @map("provider_required")
+  providerAuthorized Boolean?             @map("provider_authorized")
+  metadata           Json                 @default("{}")
+  createdAt          DateTime             @default(now()) @map("created_at")
+  updatedAt          DateTime             @updatedAt @map("updated_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, channel, phoneNormalized])
+  @@index([tenantId])
+  @@index([tenantId, optInStatus])
+  @@map("message_consents")
+}
+
+model ConversationAssignment {
+  id              String                   @id @default(uuid())
+  tenantId        String                   @map("tenant_id")
+  conversationId  String                   @map("conversation_id")
+  assigneeType    ConversationAssigneeType @map("assignee_type")
+  assignedUserId  String?                  @map("assigned_user_id")
+  assignedAgentId String?                  @map("assigned_agent_id")
+  reason          String?
+  createdAt       DateTime                 @default(now()) @map("created_at")
+
+  tenant       Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([conversationId])
+  @@map("conversation_assignments")
 }

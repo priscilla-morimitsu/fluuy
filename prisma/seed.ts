@@ -13,6 +13,7 @@ const MVP_FEATURES: { key: string; name: string; description: string; group: str
   { key: "platform_niche_templates", name: "Gestão de templates", description: "Gestão de templates", group: "platform" },
   { key: "tenant_profile_view", name: "Ver perfil da empresa", description: "Ver perfil da empresa", group: "tenant" },
   { key: "tenant_profile_edit", name: "Editar perfil da empresa", description: "Editar perfil da empresa", group: "tenant" },
+  { key: "whatsapp_integration", name: "Integração WhatsApp", description: "Conexão de números, templates e logs do WhatsApp", group: "attendance" },
   { key: "whatsapp_ai_attendance", name: "IA no WhatsApp", description: "IA no WhatsApp", group: "attendance" },
   { key: "conversation_history", name: "Histórico de conversas", description: "Histórico de conversas", group: "attendance" },
   { key: "human_handoff", name: "Handoff humano", description: "Handoff humano", group: "attendance" },

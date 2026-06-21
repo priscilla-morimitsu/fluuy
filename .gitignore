@@ -48,3 +48,6 @@ next-env.d.ts
 
 # devrails session logger output — anywhere the hook's cwd lands it
 logs/
+# …but NOT the WhatsApp logs UI route (brackets escaped: they are glob in gitignore)
+!src/app/t/\[slug\]/whatsapp/logs/
+!src/app/t/\[slug\]/whatsapp/logs/**

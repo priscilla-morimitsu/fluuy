@@ -1,0 +1,199 @@
+{
+  "task": "Implementar do zero a integração com a API do Pilot Status (WhatsApp Business) em um projeto multi-tenant (Next.js + Prisma + PostgreSQL, ou stack equivalente). Cada empresa (tenant) conecta seu próprio número de WhatsApp e tem sua própria API key. Siga o estado-da-arte alinhado à documentação oficial — NÃO copie atalhos legados.",
+  "provider": {
+    "name": "Pilot Status",
+    "base_url": "https://pilotstatus.online",
+    "api_prefix": "/v1",
+    "docs": "https://pilotstatus.online/docs",
+    "auth": {
+      "header": "x-api-key: <api_key>  (alternativa: x-api-key-id: <id_da_key>)",
+      "key_prefixes": "ps_test_* (TEST) | ps_live_* (LIVE)",
+      "scoping": "Toda key é escopada por PROJETO + AMBIENTE. Keys, templates, logs, webhooks e analytics são sempre filtrados pelo projeto/ambiente da key usada.",
+      "frontend_rule": "NUNCA expor API key no frontend. Todas as chamadas saem do backend."
+    }
+  },
+  "sdk": {
+    "package": "@pilot-status/sdk",
+    "min_version": "^0.1.3 (verifique a última; 0.1.3 NÃO cobre toda a API — ver 'raw_rest_fallback')",
+    "node": ">=18",
+    "import": "import { PilotStatusClient } from '@pilot-status/sdk'",
+    "instantiation": "Nunca singleton global. Crie por requisição: new PilotStatusClient({ apiKey }). Gestão de instâncias/keys usa a MASTER/PAI key; envio de mensagens usa a key PER-TENANT (filha).",
+    "client_defaults": "baseUrl https://pilotstatus.online; timeout 30s; retries automáticos apenas em GET com 5xx (backoff exp 250*2^n, getRetries=2). POST/DELETE NÃO têm retry pelo SDK.",
+    "resources_disponiveis_no_sdk": {
+      "messages": "send(input), get(id), checkOptIn(destinationNumber)",
+      "numbers": "create(input), getStatus(id)",
+      "apiKeys": "list(), create(input)",
+      "projects": "list(), create(input)",
+      "analytics": "getDashboardStats({ tz })"
+    },
+    "typed_errors": "PilotStatusHttpError + subclasses AuthenticationError(401), ValidationError(400), ForbiddenError(403), NotFoundError(404), ConflictError(409), RateLimitError(429), ServerError(5xx). Cada uma expõe .status, .body (com .code/.details), .rawBody, .headers. Use para tratamento específico.",
+    "webhook_parser": "parseCustomerWebhook(payload) (valida via zod, LANÇA em shape desconhecido) e isCustomerWebhookEvent(payload). Em 0.1.3 o union NÃO inclui 'message.newsletter' — trate o throw como evento ignorável."
+  },
+  "raw_rest_fallback": {
+    "motivo": "Endpoints que o SDK 0.1.3 NÃO expõe — chame via fetch com header 'x-api-key'. Implemente retry próprio (exponential backoff) para 429/5xx.",
+    "endpoints": {
+      "GET /v1/numbers": "Lista instâncias do tenant (array). Use para achar instância por número (casar por dígitos).",
+      "DELETE /v1/numbers/{id}": "Deleta instância.",
+      "GET /v1/numbers/{id}/connect": "REGERA QR/pairing de uma instância existente quando state != OPEN. PREFIRA isto a deletar+recriar. Retorna { qrcodeBase64, pairingCode }.",
+      "GET /v1/numbers/{id}/status?link=primary|secondary": "Status por ligação (Dual Link).",
+      "POST /v1/numbers/{id}/upgrade-to-dual": "Promove SINGLE→DUAL; retorna { secondaryLink }.",
+      "POST /v1/numbers/remote-pairing": "Pareamento remoto (ver 'instance_lifecycle.remote_pairing').",
+      "GET /v1/remote-pairing/{token} | POST .../connect | GET .../status": "Endpoints públicos (sem auth) do fluxo de pareamento remoto.",
+      "DELETE /v1/api-keys/{id}": "Deleta uma key (best-effort ao reciclar instância).",
+      "DELETE /v1/messages/cancel": "Cancela mensagens QUEUED agendadas. Body { messageIds: [] } → { cancelled, failed }. Status vira CANCELED.",
+      "GET /v1/groups": "Lista grupos WhatsApp da instância (409 WHATSAPP_INSTANCE_NOT_CONNECTED se não OPEN).",
+      "GET /v1/newsletters": "Lista canais (200 [] se sem instância ou indisponível; cache 1h)."
+    }
+  },
+  "env_vars": {
+    "PILOT_STATUS_API_KEY": "Key PAI/MESTRE (escopada a um projeto+ambiente). Usada para criar/listar/deletar instâncias e keys-filhas. Defina se é ps_test_* ou ps_live_* conscientemente.",
+    "PILOT_STATUS_TEMPLATE_ID": "templateId padrão de saída (do dashboard). Obrigatório para enviar.",
+    "APP_PUBLIC_URL": "Base pública para montar a URL do webhook: ${APP_PUBLIC_URL}/api/webhooks/pilot-status"
+  },
+  "data_model_tenant": {
+    "descricao": "Campos no modelo Tenant (snake_case no banco). A integração é stateful por tenant.",
+    "fields": {
+      "pilotStatusApiKey": "String? — key PER-TENANT (filha); usada só para ENVIAR.",
+      "pilotStatusApiKeyId": "String? — id da key filha (para deletar ao reciclar).",
+      "pilotStatusInstanceId": "String? — id da instância WhatsApp.",
+      "pilotStatusNumber": "String? @unique — número conectado (dígitos com DDI). Resolve o tenant no webhook inbound.",
+      "pilotStatusNumberName": "String? — nome amigável da instância.",
+      "pilotStatusNumberSavedAt": "DateTime?",
+      "pilotStatusConnectedAt": "DateTime? — última confirmação de state OPEN.",
+      "pilotStatusEnvironment": "String? 'TEST'|'LIVE' — ambiente da key do tenant (NOVO: modele explicitamente)."
+    }
+  },
+  "data_model_message_tracking": {
+    "descricao": "NOVO vs. legado: persista o id retornado no 202 para correlacionar com webhooks de status.",
+    "Message_fields": {
+      "externalId": "messageId do WhatsApp (chega só no message.sent) — idempotência de inbound.",
+      "pilotMessageId": "id do 202 (== internalMessageId nos webhooks de status).",
+      "correlationId": "correlationId do 202.",
+      "status": "QUEUED|SENT|DELIVERED|READ|FAILED|CANCELED — atualizado pelos webhooks.",
+      "sentAt|deliveredAt|readAt|failedAt": "DateTime? preenchidos pelos webhooks.",
+      "errorMessage": "String? do message.failed."
+    },
+    "MessageBuffer": "{ tenantId, phone, content, createdAt } — para o debounce de inbound."
+  },
+  "send_message": {
+    "sdk_call": "client.messages.send(input)",
+    "input": {
+      "templateId": "string",
+      "destinationNumber": "E.164 COM '+' (ex: '+5511999999999'). REGRA: sempre normalizar para E.164 com '+' antes de enviar. (Exclusivo com groupId/newsletterId).",
+      "variables": "Record<string,string>. TODO {{placeholder}} do template (inclusive em JSON de botões) DEVE existir como chave, valor = string não-vazia (não use number/null/'' ). Caso contrário 400 MISSING_TEMPLATE_VARIABLES (details.missingKeys) ou INVALID_TEMPLATE_VARIABLE_VALUE (details.invalidKeys).",
+      "deliverAt": "ISO8601 opcional — agendamento.",
+      "deliverUntil": "ISO8601 opcional — prazo máximo; senão FAILED. Defaults: OTP 2min, UTILITY 1h, MARKETING 4h."
+    },
+    "fora_do_sdk_0_1_3_via_fetch_POST_/v1/messages/send": {
+      "groupId": "JID '...@g.us' (exclusivo com destinationNumber/newsletterId).",
+      "newsletterId": "JID '...@newsletter' (proibido em TEST → 403 NEWSLETTER_NOT_ALLOWED_IN_TEST).",
+      "labels": "string[] — marca o destino (assíncrono; ignorado se retentionDays:0).",
+      "marketingOptions": "{ aiRewriteEnabled } — só MARKETING; varia o texto (anti-spam)."
+    },
+    "response_202": "{ id, correlationId, status:'QUEUED', createdAt, origin }. PERSISTA id e correlationId (id == internalMessageId nos webhooks). O messageId do WhatsApp só vem depois, no message.sent.",
+    "erros": "400 (validação/variáveis), 401 (key), 403 (LIVE não aprovado | destino bloqueado em TEST | opt-in exigido | MARKETING no número Pilot → TEMPLATE_CATEGORY_MARKETING_REQUIRES_OWN_NUMBER), 404 (template sem versão aprovada), 429 (rate limit). Trate 429/5xx com retry+backoff.",
+    "consultas": {
+      "status": "client.messages.get(messageId) → { status, sentAt, readAt, errorMessage, ... }. READ/readAt só se o destinatário tiver confirmação de leitura ligada.",
+      "opt_in": "client.messages.checkOptIn(destinationNumber) (só LIVE + número Pilot Status) → { authorized, required, enabled, reason }."
+    }
+  },
+  "categorias_e_compliance": {
+    "categorias_template": "OTP | UTILITY | MARKETING (definida na criação, imutável).",
+    "regras_no_numero_pilot": "OTP: envia sem opt-in. UTILITY: exige opt-in do destino. MARKETING: proibido no número Pilot — exige número próprio conectado (senão 403).",
+    "recomendacao": "Antes de enviar UTILITY/MARKETING pelo número Pilot, chame checkOptIn. Implemente opt-out/'parar', throttling e segmentação. Você é responsável pelo consentimento/opt-in."
+  },
+  "environments": {
+    "TEST": "Sandbox: templates auto-aprovados. Envios restritos (telefone do Perfil / número Pilot / grupo 'Pilot Status Group' quando instância vinculada e OPEN). newsletterId proibido (403).",
+    "LIVE": "Tráfego real: templates precisam de aprovação e o projeto precisa de aprovação de Produção (senão 403). Comece em TEST e solicite LIVE no Perfil.",
+    "implementacao": "Armazene/saiba o ambiente da key de cada tenant. Não assuma LIVE. Os webhooks trazem 'environment' em todos os eventos — você pode rotear/filtrar por ele."
+  },
+  "webhook_inbound": {
+    "endpoint": "POST /api/webhooks/pilot-status (público, force-dynamic, sem auth de sessão).",
+    "config": "Cadastre a URL no dashboard (ou via webhookId na criação da key). Webhooks podem ser restritos a números específicos ou ouvir todos.",
+    "parse": "event = parseCustomerWebhook(body). Se lançar → responder 200 {ok:true} e ignorar (shape desconhecido / evento novo como message.newsletter).",
+    "sempre_200": "Responder 200 mesmo ao ignorar, para o Pilot não reenviar. Erros internos → 500.",
+    "roteamento_por_evento": {
+      "message.received": "Mensagem inbound de contato. data: { fromMe, from, destinationNumber, content, receivedAt, messageId, environment, whatsappInstanceName? }. Se fromMe===true → ignorar (evita loop). Senão → fluxo de inbound do agente.",
+      "message.reply": "Resposta a uma mensagem nossa. data: { from, destinationNumber, content(citado, pode vir vazio), replyContent(resposta real), receivedAt, messageId, quotedMessageId, messageRepliedId, buttonId?, environment }. Use replyContent como conteúdo; correlacione via quotedMessageId/messageRepliedId.",
+      "message.sent": "data: { messageId, internalMessageId, environment, destinationNumber, content, status:'SENT', sentAt }. Atualize Message (match por pilotMessageId==internalMessageId): grave externalId=messageId, status, sentAt.",
+      "message.delivered": "status DELIVERED + deliveredAt. Atualize Message.",
+      "message.read": "status READ + readAt (só se confirmação de leitura ligada). Atualize Message.",
+      "message.failed": "status FAILED + failedAt + errorMessage. Atualize Message + alerta opcional.",
+      "message.group": "Mensagem de grupo. data (SDK 0.1.3): { fromNumber, fromName, fromMe, groupName, content, environment, messageId }. (Doc completa também traz groupId/happenedAt — pode faltar no parser do SDK.)",
+      "optin.created": "Opt-in registrado. data: { projectId, environment, whatsappInstanceName, destinationNumber, destinationHash, isFirstOptIn, firstOptInAt, lastSeenAt }. Persista para liberar UTILITY/MARKETING."
+    },
+    "inbound_pipeline": [
+      "1. Normalizar números: remover '@s.whatsapp.net' (split('@')[0]). Para resolver tenant, gerar candidatos do destinationNumber (com/sem DDI 55, com/sem '+', inserção do 9 de celular BR p/ 10 dígitos pós-DDI) e buscar Tenant onde pilotStatusNumber IN candidatos. Sem tenant → 200 ignorar.",
+      "2. Persistir em transação (idempotente): upsert Client (tenantId+phone), upsert Conversation (unique tenantId+phone, status 'active'), upsert Message inbound (idempotência por externalId=messageId; fallback `${from}-${Date.now()}`), tocar updatedAt da conversa.",
+      "3. Enfileirar p/ o agente com debounce: bufferAndSchedule(tenant.id, from, content) — fire-and-forget com .catch. Responder 200 {ok:true}."
+    ]
+  },
+  "message_buffer_debounce": {
+    "objetivo": "Agrupar mensagens rápidas do mesmo usuário em UM turno do agente.",
+    "debounce_ms": 7000,
+    "mecanismo_processo_unico": "Map em memória key=`tenantId:phone` de timers (válido só p/ processo Node único — Docker/VPS). bufferAndSchedule grava no MessageBuffer, reseta o timer; ao disparar, flushAndProcess faz findMany+deleteMany (ordenado por createdAt asc), concatena com '\\n' e chama o agente.",
+    "alerta_serverless": "Em serverless/multi-instância o Map NÃO funciona. Troque por fila durável + lock (Redis/Vercel Queues) ou por agendamento (deliverAt). Documente a escolha."
+  },
+  "agent_reply_send": {
+    "key_resolution": "apiKey = tenant.pilotStatusApiKey ?? env.PILOT_STATUS_API_KEY; templateId = env.PILOT_STATUS_TEMPLATE_ID. Faltando → abortar com warn.",
+    "destination": "Reconstituir E.164 COM '+' a partir do número do contato (dígitos → '+' + dígitos).",
+    "markdown_para_whatsapp": "Converter antes de enviar: **bold**→*bold*; __italic__→_italic_; ~~strike~~→~strike~; remover ```blocos```; `inline`→texto; remover headings #; [texto](url)→texto; colapsar 3+ quebras em 2. (WhatsApp usa *negrito* _itálico_ ~tachado~, listas '* '/'- '/'1. ', citação '> '.)",
+    "split_em_partes": "Dividir a resposta longa em partes; trim+formatar cada; descartar vazias; enviar 1 por messages.send com 1000ms de sleep entre elas (ordem de chegada).",
+    "pos_envio": "Para cada parte: persistir Message outbound (status QUEUED, pilotMessageId=resp.id, correlationId=resp.correlationId) e registrar uso. Os webhooks de status atualizam depois.",
+    "fallback": "Se o agente falhar ou não houver texto: enviar 'Desculpe, estou com dificuldades técnicas no momento. Por favor, tente novamente em alguns instantes.'"
+  },
+  "outbound_notifications": {
+    "transacional": "Ex.: confirmação de pedido — monta texto e envia via messages.send com key per-tenant (fallback master) + templateId. Persistir tracking. Best-effort com try/catch.",
+    "broadcast": "Envio em massa: respeitar categoria (MARKETING exige número próprio + anti-spam), checkOptIn quando aplicável, throttling, deliverAt p/ agendar e DELETE /v1/messages/cancel p/ cancelar agendados. Trate 403 opt-in/categoria e 429."
+  },
+  "instance_lifecycle": {
+    "registrar_numero": "POST /api/whatsapp/number — valida (dígitos, min 10), normaliza p/ DDI 55, salva whatsapp+nome+savedAt. Não chama Pilot.",
+    "conectar_via_QR": {
+      "endpoint": "POST /api/whatsapp/connect (sessão do tenant; usa MASTER/PAI key).",
+      "fluxo": [
+        "Se já há instanceId: numbers.getStatus(id). Se state OPEN (case-insensitive) → retornar conectado.",
+        "Se existe instância mas NÃO está OPEN → PREFERIR GET /v1/numbers/{id}/connect (regerar QR) em vez de deletar+recriar. Retorna { qrcodeBase64, pairingCode }.",
+        "Só recriar (DELETE + numbers.create) se a instância sumiu/inválida.",
+        "Criar: numbers.create({ name, number(E.164 dígitos), linkToApiKey:true }) → { instance:{id,number,state/status}, qrcodeBase64, pairingCode?, linkedApiKeyId }.",
+        "Se NÃO usou linkToApiKey, criar key filha: apiKeys.create({ name, whatsappInstanceId:id, webhookId? }). Reusar webhookId existente (apiKeys.list → casar por url == ${APP_PUBLIC_URL}/api/webhooks/pilot-status) p/ não duplicar webhook. Deletar key antiga (DELETE /v1/api-keys/{oldId}).",
+        "Persistir instanceId, number, pilotStatusApiKey(key filha), pilotStatusApiKeyId, environment. Retornar { instanceId, qrcodeBase64, pairingCode, state } p/ o front."
+      ],
+      "conflitos": "Tratar 409 ConflictError (número já tem instância: GET /v1/numbers, casar por dígitos, recuperar id). Observação: algumas respostas legadas vinham como 405 — cubra ambos por segurança."
+    },
+    "remote_pairing_recomendado_para_saas": {
+      "quando": "Plataforma que gerencia números de clientes finais (este caso). Em vez de QR inline, gere um link de pareamento.",
+      "criar": "POST /v1/numbers/remote-pairing { name, number(E.164), linkToApiKey, linkMode:'SINGLE'|'DUAL', sendViaWhatsApp } → { instance(state:'CLOSE'), remotePairingUrl, maskedNumber, messageSent }. Instância nasce CLOSE, sem QR.",
+      "cliente_final": "Acessa remotePairingUrl (iframe/modal/link). Endpoints públicos por token: GET /v1/remote-pairing/{token}, POST .../connect (→ qrcodeBase64/pairingCode), GET .../status. Token expira em 24h ou após conectar (uso único).",
+      "evento": "Ao conectar, dispara webhook number.connected."
+    },
+    "status": "GET /api/whatsapp/status — numbers.getStatus(instanceId) (key per-tenant, fallback master). connected = state.toUpperCase()==='OPEN'; se OPEN, atualiza pilotStatusConnectedAt. ?link=secondary via GET /v1/numbers/{id}/status?link=secondary.",
+    "desconectar": "POST /api/whatsapp/disconnect — DELETE /v1/numbers/{id} (por id; fallback GET /v1/numbers + casar por dígitos + DELETE). Limpar campos pilotStatus* localmente.",
+    "criacao_de_tenant_admin": "Ao criar tenant com whatsapp: normalizar p/ DDI 55; numbers.create({name,number,linkToApiKey:true}); se necessário apiKeys.create({name,whatsappInstanceId}); persistir key/id/instanceId/number/environment. Falha é NÃO fatal — salvar metadados p/ conectar depois pela aba WhatsApp."
+  },
+  "saas_multi_tenant_pattern": {
+    "recomendado_pela_doc": "1 projeto Pilot → key PAI (dashboard). Para cada cliente: criar key FILHA via POST /v1/api-keys (herda projeto+ambiente). Conectar número do cliente com POST /v1/numbers usando a key filha (o número fica vinculado à key da chamada). Enviar mensagens sempre com a key filha (roteia pelo número daquele cliente).",
+    "isolamento": "Nunca usar a key de um tenant p/ enviar em nome de outro. Resolver tenant por pilotStatusNumber no inbound."
+  },
+  "regras_de_ouro": [
+    "API key só no backend; nunca no frontend.",
+    "destinationNumber sempre E.164 COM '+'.",
+    "Todo {{placeholder}} do template precisa de variável string não-vazia.",
+    "Persistir id do 202 e atualizar status pelos webhooks (sent/delivered/read/failed).",
+    "Webhook inbound: filtrar fromMe, idempotência por messageId, sempre responder 200.",
+    "Retry com exponential backoff em 429/5xx (inclusive nos fetch crus).",
+    "Respeitar categorias/opt-in/anti-spam; MARKETING exige número próprio.",
+    "Começar em TEST; modelar TEST/LIVE; só ir p/ LIVE após aprovação.",
+    "Debounce em memória só vale em processo único; serverless exige fila/lock externo.",
+    "Preferir GET /v1/numbers/{id}/connect p/ regerar QR (não deletar+recriar)."
+  ],
+  "deliverables": [
+    "1. Wrapper createPilotStatusClient(apiKey).",
+    "2. Modelo Tenant com campos pilotStatus* (incl. environment) e modelo Message com tracking (pilotMessageId, correlationId, status, timestamps) + tabela MessageBuffer.",
+    "3. Webhook /api/webhooks/pilot-status: parse, roteamento de TODOS os eventos (inbound + status + group + optin), filtro fromMe, idempotência, resolução de tenant por número, bufferAndSchedule.",
+    "4. Debounce de inbound (7s) com estratégia adequada ao runtime (memória vs fila).",
+    "5. Envio com E.164+'+', validação de variables, conversão markdown→WhatsApp, split+sleep, persistência do 202 e fallback.",
+    "6. Ciclo de vida da instância: number/connect(QR)/status/disconnect + GET /connect p/ regerar + Remote Pairing p/ clientes finais.",
+    "7. Notificações transacionais e broadcast com opt-in/categoria/throttling/cancelamento.",
+    "8. Tratamento de erros tipados (401/403/404/409/429/5xx) com retry e mensagens de código (MISSING_TEMPLATE_VARIABLES, TEMPLATE_CATEGORY_MARKETING_REQUIRES_OWN_NUMBER, WHATSAPP_INSTANCE_NOT_CONNECTED, NEWSLETTER_NOT_ALLOWED_IN_TEST)."
+  ]
+}
