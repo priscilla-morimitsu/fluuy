@@ -215,6 +215,7 @@ export default function ProductsClient({
         tableId="tenant-products"
         columns={columns}
         data={rows}
+        onRowClick={canWrite ? (row) => openEdit(row.id) : undefined}
         hasActiveFilters={activeFilters.length > 0}
         onClearFilters={clearAll}
         toolbarStart={<SearchInput placeholder="Buscar por nome, marca, SKU ou código..." />}

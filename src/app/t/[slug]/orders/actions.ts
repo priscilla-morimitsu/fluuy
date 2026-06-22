@@ -193,7 +193,9 @@ export async function createOrderAction(
           orderNumber,
           orderCode: orderCode(orderNumber),
           customerId: d.customerId,
-          source: d.source,
+          // Origin is system-assigned, never user-supplied: a panel-created order
+          // is "manual"; other origins (ai, order…) are set by their own paths.
+          source: d.source ?? "manual",
           channel: d.channel,
           status,
           fulfillmentType: d.fulfillmentType ?? null,
@@ -302,7 +304,8 @@ export async function updateOrderAction(
         where: { id: orderId, tenantId: tenant.id },
         data: {
           customerId: d.customerId,
-          source: d.source,
+          // `source` is intentionally omitted on update — the original origin is
+          // preserved and never overwritten by a panel edit.
           channel: d.channel,
           fulfillmentType: d.fulfillmentType ?? null,
           subtotal: subtotal.toFixed(2),

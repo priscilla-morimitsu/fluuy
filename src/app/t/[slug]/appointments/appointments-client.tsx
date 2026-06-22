@@ -27,6 +27,7 @@ import { Button } from "@/components/ui/button";
 import { Combobox } from "@/components/ui/combobox";
 import { FormDrawer } from "@/components/ui/form-drawer";
 import { Label } from "@/components/ui/label";
+import { OriginBadge } from "@/components/ui/origin-badge";
 import { cn } from "@/lib/utils";
 import { APPOINTMENT_MODALITIES, APPOINTMENT_RESPONSIBLE_TYPES, APPOINTMENT_STATUSES } from "@/lib/validations/appointment";
 import type { TemplateField } from "@/lib/validations/template";
@@ -272,6 +273,7 @@ export default function AppointmentsClient({
                     <span className="font-medium">{a.customer.name}</span>
                     <span className="text-muted-foreground"> · {a.service.name}</span>
                   </span>
+                  <OriginBadge origin={a.source} />
                   <Badge variant={appointmentStatusVariant(a.status)}>{APPOINTMENT_STATUS_LABELS[a.status] ?? a.status}</Badge>
                 </button>
               </li>

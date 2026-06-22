@@ -2,6 +2,7 @@
 
 import { useActionState, useEffect, useState } from "react";
 
+import { StatusSwitchItem, type StatusOption } from "@/components/forms/status-switch-item";
 import { Field } from "@/components/ui/field";
 import { FormDrawerForm, FormSection } from "@/components/ui/form-drawer";
 import { Combobox } from "@/components/ui/combobox";
@@ -18,10 +19,38 @@ import type { TemplateField } from "@/lib/validations/template";
 import { createProductAction, updateProductAction, type ProductActionResult } from "./actions";
 import { CategoryCombobox } from "./category-combobox";
 
-const STATUS_OPTIONS = [
-  { value: "draft", label: "Rascunho" },
-  { value: "active", label: "Ativo" },
-  { value: "inactive", label: "Inativo" },
+const STATUS_OPTIONS: StatusOption[] = [
+  {
+    value: "draft",
+    label: "Rascunho",
+    description: "Rascunho — o produto não aparece para clientes nem para a IA.",
+    confirm: {
+      title: "Voltar para rascunho?",
+      message: "O produto deixa de ser oferecido e fica oculto até ser publicado novamente.",
+      confirmLabel: "Voltar para rascunho",
+    },
+  },
+  {
+    value: "active",
+    label: "Ativo",
+    tone: "positive",
+    description: "Ativo — o produto está publicado e disponível.",
+    confirm: {
+      title: "Publicar produto?",
+      message: "O produto passa a ser exibido para clientes e oferecido pela IA.",
+      confirmLabel: "Ativar",
+    },
+  },
+  {
+    value: "inactive",
+    label: "Inativo",
+    description: "Inativo — o produto fica oculto.",
+    confirm: {
+      title: "Inativar produto?",
+      message: "O produto deixa de ser exibido para clientes e a IA para de oferecê-lo.",
+      confirmLabel: "Inativar",
+    },
+  },
 ];
 const UNIT_LABELS: Record<(typeof PRODUCT_UNITS)[number], string> = {
   unit: "Unidade",
@@ -114,6 +143,7 @@ export default function ProductForm({
     ? updateProductAction.bind(null, slug, initial!.id)
     : createProductAction.bind(null, slug);
   const [state, formAction, pending] = useActionState<ProductActionResult, FormData>(action, undefined);
+  const [status, setStatus] = useState(initial?.status ?? "draft");
   const [available, setAvailable] = useState(initial?.availableForSale ?? true);
   const [descLen, setDescLen] = useState(initial?.description?.length ?? 0);
 
@@ -128,8 +158,41 @@ export default function ProductForm({
       error={actionError(state)}
       onCancel={onCancel}
       submitLabel={isEdit ? "Salvar alterações" : "Criar produto"}
+      confirmOnSave={isEdit}
+      confirmTitle="Confirmar alterações do produto?"
+      initialValues={
+        initial && {
+          name: initial.name,
+          brand: initial.brand ?? "",
+          sku: initial.sku ?? "",
+          barcode: initial.barcode ?? "",
+          description: initial.description ?? "",
+          salePrice: initial.salePrice ?? "",
+          promotionalPrice: initial.promotionalPrice ?? "",
+          costPrice: initial.costPrice ?? "",
+          status: initial.status,
+          unit: initial.unit ?? "",
+          internalNotes: initial.internalNotes ?? "",
+        }
+      }
+      fieldLabels={{
+        name: "Nome",
+        brand: "Marca",
+        sku: "SKU",
+        barcode: "Código de barras",
+        description: "Descrição",
+        salePrice: "Preço de venda",
+        promotionalPrice: "Preço promocional",
+        costPrice: "Preço de custo",
+        status: "Status",
+        unit: "Unidade",
+        internalNotes: "Notas internas",
+      }}
     >
       <FormSection title="Informações principais">
+        <div className="col-span-full">
+          <StatusSwitchItem title="Status do produto" name="status" value={status} onChange={setStatus} options={STATUS_OPTIONS} />
+        </div>
         <Field label="Nome" htmlFor="name" required className="col-span-full">
           <Input id="name" name="name" required maxLength={150} defaultValue={initial?.name} placeholder="Ex.: Ração Premium 10kg" />
         </Field>
@@ -163,9 +226,6 @@ export default function ProductForm({
       </FormSection>
 
       <FormSection title="Disponibilidade">
-        <Field label="Status" htmlFor="status" required>
-          <Combobox id="status" name="status" defaultValue={initial?.status ?? "draft"} options={STATUS_OPTIONS} />
-        </Field>
         <Field label="Unidade" htmlFor="unit">
           <Combobox id="unit" name="unit" defaultValue={initial?.unit ?? ""} placeholder="Selecione…" options={PRODUCT_UNITS.map((u) => ({ value: u, label: UNIT_LABELS[u] }))} />
         </Field>

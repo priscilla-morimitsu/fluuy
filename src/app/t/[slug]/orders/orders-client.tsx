@@ -25,6 +25,7 @@ import { Combobox } from "@/components/ui/combobox";
 import { DropdownMenuItem, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { FormDrawer } from "@/components/ui/form-drawer";
 import { Label } from "@/components/ui/label";
+import { OriginBadge } from "@/components/ui/origin-badge";
 import type { TemplateField } from "@/lib/validations/template";
 import {
   ORDER_CHANNELS,
@@ -154,7 +155,7 @@ export default function OrdersClient({
       accessorKey: "source",
       meta: { label: "Origem" },
       header: () => <DataTableColumnHeader label="Origem" sortKey="source" />,
-      cell: ({ row }) => ORDER_SOURCE_LABELS[row.original.source] ?? row.original.source,
+      cell: ({ row }) => <OriginBadge origin={row.original.source} />,
     },
     {
       accessorKey: "status",
@@ -234,6 +235,7 @@ export default function OrdersClient({
         tableId="tenant-orders"
         columns={columns}
         data={rows}
+        onRowClick={canWrite ? (row) => openEdit(row.id) : undefined}
         hasActiveFilters={activeFilters.length > 0}
         onClearFilters={clearAll}
         toolbarStart={<SearchInput placeholder="Buscar por código, cliente, telefone ou item..." />}

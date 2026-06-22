@@ -53,7 +53,7 @@ function parseForm(formData: FormData) {
     orderItemId: s(formData, "orderItemId"),
     modality: s(formData, "modality"),
     status: s(formData, "status"),
-    source: s(formData, "source"),
+    // Origin is system-assigned, never read from the form (see create action).
     startAt: s(formData, "startAt"),
     endAt: s(formData, "endAt"),
     timezone: s(formData, "timezone"),
@@ -175,7 +175,9 @@ export async function createAppointmentAction(
         orderItemId: d.orderItemId ?? null,
         modality: d.modality,
         status,
-        source: d.source ?? "manual",
+        // Panel-created appointments are "manual"; other origins (ai, order…)
+        // are set by their own intake paths.
+        source: "manual",
         startAt: d.startAt,
         endAt,
         timezone: d.timezone ?? "America/Sao_Paulo",

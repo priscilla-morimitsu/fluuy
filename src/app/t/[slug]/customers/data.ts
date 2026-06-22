@@ -20,6 +20,8 @@ export type CustomerListParams = {
   source?: string;
   personType?: string;
   tagId?: string;
+  district?: string;
+  hasPets?: string;
   hasAddress?: string;
   hasConsent?: string;
   createdFrom?: string;
@@ -94,8 +96,17 @@ export async function listCustomers(tenantId: string, params: CustomerListParams
   const personType = customerPersonTypeSchema.safeParse(params.personType);
   if (personType.success) where.personType = personType.data;
   if (params.tagId) where.tagLinks = { some: { tagId: params.tagId } };
-  if (params.hasAddress === "true") where.addresses = { some: {} };
-  if (params.hasAddress === "false") where.addresses = { none: {} };
+  if (params.hasPets === "true") where.entities = { some: { status: "active" } };
+  if (params.hasPets === "false") where.entities = { none: { status: "active" } };
+  // District filters the default address by neighborhood; it already implies an
+  // address exists, so it takes precedence over the `hasAddress` toggle.
+  if (params.district) {
+    where.addresses = { some: { isDefault: true, neighborhood: { equals: params.district, mode: "insensitive" } } };
+  } else if (params.hasAddress === "true") {
+    where.addresses = { some: {} };
+  } else if (params.hasAddress === "false") {
+    where.addresses = { none: {} };
+  }
   if (params.hasConsent === "true") where.consentAcceptedAt = { not: null };
   if (params.hasConsent === "false") where.consentAcceptedAt = null;
 
@@ -134,6 +145,12 @@ export async function listCustomers(tenantId: string, params: CustomerListParams
       take: 1,
       select: { city: true, state: true, neighborhood: true },
     },
+    // Active related entities (pets, …) drive the dynamic per-type columns.
+    entities: {
+      where: { status: "active" },
+      select: { entityType: true, name: true },
+      orderBy: { name: "asc" },
+    },
     _count: { select: { addresses: true } },
   } satisfies Prisma.CustomerSelect;
 
@@ -162,7 +179,14 @@ export async function listCustomers(tenantId: string, params: CustomerListParams
             .filter(Boolean)
             .join(", ")
         : null,
+      district: r.addresses[0]?.neighborhood ?? null,
+      petCount: r.entities.length,
       addressCount: r._count.addresses,
+      // entityType → display names of the customer's active entities.
+      entitiesByType: r.entities.reduce<Record<string, string[]>>((acc, e) => {
+        (acc[e.entityType] ??= []).push(e.name);
+        return acc;
+      }, {}),
     })),
     filtered,
     total,
@@ -208,6 +232,7 @@ export async function getCustomer(tenantId: string, customerId: string) {
     include: {
       addresses: { orderBy: { createdAt: "asc" } },
       tagLinks: { select: { tagId: true } },
+      entities: { orderBy: { createdAt: "asc" }, select: { id: true, entityType: true, status: true, customData: true } },
     },
   });
   if (!c) return null;
@@ -227,6 +252,12 @@ export async function getCustomer(tenantId: string, customerId: string) {
     internalNotes: c.internalNotes,
     customData: (c.customData as Record<string, unknown>) ?? {},
     tagIds: c.tagLinks.map((l) => l.tagId),
+    entities: c.entities.map((e) => ({
+      id: e.id,
+      entityType: e.entityType,
+      status: e.status,
+      customData: (e.customData as Record<string, unknown>) ?? {},
+    })),
     addresses: c.addresses.map((a) => ({
       id: a.id,
       type: a.type,
@@ -295,3 +326,125 @@ export async function listCustomerEntities(tenantId: string, customerId: string)
 }
 
 export type CustomerEntityRow = Awaited<ReturnType<typeof listCustomerEntities>>[number];
+
+/** Distinct entity types present for the tenant (drives the list's per-type columns). */
+export async function customerEntityTypes(tenantId: string): Promise<string[]> {
+  const rows = await prisma.customerEntity.findMany({
+    where: { tenantId },
+    distinct: ["entityType"],
+    select: { entityType: true },
+    orderBy: { entityType: "asc" },
+  });
+  return rows.map((r) => r.entityType);
+}
+
+// ── Pets view (CustomerEntity, niche pet type) ─────────────────────────────
+
+export type PetListParams = {
+  q?: string;
+  especie?: string;
+  sexo?: string;
+  porte?: string;
+  sortBy?: string;
+  sortDir?: string;
+  page?: number;
+  pageSize?: number;
+};
+
+// Pet custom_data stores the human LABEL of select fields (e.g. "Cão", "Macho",
+// "Pequeno"), not the spec's slug values. Map the URL filter slug → stored label
+// so server-side filtering matches what was persisted by the template engine.
+const PET_ESPECIE_LABELS: Record<string, string> = { cao: "Cão", gato: "Gato", outro: "Outro" };
+const PET_SEXO_LABELS: Record<string, string> = { macho: "Macho", femea: "Fêmea" };
+const PET_PORTE_LABELS: Record<string, string> = { pequeno: "Pequeno", medio: "Médio", grande: "Grande" };
+
+/** Sortable JSON keys for the pets list (mapped to a customData path). */
+const PET_SORTABLE = new Set(["nome", "raca", "porte", "especie"]);
+
+/**
+ * Tenant-scoped, filtered, paginated pet list (`CustomerEntity` of the niche pet
+ * type) with the linked tutor. Search covers the pet's name/breed and the tutor
+ * name; filters match the stored custom_data label values.
+ */
+export async function listPets(tenantId: string, petType: string, params: PetListParams) {
+  const page = Math.max(1, params.page ?? 1);
+  const pageSize = PAGE_SIZES.includes(params.pageSize ?? 20) ? (params.pageSize ?? 20) : 20;
+
+  const where: Prisma.CustomerEntityWhereInput = {
+    tenantId,
+    entityType: petType,
+    status: "active",
+  };
+
+  const and: Prisma.CustomerEntityWhereInput[] = [];
+
+  if (params.q) {
+    const term = params.q.trim();
+    and.push({
+      OR: [
+        { customData: { path: ["nome"], string_contains: term } },
+        { customData: { path: ["raca"], string_contains: term } },
+        { customer: { name: { contains: term, mode: "insensitive" } } },
+      ],
+    });
+  }
+
+  const especie = params.especie ? PET_ESPECIE_LABELS[params.especie] : undefined;
+  if (especie) and.push({ customData: { path: ["especie"], equals: especie } });
+  const sexo = params.sexo ? PET_SEXO_LABELS[params.sexo] : undefined;
+  if (sexo) and.push({ customData: { path: ["sexo"], equals: sexo } });
+  const porte = params.porte ? PET_PORTE_LABELS[params.porte] : undefined;
+  if (porte) and.push({ customData: { path: ["porte"], equals: porte } });
+
+  if (and.length) where.AND = and;
+
+  // Only `name` (the entity display name = pet's "nome") has a real column to
+  // sort on; other keys live in JSON and can't be ordered by Prisma reliably,
+  // so they fall back to the name ordering.
+  const dir: Prisma.SortOrder = params.sortDir === "asc" ? "asc" : "desc";
+  const orderBy: Prisma.CustomerEntityOrderByWithRelationInput =
+    params.sortBy && PET_SORTABLE.has(params.sortBy) ? { name: dir } : { name: "asc" };
+
+  const select = {
+    id: true,
+    status: true,
+    customData: true,
+    customerId: true,
+    customer: { select: { id: true, name: true } },
+  } satisfies Prisma.CustomerEntitySelect;
+
+  const [rows, filtered, total] = await prisma.$transaction([
+    prisma.customerEntity.findMany({ where, orderBy, select, skip: (page - 1) * pageSize, take: pageSize }),
+    prisma.customerEntity.count({ where }),
+    prisma.customerEntity.count({ where: { tenantId, entityType: petType, status: "active" } }),
+  ]);
+
+  return {
+    rows: rows.map((r) => ({
+      id: r.id,
+      status: r.status,
+      customData: (r.customData as Record<string, unknown>) ?? {},
+      customerId: r.customerId,
+      customerName: r.customer?.name ?? "—",
+    })),
+    filtered,
+    total,
+    page,
+    pageSize,
+  };
+}
+
+export type PetListRow = Awaited<ReturnType<typeof listPets>>["rows"][number];
+
+/** Lightweight `{ id, name }` customers for the pet client picker (tenant-scoped). */
+export async function listCustomerOptions(tenantId: string) {
+  const customers = await prisma.customer.findMany({
+    where: { tenantId, status: { not: "blocked" } },
+    orderBy: { name: "asc" },
+    take: 500,
+    select: { id: true, name: true },
+  });
+  return customers.map((c) => ({ id: c.id, name: c.name }));
+}
+
+export type CustomerOption = Awaited<ReturnType<typeof listCustomerOptions>>[number];

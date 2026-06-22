@@ -51,10 +51,17 @@ export function DataTable<TData>({
   resultCount,
   toolbarEnd,
   activeFilters,
+  onRowClick,
 }: {
   columns: ColumnDef<TData, unknown>[];
   data: TData[];
   tableId: string;
+  /**
+   * Opens the row's edit drawer. Rows become `cursor-pointer`; clicks that land
+   * on an interactive descendant (link, button, menu, input) are ignored so the
+   * row actions menu and inline links keep working.
+   */
+  onRowClick?: (row: TData) => void;
   hasActiveFilters?: boolean;
   onClearFilters?: () => void;
   emptyState?: ReactNode;
@@ -67,9 +74,18 @@ export function DataTable<TData>({
   /** Applied-filter badges row, rendered below the toolbar. */
   activeFilters?: ReactNode;
 }) {
-  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>(() =>
-    loadVisibility(tableId),
-  );
+  // Columns flagged `meta.defaultHidden` start hidden but stay toggleable in the
+  // "Colunas" menu. A user's stored choice always wins over the default.
+  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>(() => {
+    const defaults: VisibilityState = {};
+    for (const col of columns) {
+      const meta = col.meta as { defaultHidden?: boolean } | undefined;
+      if (!meta?.defaultHidden) continue;
+      const id = col.id ?? ("accessorKey" in col ? String(col.accessorKey) : undefined);
+      if (id) defaults[id] = false;
+    }
+    return { ...defaults, ...loadVisibility(tableId) };
+  });
 
   const table = useReactTable({
     data,
@@ -166,7 +182,22 @@ export function DataTable<TData>({
             </TableHeader>
             <TableBody>
               {table.getRowModel().rows.map((row) => (
-                <TableRow key={row.id}>
+                <TableRow
+                  key={row.id}
+                  className={onRowClick ? "cursor-pointer" : undefined}
+                  onClick={
+                    onRowClick
+                      ? (e) => {
+                          // Ignore clicks on interactive descendants (links,
+                          // buttons, menus, inputs) so row actions still work.
+                          if ((e.target as HTMLElement).closest("a,button,input,select,textarea,[role='menuitem'],[data-no-row-click]")) {
+                            return;
+                          }
+                          onRowClick(row.original);
+                        }
+                      : undefined
+                  }
+                >
                   {row.getVisibleCells().map((cell) => (
                     <TableCell key={cell.id}>
                       {flexRender(cell.column.columnDef.cell, cell.getContext())}

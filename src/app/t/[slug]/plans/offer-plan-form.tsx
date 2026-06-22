@@ -4,13 +4,13 @@ import { Plus, Tag, X } from "lucide-react";
 import { useActionState, useEffect, useState, useTransition } from "react";
 import { toast } from "sonner";
 
+import { StatusSwitchItem, type StatusOption } from "@/components/forms/status-switch-item";
 import { Button } from "@/components/ui/button";
 import { Combobox } from "@/components/ui/combobox";
 import { AffixInput, Field } from "@/components/ui/field";
 import { FormDrawerForm, FormSection } from "@/components/ui/form-drawer";
 import { ImageUpload } from "@/components/ui/image-upload";
 import { CurrencyInput } from "@/components/ui/masked-inputs";
-import { Segmented } from "@/components/ui/segmented";
 import { SwitchCard } from "@/components/ui/switch-card";
 import { Textarea } from "@/components/ui/textarea";
 import { actionError, actionOk } from "@/lib/admin/action-result";
@@ -18,7 +18,6 @@ import {
   OFFER_PLAN_BILLING_CYCLE_LABELS,
   OFFER_PLAN_BILLING_CYCLES,
   OFFER_PLAN_STATUS_LABELS,
-  OFFER_PLAN_STATUSES,
   OFFER_PLAN_TYPE_LABELS,
   OFFER_PLAN_TYPES,
   type OfferPlanType,
@@ -73,7 +72,39 @@ export type OfferPlanInitial = {
   productItems: ProductItemInitial[];
 };
 
-const STATUS_OPTIONS = OFFER_PLAN_STATUSES.map((s) => ({ value: s, label: OFFER_PLAN_STATUS_LABELS[s] }));
+const STATUS_OPTIONS: StatusOption[] = [
+  {
+    value: "draft",
+    label: OFFER_PLAN_STATUS_LABELS.draft,
+    description: "Rascunho — o plano não aparece para clientes nem para a IA.",
+    confirm: {
+      title: "Voltar para rascunho?",
+      message: "O plano deixa de ser oferecido e fica oculto até ser publicado novamente.",
+      confirmLabel: "Voltar para rascunho",
+    },
+  },
+  {
+    value: "active",
+    label: OFFER_PLAN_STATUS_LABELS.active,
+    tone: "positive",
+    description: "Ativo — o plano está publicado e disponível.",
+    confirm: {
+      title: "Publicar plano?",
+      message: "O plano passa a ser exibido para clientes e oferecido pela IA.",
+      confirmLabel: "Ativar",
+    },
+  },
+  {
+    value: "inactive",
+    label: OFFER_PLAN_STATUS_LABELS.inactive,
+    description: "Inativo — o plano fica oculto.",
+    confirm: {
+      title: "Inativar plano?",
+      message: "O plano deixa de ser exibido para clientes e a IA para de oferecê-lo.",
+      confirmLabel: "Inativar",
+    },
+  },
+];
 const TYPE_OPTIONS = OFFER_PLAN_TYPES.map((t) => ({ value: t, label: OFFER_PLAN_TYPE_LABELS[t] }));
 const CYCLE_OPTIONS = OFFER_PLAN_BILLING_CYCLES.map((c) => ({ value: c, label: OFFER_PLAN_BILLING_CYCLE_LABELS[c] }));
 
@@ -107,6 +138,7 @@ export default function OfferPlanForm({
     : createOfferPlanAction.bind(null, slug);
   const [state, formAction, pending] = useActionState<OfferPlanActionResult, FormData>(action, undefined);
 
+  const [status, setStatus] = useState(initial?.status ?? "draft");
   const [cats, setCats] = useState(categories);
   const [categoryId, setCategoryId] = useState(initial?.categoryId ?? "");
   const [creatingCat, startCreateCat] = useTransition();
@@ -168,6 +200,24 @@ export default function OfferPlanForm({
       error={actionError(state)}
       onCancel={onCancel}
       submitLabel={isEdit ? "Salvar alterações" : "Criar plano/pacote"}
+      confirmOnSave={isEdit}
+      confirmTitle="Confirmar alterações do plano/pacote?"
+      initialValues={
+        initial && {
+          name: initial.name,
+          description: initial.description ?? "",
+          price: initial.price ?? "",
+          promotionalPrice: initial.promotionalPrice ?? "",
+          internalNotes: initial.internalNotes ?? "",
+        }
+      }
+      fieldLabels={{
+        name: "Nome",
+        description: "Descrição",
+        price: "Preço",
+        promotionalPrice: "Preço promocional",
+        internalNotes: "Notas internas",
+      }}
     >
       <input type="hidden" name="categoryId" value={categoryId} />
       <input type="hidden" name="type" value={type} />
@@ -176,6 +226,9 @@ export default function OfferPlanForm({
       {removedImage && <input type="hidden" name="removeImage" value="true" />}
 
       <FormSection title="Informações principais">
+        <div className="col-span-full">
+          <StatusSwitchItem title="Status do plano" name="status" value={status} onChange={setStatus} options={STATUS_OPTIONS} />
+        </div>
         <Field label="Nome" htmlFor="name" required className="col-span-full">
           <AffixInput id="name" name="name" required maxLength={150} defaultValue={initial?.name} />
         </Field>
@@ -362,9 +415,6 @@ export default function OfferPlanForm({
           defaultChecked={initial?.availableForSale ?? true}
           className="col-span-full"
         />
-        <Field label="Status" htmlFor="status" className="col-span-full">
-          <Segmented name="status" ariaLabel="Status" defaultValue={initial?.status ?? "draft"} options={STATUS_OPTIONS} />
-        </Field>
       </FormSection>
 
       <FormSection title="Imagem">

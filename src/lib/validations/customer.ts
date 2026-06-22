@@ -15,6 +15,7 @@ export const CUSTOMER_SOURCES = [
   "website",
   "referral",
   "manual",
+  "ai",
   "import",
   "other",
 ] as const;
@@ -45,6 +46,7 @@ export const CUSTOMER_SOURCE_LABELS: Record<CustomerSource, string> = {
   website: "Site",
   referral: "Indicação",
   manual: "Manual",
+  ai: "Agente IA",
   import: "Importação",
   other: "Outro",
 };
@@ -246,6 +248,20 @@ export const CUSTOMER_ENTITY_TYPE_SUGGESTIONS: { value: string; label: string }[
   { value: "other", label: "Outro" },
 ];
 
+/**
+ * Default entityType for a niche's primary entity (used by the customer form's
+ * entity step). Matches a known suggestion by label, else slugifies the label
+ * to a valid entityType ("Pet" → "pet", "Veículo" → "veiculo").
+ */
+export function deriveEntityType(entityLabel: string | null | undefined): string {
+  const label = (entityLabel ?? "").trim();
+  if (!label) return "entity";
+  const match = CUSTOMER_ENTITY_TYPE_SUGGESTIONS.find((s) => s.label.toLowerCase() === label.toLowerCase());
+  if (match) return match.value;
+  const key = slugify(label).replace(/-/g, "_");
+  return /^[a-z][a-z0-9_]*$/.test(key) ? key : "entity";
+}
+
 export const customerEntityCreateSchema = z.object({
   entityType: z
     .string()
@@ -254,7 +270,8 @@ export const customerEntityCreateSchema = z.object({
     .min(1, "Informe o tipo.")
     .max(50)
     .regex(/^[a-z][a-z0-9_]*$/, "Tipo inválido (use letras minúsculas e _)."),
-  name: z.string().trim().min(2, "Informe o nome.").max(150),
+  // Name is derived from the template's first required field (see
+  // deriveEntityName); it is no longer a separate input.
   status: customerEntityStatusSchema.default("active"),
 });
 export type CustomerEntityCreateInput = z.infer<typeof customerEntityCreateSchema>;

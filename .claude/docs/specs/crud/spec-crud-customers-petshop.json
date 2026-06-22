@@ -1,0 +1,1844 @@
+{
+  "$schema": "fluuy-implementation-prompt/v1",
+  "name": "fluuy_clients_screen_implementation_prompt",
+  "version": "1.0.0",
+  "language": "pt-BR",
+  "target": "Claude Code",
+  "repository": {
+    "url": "https://github.com/priscilla-morimitsu/fluuy",
+    "full_name": "priscilla-morimitsu/fluuy"
+  },
+  "stack": {
+    "framework": "Next.js App Router",
+    "language": "TypeScript",
+    "ui": "React + shadcn/ui + tokens Fluuy + lucide-react",
+    "table": "@tanstack/react-table",
+    "forms": "react-hook-form + Zod",
+    "validation": "Zod no client e validação canônica no server-side",
+    "style": "Liquid Glass Fluuy, sem glow, raio 2xl, pt-BR"
+  },
+  "implementationPrompt": "Implemente a tela de Clientes/Pets do Fluuy seguindo exatamente esta spec. Ignore completamente Topbar e Sidebar: não implemente, não altere, não recrie e não inclua regras visuais desses componentes. O escopo começa no conteúdo principal da página. A tela deve permitir alternar entre Clientes e Pets, exibir tabelas com filtros, busca, seleção, ações em lote, controle de colunas, paginação, estados vazios/loading/erro, ClientSheet para criar/editar cliente e PetSheet para criar/editar pet. Use Next.js App Router, React, TypeScript, TanStack Table, react-hook-form, Zod, shadcn/ui, lucide-react e tokens Fluuy. Máscaras são apenas UX; normalização e validação final devem ocorrer antes da persistência. Toda ação sensível deve abrir confirmação.",
+  "excludedScope": {
+    "ignoreComponents": [
+      "Topbar",
+      "Sidebar",
+      "Menu lateral",
+      "Navegação global",
+      "Header global",
+      "Logo global",
+      "Perfil do usuário",
+      "Busca global",
+      "Notificações globais"
+    ],
+    "rule": "Não implementar nem alterar Topbar e Sidebar. Considerar que já existem no layout da aplicação. Esta implementação deve entregar apenas o conteúdo principal da tela de clientes."
+  },
+  "page": {
+    "routeSuggestion": "/app/clientes",
+    "componentName": "ClientsPage",
+    "container": {
+      "maxWidth": 1180,
+      "paddingDesktop": "28px 24px",
+      "gap": 18,
+      "layout": "conteúdo centralizado em coluna"
+    },
+    "header": {
+      "hasBreadcrumb": false,
+      "title": {
+        "clients": "Clientes",
+        "pets": "Pets"
+      },
+      "description": {
+        "clients": "Gerencie os clientes do seu negócio, seus contatos e os pets vinculados a cada um.",
+        "pets": "Todos os pets cadastrados, vinculados aos seus tutores."
+      },
+      "style": {
+        "title": "text-2xl, font-bold, tracking-tight",
+        "description": "text-sm, muted"
+      }
+    },
+    "viewToggle": {
+      "state": "listView",
+      "type": "'clients' | 'pets'",
+      "component": "SegmentedControl",
+      "position": "abaixo do título, à esquerda",
+      "options": [
+        {
+          "value": "clients",
+          "label": "Clientes",
+          "icon": "Users"
+        },
+        {
+          "value": "pets",
+          "label": "Pets",
+          "icon": "PawPrint"
+        }
+      ],
+      "activeStyle": {
+        "border": "lime-400",
+        "background": "lime-50",
+        "fontWeight": 600,
+        "color": "foreground"
+      },
+      "inactiveStyle": {
+        "border": "transparent",
+        "background": "transparent",
+        "fontWeight": 300,
+        "color": "muted-foreground"
+      },
+      "affects": [
+        "page.title",
+        "page.description",
+        "primaryCreateButton",
+        "table.columns",
+        "table.rows",
+        "toolbar.counter",
+        "filters.availableFields",
+        "columnsPopover.availableColumns",
+        "emptyStates"
+      ]
+    },
+    "primaryCreateButton": {
+      "position": "abaixo do título, à direita da linha do toggle",
+      "clients": {
+        "label": "Novo cliente",
+        "icon": "Plus",
+        "variant": "brand",
+        "action": "open ClientSheet in create mode"
+      },
+      "pets": {
+        "label": "Novo pet",
+        "icon": "Plus",
+        "variant": "brand",
+        "action": "open NewPetClientPickerDialog"
+      }
+    }
+  },
+  "toolbar": {
+    "layout": "linha flexível com busca à esquerda, contador ao lado e botões Filtros/Colunas à direita",
+    "search": {
+      "component": "AffixInput",
+      "icon": "Search",
+      "placeholder": "Buscar por nome ou telefone...",
+      "debounceMs": 250,
+      "clientsSearchFields": [
+        "customer.name",
+        "customer.phone",
+        "customer.whatsapp",
+        "customer.email",
+        "customer.document"
+      ],
+      "petsSearchFields": [
+        "pet.customData.nome",
+        "pet.customData.raca",
+        "customer.name"
+      ],
+      "behavior": [
+        "Ao alterar busca, resetar página para 1.",
+        "Busca deve ser case-insensitive.",
+        "Busca por telefone/documento deve considerar versão normalizada sem máscara."
+      ]
+    },
+    "counter": {
+      "clients": {
+        "unfiltered": "{total} clientes",
+        "filtered": "{filtered} de {total} clientes"
+      },
+      "pets": {
+        "unfiltered": "{total} pets",
+        "filtered": "{filtered} de {total} pets"
+      }
+    },
+    "filtersButton": {
+      "component": "Button",
+      "variant": "outline",
+      "icon": "ListFilter",
+      "label": "Filtros",
+      "badge": "quantidade de filtros aplicados, sem contar busca",
+      "opens": "FiltersPopover"
+    },
+    "columnsButton": {
+      "component": "Button",
+      "variant": "outline",
+      "icon": "Columns3",
+      "label": "Colunas",
+      "opens": "ColumnsPopover"
+    }
+  },
+  "activeFiltersBar": {
+    "visibility": "exibir apenas quando houver busca ou filtros aplicados",
+    "layout": "chips removíveis + link Limpar filtros",
+    "chipComponent": "Badge com botão X",
+    "rules": [
+      "Cada filtro aplicado deve gerar um chip com label amigável.",
+      "Remover chip limpa apenas aquele filtro.",
+      "Limpar filtros remove busca e todos os filtros.",
+      "Ao limpar qualquer filtro, resetar página para 1."
+    ]
+  },
+  "bulkActionsBar": {
+    "visibility": "exibir apenas quando houver linhas selecionadas na tabela de clientes",
+    "style": {
+      "background": "lime translúcido",
+      "border": "lime",
+      "radius": "card"
+    },
+    "content": [
+      "{n} selecionado(s)",
+      "Inativar selecionados",
+      "Limpar seleção"
+    ],
+    "rules": [
+      "Disponível apenas na visão Clientes.",
+      "Não exibir na visão Pets.",
+      "Inativar selecionados abre AlertDialog warning.",
+      "Após confirmar, atualizar status dos clientes selecionados para inactive.",
+      "Após ação concluída, limpar seleção."
+    ]
+  },
+  "clientsTable": {
+    "entity": "Customer",
+    "component": "TanStackTable",
+    "rowClick": "abre ClientSheet em mode=edit",
+    "defaultSort": {
+      "id": "name",
+      "desc": false
+    },
+    "pagination": {
+      "pageSizes": [8, 10, 20],
+      "defaultPageSize": 8,
+      "label": "Mostrando {from}–{to} de {total}",
+      "rules": [
+        "Resetar para página 1 ao alterar busca, filtros ou pageSize.",
+        "Usar paginação controlada.",
+        "Desabilitar botão anterior na primeira página.",
+        "Desabilitar botão próximo na última página."
+      ]
+    },
+    "selection": {
+      "enabled": true,
+      "columnId": "select",
+      "rules": [
+        "Checkbox do header seleciona apenas a página atual.",
+        "Checkbox deve suportar estado indeterminado.",
+        "Clique em checkbox não deve disparar rowClick.",
+        "Clique em ações não deve disparar rowClick.",
+        "Clique na coluna Pets não deve disparar rowClick."
+      ]
+    },
+    "columnsOrder": [
+      "select",
+      "status",
+      "name",
+      "pets",
+      "phone",
+      "district",
+      "tags",
+      "created",
+      "source",
+      "actions"
+    ],
+    "columns": [
+      {
+        "id": "select",
+        "header": "",
+        "type": "checkbox",
+        "width": 40,
+        "sortable": false,
+        "toggleable": false
+      },
+      {
+        "id": "status",
+        "header": "Status",
+        "type": "badge",
+        "sortable": true,
+        "toggleable": true,
+        "values": {
+          "active": {
+            "label": "Ativo",
+            "variant": "success",
+            "style": "lime"
+          },
+          "inactive": {
+            "label": "Inativo",
+            "variant": "neutral",
+            "style": "neutral-100 background, neutral-600 text, neutral-200 border"
+          },
+          "blocked": {
+            "label": "Bloqueado",
+            "variant": "destructive"
+          }
+        }
+      },
+      {
+        "id": "name",
+        "header": "Cliente",
+        "type": "text",
+        "sortable": true,
+        "toggleable": false,
+        "format": "font-weight 500; sem avatar/foto"
+      },
+      {
+        "id": "pets",
+        "header": "Pets",
+        "type": "actionLink",
+        "sortable": false,
+        "toggleable": true,
+        "format": {
+          "zero": "ícone PawPrint + Adicionar em muted",
+          "one": "ícone PawPrint + nome do pet em lime com underline",
+          "many": "ícone PawPrint + '{n} pets' em lime com underline"
+        },
+        "actions": [
+          {
+            "when": "customer.pets.length === 0",
+            "action": "open PetSheet create vinculado ao cliente"
+          },
+          {
+            "when": "customer.pets.length === 1",
+            "action": "open PetSheet edit do único pet"
+          },
+          {
+            "when": "customer.pets.length > 1",
+            "action": "open ClientSheet edit com initialStep='pets'"
+          }
+        ]
+      },
+      {
+        "id": "phone",
+        "header": "Telefone",
+        "type": "text",
+        "sortable": true,
+        "toggleable": true,
+        "format": "font-mono; exibir máscara formatada"
+      },
+      {
+        "id": "district",
+        "header": "Bairro",
+        "type": "badge",
+        "sortable": true,
+        "toggleable": true,
+        "source": "defaultAddress.neighborhood || defaultAddress.district"
+      },
+      {
+        "id": "tags",
+        "header": "Tags",
+        "type": "badges",
+        "sortable": false,
+        "toggleable": true,
+        "format": "exibir até 2 tags + '+N'; se vazio exibir '—'",
+        "style": "neutral chips"
+      },
+      {
+        "id": "created",
+        "header": "Cadastro em",
+        "type": "date",
+        "sortable": true,
+        "toggleable": true,
+        "format": "dd/mm/aaaa pt-BR; muted"
+      },
+      {
+        "id": "source",
+        "header": "Cadastro por",
+        "type": "badge",
+        "sortable": false,
+        "toggleable": true,
+        "values": {
+          "manual": {
+            "label": "Manual",
+            "icon": "User",
+            "style": "blue"
+          },
+          "ai": {
+            "label": "Agente IA",
+            "icon": "Bot",
+            "style": "purple"
+          },
+          "whatsapp": {
+            "label": "WhatsApp",
+            "icon": "MessageCircle",
+            "style": "green"
+          },
+          "instagram": {
+            "label": "Instagram",
+            "icon": "Instagram",
+            "style": "pink"
+          },
+          "website": {
+            "label": "Site",
+            "icon": "Globe",
+            "style": "blue"
+          },
+          "referral": {
+            "label": "Indicação",
+            "icon": "UserPlus",
+            "style": "amber"
+          },
+          "import": {
+            "label": "Importação",
+            "icon": "Upload",
+            "style": "neutral"
+          },
+          "other": {
+            "label": "Outro",
+            "icon": "CircleHelp",
+            "style": "neutral"
+          }
+        }
+      },
+      {
+        "id": "actions",
+        "header": "",
+        "type": "rowMenu",
+        "width": 50,
+        "sortable": false,
+        "toggleable": false
+      }
+    ],
+    "filters": [
+      {
+        "id": "status",
+        "label": "Status",
+        "component": "Combobox",
+        "options": [
+          {
+            "value": "",
+            "label": "Todos"
+          },
+          {
+            "value": "active",
+            "label": "Ativo"
+          },
+          {
+            "value": "inactive",
+            "label": "Inativo"
+          },
+          {
+            "value": "blocked",
+            "label": "Bloqueado"
+          }
+        ]
+      },
+      {
+        "id": "district",
+        "label": "Bairro",
+        "component": "Combobox",
+        "searchable": true,
+        "optionsFrom": "endereços padrão dos clientes"
+      },
+      {
+        "id": "pets",
+        "label": "Pets",
+        "component": "Combobox",
+        "options": [
+          {
+            "value": "",
+            "label": "Todos"
+          },
+          {
+            "value": "true",
+            "label": "Com pets"
+          },
+          {
+            "value": "false",
+            "label": "Sem pets"
+          }
+        ]
+      }
+    ],
+    "rowActions": [
+      {
+        "label": "Editar",
+        "icon": "Pencil",
+        "action": "open ClientSheet edit"
+      },
+      {
+        "label": "Novo pet",
+        "icon": "PawPrint",
+        "action": "open PetSheet create vinculado ao cliente"
+      },
+      {
+        "label": "Inativar",
+        "icon": "CirclePause",
+        "visibleWhen": "customer.status !== 'inactive'",
+        "action": "open AlertDialog warning"
+      },
+      {
+        "separator": true
+      },
+      {
+        "label": "Excluir",
+        "icon": "Trash2",
+        "variant": "ghost-destructive",
+        "action": "open AlertDialog destructive"
+      }
+    ],
+    "deleteRules": [
+      "Se cliente tiver vínculos históricos, pedidos, agendamentos, conversas, pets ou registros financeiros que não podem ser perdidos, bloquear exclusão e orientar inativar.",
+      "Se não houver vínculos bloqueantes, permitir exclusão após confirmação destructive.",
+      "Nunca excluir sem AlertDialog.",
+      "Mensagem deve informar que a ação não pode ser desfeita."
+    ],
+    "statusRules": [
+      "Inativar cliente muda status para inactive.",
+      "Bloquear cliente muda status para blocked.",
+      "Toda alteração de status deve abrir confirmação de impacto.",
+      "Confirmação deve mencionar impacto em atendimentos, automações e ações relacionadas."
+    ]
+  },
+  "petsTable": {
+    "entity": "CustomerEntity",
+    "template": "pets",
+    "component": "TanStackTable",
+    "rowClick": "abre PetSheet edit do pet com tutor vinculado",
+    "selection": {
+      "enabled": false
+    },
+    "pagination": {
+      "pageSizes": [8, 10, 20],
+      "defaultPageSize": 8
+    },
+    "columnsOrder": [
+      "especie",
+      "pet",
+      "raca",
+      "porte",
+      "idade",
+      "tutor",
+      "chevron"
+    ],
+    "fixedColumns": ["pet"],
+    "columns": [
+      {
+        "id": "especie",
+        "header": "Espécie",
+        "type": "badge",
+        "sortable": true,
+        "toggleable": true,
+        "format": "ícone por espécie + label",
+        "iconMap": {
+          "cao": "Dog",
+          "gato": "Cat",
+          "outro": "PawPrint"
+        },
+        "badgeColorRule": "cor do badge definida pelo sexo: macho=azul; fêmea=rosa; sem sexo=neutral",
+        "values": {
+          "cao": "Cão",
+          "gato": "Gato",
+          "outro": "Outro"
+        }
+      },
+      {
+        "id": "pet",
+        "header": "Pet",
+        "type": "text",
+        "sortable": true,
+        "toggleable": false,
+        "format": "font-weight 500; sem avatar"
+      },
+      {
+        "id": "raca",
+        "header": "Raça",
+        "type": "text",
+        "sortable": true,
+        "toggleable": true
+      },
+      {
+        "id": "porte",
+        "header": "Porte",
+        "type": "text",
+        "sortable": true,
+        "toggleable": true,
+        "values": {
+          "pequeno": "Pequeno",
+          "medio": "Médio",
+          "grande": "Grande"
+        }
+      },
+      {
+        "id": "idade",
+        "header": "Idade",
+        "type": "derived",
+        "sortable": false,
+        "toggleable": true,
+        "source": "birthDate || customData.nasc",
+        "format": "idade calculada + faixa etária ao lado",
+        "ageRanges": [
+          {
+            "label": "Filhote",
+            "rule": "idade <= 1 ano",
+            "style": "lime"
+          },
+          {
+            "label": "Adulto",
+            "rule": "idade > 1 ano && idade < 7 anos",
+            "style": "foreground"
+          },
+          {
+            "label": "Idoso",
+            "rule": "idade >= 7 anos",
+            "style": "muted"
+          }
+        ]
+      },
+      {
+        "id": "tutor",
+        "header": "Tutor",
+        "type": "text",
+        "sortable": true,
+        "toggleable": true,
+        "source": "customer.name"
+      },
+      {
+        "id": "chevron",
+        "header": "",
+        "type": "affordance",
+        "icon": "ChevronRight",
+        "width": 50,
+        "sortable": false,
+        "toggleable": false
+      }
+    ],
+    "filters": [
+      {
+        "id": "especie",
+        "label": "Espécie",
+        "component": "Combobox",
+        "options": [
+          {
+            "value": "",
+            "label": "Todas"
+          },
+          {
+            "value": "cao",
+            "label": "Cão"
+          },
+          {
+            "value": "gato",
+            "label": "Gato"
+          },
+          {
+            "value": "outro",
+            "label": "Outro"
+          }
+        ]
+      },
+      {
+        "id": "sexo",
+        "label": "Sexo",
+        "component": "Combobox",
+        "options": [
+          {
+            "value": "",
+            "label": "Todos"
+          },
+          {
+            "value": "macho",
+            "label": "Macho"
+          },
+          {
+            "value": "femea",
+            "label": "Fêmea"
+          }
+        ]
+      },
+      {
+        "id": "porte",
+        "label": "Porte",
+        "component": "Combobox",
+        "options": [
+          {
+            "value": "",
+            "label": "Todos"
+          },
+          {
+            "value": "pequeno",
+            "label": "Pequeno"
+          },
+          {
+            "value": "medio",
+            "label": "Médio"
+          },
+          {
+            "value": "grande",
+            "label": "Grande"
+          }
+        ]
+      }
+    ],
+    "rules": [
+      "Pets sempre pertencem a um Customer.",
+      "Ao abrir PetSheet pela visão Pets, passar client preenchido.",
+      "Não permitir criar pet sem selecionar cliente.",
+      "Botão Novo pet abre diálogo obrigatório de seleção de cliente.",
+      "Diálogo deve permitir buscar cliente existente ou cadastrar novo cliente."
+    ]
+  },
+  "filtersPopover": {
+    "behavior": [
+      "Filtros dentro do popover usam estado draft.",
+      "Botão Aplicar copia draft para filtros aplicados.",
+      "Botão Limpar zera apenas o draft enquanto o popover está aberto.",
+      "Cancelar fecha sem aplicar alterações.",
+      "Ao aplicar filtros, resetar página para 1.",
+      "O botão Filtros mostra badge com quantidade de filtros aplicados.",
+      "Os campos do popover mudam conforme listView."
+    ]
+  },
+  "columnsPopover": {
+    "behavior": [
+      "Exibir apenas colunas toggleable da visão atual.",
+      "Na tabela Clientes, name/select/actions não são toggleable.",
+      "Na tabela Pets, pet e chevron não são toggleable.",
+      "Estado de visibilidade de colunas deve ser independente por visão.",
+      "Alternar colunas não deve resetar filtros nem busca."
+    ]
+  },
+  "newPetClientPickerDialog": {
+    "title": "Novo pet — selecione o cliente",
+    "fields": [
+      {
+        "label": "Cliente",
+        "name": "customerId",
+        "component": "Combobox",
+        "searchable": true,
+        "required": true,
+        "placeholder": "Selecione o cliente"
+      }
+    ],
+    "actions": [
+      {
+        "label": "Cadastrar novo cliente",
+        "variant": "outline",
+        "icon": "UserPlus",
+        "action": "fecha o diálogo e abre ClientSheet create"
+      },
+      {
+        "label": "Cancelar",
+        "variant": "outline",
+        "action": "fecha o diálogo"
+      },
+      {
+        "label": "Continuar",
+        "variant": "brand",
+        "disabledWhen": "customerId vazio",
+        "action": "abre PetSheet create vinculado ao cliente selecionado"
+      }
+    ]
+  },
+  "clientSheet": {
+    "component": "ClientSheet",
+    "modes": {
+      "create": {
+        "navigation": "stepper",
+        "footer": "Cancelar / Voltar / Avançar / Criar cliente",
+        "validation": "validar etapa atual ao avançar"
+      },
+      "edit": {
+        "navigation": "tabs",
+        "footer": "Cancelar / Salvar",
+        "validation": "validar tudo no salvar e focar primeiro campo inválido"
+      }
+    },
+    "props": {
+      "mode": "'create' | 'edit'",
+      "row": "Customer | undefined",
+      "initialStep": "'ident' | 'contact' | 'relation' | 'pets' | undefined",
+      "onClose": "() => void",
+      "onSave": "(payload) => Promise<void>"
+    },
+    "shell": {
+      "type": "Sheet lateral direito",
+      "width": 520,
+      "fullscreen": {
+        "enabled": true,
+        "buttonIcons": {
+          "open": "Maximize2",
+          "close": "Minimize2"
+        },
+        "contentMaxWidthWhenFullscreen": 720
+      },
+      "buttons": {
+        "close": "ghost icon",
+        "fullscreen": "ghost icon"
+      }
+    },
+    "header": {
+      "create": {
+        "title": "Novo cliente",
+        "description": "Cadastre um cliente do seu negócio.",
+        "titleStyle": "text-base font-semibold"
+      },
+      "edit": {
+        "breadcrumb": "Clientes › {nome}",
+        "title": "Editar cliente",
+        "breadcrumbStyle": "text-xs muted",
+        "titleStyle": "text-2xl font-bold tracking-tight"
+      }
+    },
+    "steps": [
+      {
+        "id": "ident",
+        "position": 1,
+        "label": "Identificação",
+        "icon": "User",
+        "sections": [
+          {
+            "name": "Situação cadastral",
+            "fields": [
+              {
+                "label": "Status",
+                "name": "status",
+                "component": "StatusSwitchItem",
+                "required": true,
+                "type": "enum",
+                "values": ["active", "inactive", "blocked"],
+                "rules": [
+                  "Primeiro campo da etapa.",
+                  "Alterações sempre exigem AlertDialog de confirmação.",
+                  "active exibe switch ligado e card lime.",
+                  "inactive exibe switch desligado.",
+                  "blocked esconde switch e exibe botão Desbloquear.",
+                  "Desbloquear altera status para inactive, não para active."
+                ]
+              }
+            ]
+          },
+          {
+            "name": "Dados básicos",
+            "fields": [
+              {
+                "label": "Tipo de cliente",
+                "name": "personType",
+                "component": "SwitchToggle",
+                "required": false,
+                "default": "individual",
+                "positionRule": "antes do campo Nome/Razão social, na mesma linha à esquerda",
+                "values": [
+                  {
+                    "value": "individual",
+                    "label": "Pessoa física",
+                    "icon": "User",
+                    "style": "lime"
+                  },
+                  {
+                    "value": "company",
+                    "label": "Pessoa jurídica",
+                    "icon": "Building2",
+                    "style": "blue"
+                  }
+                ]
+              },
+              {
+                "label": "Nome",
+                "dynamicLabel": {
+                  "individual": "Nome",
+                  "company": "Razão social"
+                },
+                "name": "name",
+                "component": "AffixInput",
+                "required": true,
+                "icon": {
+                  "individual": "User",
+                  "company": "Building2"
+                },
+                "validation": {
+                  "trim": true,
+                  "minLength": 2,
+                  "maxLength": 150
+                }
+              },
+              {
+                "label": "CPF / CNPJ",
+                "dynamicLabel": {
+                  "individual": "CPF / CNPJ",
+                  "company": "CNPJ"
+                },
+                "name": "document",
+                "component": "DocumentInput",
+                "required": false,
+                "icon": "IdCard",
+                "mask": {
+                  "cpf": "###.###.###-##",
+                  "cnpj": "##.###.###/####-##"
+                },
+                "normalization": "documentNormalized somente dígitos",
+                "validation": {
+                  "officialCheckDigits": true
+                }
+              },
+              {
+                "label": "Data de nascimento",
+                "name": "birthDate",
+                "component": "DatePicker",
+                "required": false,
+                "icon": "Calendar",
+                "mask": "dd/mm/aaaa",
+                "typeable": true,
+                "hideWhen": "personType === 'company'",
+                "validation": {
+                  "validDate": true,
+                  "notFuture": true
+                }
+              }
+            ]
+          },
+          {
+            "name": "Canais de contato",
+            "fields": [
+              {
+                "label": "Telefone principal",
+                "name": "phone",
+                "component": "PhoneInput",
+                "required": true,
+                "layout": "mesma linha do WhatsApp",
+                "props": {
+                  "countryCombobox": true,
+                  "defaultCountry": "BR",
+                  "defaultDdi": "+55",
+                  "mask": "(##) #####-####"
+                },
+                "normalization": "phoneNormalized somente dígitos",
+                "validation": {
+                  "minDigits": 10
+                }
+              },
+              {
+                "label": "WhatsApp",
+                "name": "whatsapp",
+                "component": "PhoneInput",
+                "required": false,
+                "layout": "mesma linha do telefone principal",
+                "props": {
+                  "countryCombobox": true,
+                  "defaultCountry": "BR",
+                  "defaultDdi": "+55",
+                  "mask": "(##) #####-####"
+                },
+                "actions": [
+                  {
+                    "label": "Usar telefone principal",
+                    "action": "copy phone to whatsapp"
+                  }
+                ],
+                "normalization": "whatsappNormalized somente dígitos",
+                "validation": {
+                  "minDigitsWhenFilled": 10
+                }
+              },
+              {
+                "label": "E-mail",
+                "name": "email",
+                "component": "AffixInput",
+                "type": "email",
+                "required": false,
+                "icon": "Mail",
+                "normalization": "trim + lowercase",
+                "validation": {
+                  "email": true
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "contact",
+        "position": 2,
+        "label": "Endereço",
+        "icon": "MapPin",
+        "sections": [
+          {
+            "name": "Endereços",
+            "field": {
+              "name": "addresses",
+              "component": "RepeaterSubForm",
+              "relation": "1:N",
+              "required": false,
+              "defaultVisibleBlocks": 1,
+              "rules": [
+                "Quando houver ao menos 1 endereço, deve haver exatamente 1 endereço padrão.",
+                "Endereço padrão é definido por radio.",
+                "Bloco padrão usa borda lime, sem fundo lime.",
+                "Remover endereço exige confirmação se já persistido.",
+                "Se remover o endereço padrão, escolher automaticamente outro como padrão ou solicitar novo padrão."
+              ],
+              "subFields": [
+                {
+                  "name": "type",
+                  "label": "Tipo",
+                  "component": "Combobox",
+                  "default": "main",
+                  "options": [
+                    "main:Principal",
+                    "delivery:Entrega",
+                    "billing:Cobrança",
+                    "home_service:Domicílio",
+                    "other:Outro"
+                  ]
+                },
+                {
+                  "name": "name",
+                  "label": "Identificação",
+                  "component": "AffixInput",
+                  "placeholder": "Casa, trabalho..."
+                },
+                {
+                  "name": "cep",
+                  "label": "CEP",
+                  "component": "AffixInput",
+                  "icon": "MapPin",
+                  "trailingIcon": "Search",
+                  "mask": "#####-###",
+                  "normalization": "zipCode somente dígitos",
+                  "action": "buscar CEP quando clicar no ícone ou quando completar 8 dígitos"
+                },
+                {
+                  "name": "street",
+                  "label": "Logradouro",
+                  "component": "AffixInput",
+                  "icon": "Signpost"
+                },
+                {
+                  "name": "number",
+                  "label": "Número",
+                  "component": "AffixInput",
+                  "icon": "Hash"
+                },
+                {
+                  "name": "complement",
+                  "label": "Complemento",
+                  "component": "AffixInput",
+                  "icon": "Building"
+                },
+                {
+                  "name": "neighborhood",
+                  "label": "Bairro",
+                  "component": "AffixInput",
+                  "icon": "Map"
+                },
+                {
+                  "name": "city",
+                  "label": "Cidade",
+                  "component": "AffixInput",
+                  "icon": "Building2"
+                },
+                {
+                  "name": "state",
+                  "label": "UF",
+                  "component": "Combobox",
+                  "searchable": true,
+                  "options": [
+                    "AC",
+                    "AL",
+                    "AP",
+                    "AM",
+                    "BA",
+                    "CE",
+                    "DF",
+                    "ES",
+                    "GO",
+                    "MA",
+                    "MT",
+                    "MS",
+                    "MG",
+                    "PA",
+                    "PB",
+                    "PR",
+                    "PE",
+                    "PI",
+                    "RJ",
+                    "RN",
+                    "RS",
+                    "RO",
+                    "RR",
+                    "SC",
+                    "SP",
+                    "SE",
+                    "TO"
+                  ],
+                  "normalization": "uppercase"
+                },
+                {
+                  "name": "reference",
+                  "label": "Referência",
+                  "component": "Textarea",
+                  "maxLength": 200
+                }
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "id": "relation",
+        "position": 3,
+        "label": "Detalhes",
+        "icon": "Tags",
+        "sections": [
+          {
+            "name": "Segmentação",
+            "fields": [
+              {
+                "label": "Tags",
+                "name": "tags",
+                "component": "MultiSelect",
+                "relation": "CustomerTag N:N",
+                "allowInlineCreate": true,
+                "chipDisplay": true,
+                "validation": {
+                  "tenantScoped": true,
+                  "antiIdor": true
+                }
+              }
+            ]
+          },
+          {
+            "name": "Consentimento LGPD",
+            "fields": [
+              {
+                "label": "Consentimento aceito em",
+                "name": "consentAcceptedAt",
+                "component": "DatePicker",
+                "required": false,
+                "hint": "Data em que o cliente aceitou receber contato.",
+                "validation": {
+                  "validDate": true,
+                  "notFuture": true
+                }
+              },
+              {
+                "label": "Origem do consentimento",
+                "name": "consentSource",
+                "component": "AffixInput",
+                "icon": "FileText",
+                "required": "conditional",
+                "requiredWhen": "consentAcceptedAt preenchido",
+                "maxLength": 120
+              }
+            ]
+          },
+          {
+            "name": "Observações internas",
+            "fields": [
+              {
+                "label": "Notas internas",
+                "name": "internalNotes",
+                "component": "Textarea",
+                "required": false,
+                "maxLength": 2000,
+                "showCounter": true,
+                "hint": "Visível apenas para a equipe."
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "pets",
+        "position": 4,
+        "label": "Pets",
+        "icon": "PawPrint",
+        "sections": [
+          {
+            "name": "Pets do cliente",
+            "field": {
+              "name": "pets",
+              "component": "PetList",
+              "relation": "CustomerEntity 1:N",
+              "emptyState": {
+                "icon": "PawPrint",
+                "text": "Nenhum pet cadastrado."
+              },
+              "addButton": {
+                "label": "Adicionar pet",
+                "icon": "Plus",
+                "variant": "outline",
+                "action": "open PetSheet create inClient=true"
+              },
+              "item": {
+                "component": "clicable item/card",
+                "content": "nome + espécie · raça · sexo",
+                "rightActions": [
+                  "Trash2 ghost-destructive com confirmação",
+                  "ChevronRight"
+                ],
+                "clickAction": "open PetSheet edit inClient=true"
+              }
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "petSheet": {
+    "component": "PetSheet",
+    "entity": "CustomerEntity",
+    "template": "pets",
+    "props": {
+      "pet": "PetEntity | {}",
+      "client": "{ id, name } obrigatório",
+      "inClient": "boolean",
+      "onOpenClient": "() => void",
+      "onBackToPets": "() => void",
+      "onClose": "() => void",
+      "onSave": "(payload) => Promise<void>"
+    },
+    "shell": {
+      "type": "Sheet lateral direito",
+      "width": 520,
+      "fullscreen": true,
+      "footer": "Cancelar outline + Salvar/Adicionar pet brand"
+    },
+    "header": {
+      "breadcrumb": "Cliente › {nome} [› Pets]",
+      "rules": [
+        "Nome do cliente pode ser clicável quando onOpenClient existir.",
+        "Nome clicável deve ter estilo de texto, sem aparência de link.",
+        "Segmento Pets aparece quando inClient ou onBackToPets existir.",
+        "Linha 2 mostra Editar pet ou Novo pet em text-2xl font-bold."
+      ]
+    },
+    "sections": [
+      {
+        "name": "Dados do pet",
+        "fields": [
+          {
+            "label": "Nome do pet",
+            "name": "nome",
+            "component": "AffixInput",
+            "icon": "PawPrint",
+            "required": true,
+            "validation": {
+              "minLength": 2,
+              "maxLength": 150
+            },
+            "persistence": "customData.nome"
+          },
+          {
+            "row": ["especie", "raca"],
+            "fields": [
+              {
+                "label": "Espécie",
+                "name": "especie",
+                "component": "Combobox",
+                "required": true,
+                "default": "cao",
+                "options": ["cao:Cão", "gato:Gato", "outro:Outro"],
+                "persistence": "customData.especie"
+              },
+              {
+                "label": "Raça",
+                "name": "raca",
+                "component": "AffixInput",
+                "required": false,
+                "maxLength": 120,
+                "persistence": "customData.raca"
+              }
+            ]
+          },
+          {
+            "label": "Data de nascimento",
+            "name": "nasc",
+            "component": "DatePicker",
+            "mask": "dd/mm/aaaa",
+            "typeable": true,
+            "required": false,
+            "validation": {
+              "validDate": true,
+              "notFuture": true
+            },
+            "derivedDisplay": "exibir idade calculada ao lado do label em pílula lime",
+            "ageFormat": ["N meses", "1 ano", "X anos e Y meses"],
+            "persistence": "customData.nasc"
+          },
+          {
+            "row": ["porte", "peso", "sexo"],
+            "fields": [
+              {
+                "label": "Porte",
+                "name": "porte",
+                "component": "Combobox",
+                "default": "medio",
+                "options": ["pequeno:Pequeno", "medio:Médio", "grande:Grande"],
+                "persistence": "customData.porte"
+              },
+              {
+                "label": "Peso",
+                "name": "peso_kg",
+                "component": "AffixInput",
+                "type": "number",
+                "inputMode": "decimal",
+                "addonTrailing": "kg",
+                "persistence": "customData.peso_kg"
+              },
+              {
+                "label": "Sexo",
+                "name": "sexo",
+                "component": "Combobox",
+                "options": ["macho:Macho", "femea:Fêmea"],
+                "persistence": "customData.sexo"
+              }
+            ]
+          },
+          {
+            "label": "Pet castrado",
+            "name": "castrado",
+            "component": "SwitchItem",
+            "type": "boolean",
+            "display": "card_switch",
+            "styleWhenChecked": "borda lime + fundo lime-50",
+            "persistence": "customData.castrado"
+          },
+          {
+            "label": "Observações de saúde",
+            "name": "observacoes_saude",
+            "component": "Textarea",
+            "placeholder": "Alergias, medicações, comportamento, restrições...",
+            "persistence": "customData.observacoes_saude"
+          }
+        ]
+      },
+      {
+        "name": "Tutor adicional",
+        "collapsible": true,
+        "trigger": {
+          "label": "Adicionar tutor",
+          "variant": "outline",
+          "icon": "UserPlus"
+        },
+        "remove": {
+          "button": "Trash2 ghost-destructive",
+          "confirmationTitle": "Remover tutor adicional?",
+          "confirmationDescription": "Os dados do tutor adicional serão removidos deste pet."
+        },
+        "fields": [
+          {
+            "row": ["tutor2_nome", "tutor2_telefone"],
+            "fields": [
+              {
+                "label": "Nome",
+                "name": "tutor2_nome",
+                "component": "AffixInput",
+                "icon": "UserPlus",
+                "persistence": "customData.tutor2_nome"
+              },
+              {
+                "label": "Telefone",
+                "name": "tutor2_telefone",
+                "component": "PhoneInput",
+                "mask": "(##) #####-####",
+                "defaultDdi": "+55",
+                "persistence": "customData.tutor2_telefone"
+              }
+            ]
+          },
+          {
+            "row": ["tutor2_vinculo", "tutor2_email"],
+            "fields": [
+              {
+                "label": "Vínculo",
+                "name": "tutor2_vinculo",
+                "component": "Combobox",
+                "options": [
+                  "conjuge:Cônjuge",
+                  "filho:Filho(a)",
+                  "familiar:Familiar",
+                  "cuidador:Cuidador",
+                  "outro:Outro"
+                ],
+                "persistence": "customData.tutor2_vinculo"
+              },
+              {
+                "label": "E-mail",
+                "name": "tutor2_email",
+                "component": "AffixInput",
+                "type": "email",
+                "icon": "Mail",
+                "validation": {
+                  "email": true
+                },
+                "persistence": "customData.tutor2_email"
+              }
+            ]
+          },
+          {
+            "name": "tutor2_address",
+            "component": "CollapsibleAddressBlock",
+            "triggerLabel": "Adicionar endereço do tutor",
+            "removeConfirmationTitle": "Remover endereço do tutor?",
+            "fieldsRule": "usar exatamente os mesmos campos e componentes do endereço do cliente"
+          }
+        ]
+      },
+      {
+        "name": "Contato de emergência",
+        "fields": [
+          {
+            "row": ["contato_emergencia_nome", "contato_emergencia_telefone"],
+            "fields": [
+              {
+                "label": "Nome",
+                "name": "contato_emergencia_nome",
+                "component": "AffixInput",
+                "icon": "User",
+                "persistence": "customData.contato_emergencia_nome"
+              },
+              {
+                "label": "Telefone",
+                "name": "contato_emergencia_telefone",
+                "component": "PhoneInput",
+                "defaultDdi": "+55",
+                "persistence": "customData.contato_emergencia_telefone"
+              }
+            ]
+          },
+          {
+            "row": ["contato_emergencia_vinculo", "contato_emergencia_email"],
+            "fields": [
+              {
+                "label": "Vínculo",
+                "name": "contato_emergencia_vinculo",
+                "component": "Combobox",
+                "options": [
+                  "conjuge:Cônjuge",
+                  "filho:Filho(a)",
+                  "familiar:Familiar",
+                  "cuidador:Cuidador",
+                  "outro:Outro"
+                ],
+                "persistence": "customData.contato_emergencia_vinculo"
+              },
+              {
+                "label": "E-mail",
+                "name": "contato_emergencia_email",
+                "component": "AffixInput",
+                "type": "email",
+                "icon": "Mail",
+                "validation": {
+                  "email": true
+                },
+                "persistence": "customData.contato_emergencia_email"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "openContexts": [
+      {
+        "from": "ClientSheet aba Pets",
+        "props": {
+          "inClient": true,
+          "client": "cliente atual",
+          "pet": "{} ou pet existente"
+        }
+      },
+      {
+        "from": "Coluna Pets da tabela Clientes",
+        "props": {
+          "client": "cliente da linha",
+          "onBackToPets": "abre ClientSheet na aba Pets"
+        }
+      },
+      {
+        "from": "Tabela Pets",
+        "props": {
+          "client": "tutor vinculado",
+          "pet": "pet da linha",
+          "onOpenClient": "abre ClientSheet edit do tutor"
+        }
+      },
+      {
+        "from": "Botão Novo pet",
+        "props": {
+          "client": "selecionado no diálogo obrigatório",
+          "pet": "{}"
+        }
+      }
+    ]
+  },
+  "formComponents": {
+    "commonRules": [
+      "Usar Field wrapper com label, required marker, hint e error inline.",
+      "Usar Combobox como componente padrão de seleção, nunca select nativo.",
+      "Usar PhoneInput com combobox de país e DDI, default Brasil +55.",
+      "Usar DatePicker digitável com máscara dd/mm/aaaa.",
+      "Usar AffixInput para campos com ícones, prefixos e sufixos.",
+      "Usar Textarea para textos longos.",
+      "Usar SwitchItem ou card_switch para booleanos de estado.",
+      "Todos os inputs devem ter raio 2xl/input radius do design system.",
+      "Máscaras não substituem validação."
+    ],
+    "masks": {
+      "phone": "(##) #####-####",
+      "cep": "#####-###",
+      "cpf": "###.###.###-##",
+      "cnpj": "##.###.###/####-##",
+      "date": "dd/mm/aaaa"
+    },
+    "normalization": {
+      "phoneNormalized": "somente dígitos",
+      "whatsappNormalized": "somente dígitos",
+      "documentNormalized": "somente dígitos",
+      "zipCode": "somente dígitos",
+      "email": "trim + lowercase",
+      "state": "uppercase"
+    }
+  },
+  "validationRules": {
+    "customer": {
+      "status": "obrigatório; enum active|inactive|blocked",
+      "name": "obrigatório; trim; mínimo 2; máximo 150",
+      "personType": "enum individual|company|null",
+      "phone": "obrigatório; mínimo 10 dígitos normalizados",
+      "whatsapp": "opcional; se preenchido, mínimo 10 dígitos normalizados",
+      "email": "opcional; se preenchido, formato válido",
+      "document": "opcional; se preenchido, CPF/CNPJ válido por dígitos verificadores",
+      "birthDate": "opcional; data válida; não futura; oculto para PJ",
+      "addresses": "opcional; se houver pelo menos 1, exatamente 1 deve ser padrão",
+      "tags": "opcional; apenas tags do tenant",
+      "consentAcceptedAt": "opcional; data válida; não futura",
+      "consentSource": "obrigatório se consentAcceptedAt preenchido; máximo 120",
+      "internalNotes": "opcional; máximo 2000"
+    },
+    "pet": {
+      "nome": "obrigatório; mínimo 2; máximo 150",
+      "especie": "obrigatório; enum cao|gato|outro",
+      "raca": "opcional; máximo 120",
+      "nasc": "opcional; data válida; não futura",
+      "porte": "opcional; enum pequeno|medio|grande",
+      "peso_kg": "opcional; número >= 0",
+      "sexo": "opcional; enum macho|femea",
+      "castrado": "boolean",
+      "emails": "opcionais; se preenchidos, formato válido",
+      "phones": "opcionais; se preenchidos, mínimo 10 dígitos"
+    },
+    "serverSide": [
+      "Revalidar todos os dados no server com Zod.",
+      "Não confiar em ids enviados pelo client.",
+      "Validar tenantId em tags, clientes, pets, endereços e relações.",
+      "Aplicar anti-IDOR em qualquer id relacional.",
+      "Mensagens de erro em pt-BR."
+    ]
+  },
+  "persistence": {
+    "customer": {
+      "table": "Customer",
+      "fields": [
+        "status",
+        "name",
+        "personType",
+        "phone",
+        "phoneNormalized",
+        "whatsapp",
+        "whatsappNormalized",
+        "email",
+        "document",
+        "documentNormalized",
+        "birthDate",
+        "consentAcceptedAt",
+        "consentSource",
+        "internalNotes",
+        "customData",
+        "source"
+      ],
+      "sourceRule": "source não aparece no formulário; no painel, criar como manual; em update, preservar valor existente"
+    },
+    "addresses": {
+      "table": "CustomerAddress",
+      "relation": "Customer 1:N CustomerAddress",
+      "fields": [
+        "type",
+        "name",
+        "zipCode",
+        "street",
+        "number",
+        "complement",
+        "neighborhood",
+        "city",
+        "state",
+        "country",
+        "reference",
+        "isDefault"
+      ]
+    },
+    "tags": {
+      "table": "CustomerTag",
+      "relationTable": "CustomerTagLink",
+      "relation": "Customer N:N CustomerTag"
+    },
+    "pets": {
+      "table": "CustomerEntity",
+      "template": "pets",
+      "relation": "Customer 1:N CustomerEntity",
+      "customDataFields": [
+        "nome",
+        "especie",
+        "raca",
+        "nasc",
+        "porte",
+        "peso_kg",
+        "sexo",
+        "castrado",
+        "observacoes_saude",
+        "tutor2_nome",
+        "tutor2_telefone",
+        "tutor2_vinculo",
+        "tutor2_email",
+        "tutor2_address",
+        "contato_emergencia_nome",
+        "contato_emergencia_telefone",
+        "contato_emergencia_vinculo",
+        "contato_emergencia_email"
+      ]
+    }
+  },
+  "states": {
+    "loading": {
+      "component": "TableSkeleton",
+      "rule": "skeleton da tabela com linhas e colunas aproximadas da visão atual"
+    },
+    "emptyClients": {
+      "icon": "UserPlus",
+      "title": "Nenhum cliente cadastrado",
+      "description": "Comece cadastrando seus clientes, seus contatos e os pets vinculados a cada um.",
+      "primaryAction": "Cadastrar primeiro cliente"
+    },
+    "emptyPets": {
+      "icon": "PawPrint",
+      "title": "Nenhum pet cadastrado",
+      "description": "Cadastre pets vinculados aos seus clientes.",
+      "primaryAction": "Novo pet"
+    },
+    "emptyFilteredClients": {
+      "icon": "SearchX",
+      "title": "Nenhum cliente encontrado",
+      "description": "Nenhum cliente corresponde aos filtros. Ajuste a busca ou cadastre um novo cliente.",
+      "actions": ["Limpar filtros", "Novo cliente"]
+    },
+    "emptyFilteredPets": {
+      "icon": "SearchX",
+      "title": "Nenhum pet encontrado",
+      "description": "Nenhum pet corresponde aos filtros. Ajuste a busca ou cadastre um novo pet.",
+      "actions": ["Limpar filtros", "Novo pet"]
+    },
+    "error": {
+      "icon": "TriangleAlert",
+      "title": "Não foi possível carregar",
+      "description": "Ocorreu um erro ao buscar os dados. Tente novamente.",
+      "action": "Tentar novamente"
+    }
+  },
+  "confirmations": {
+    "requiredFor": [
+      "excluir cliente",
+      "excluir pet",
+      "remover endereço persistido",
+      "remover tutor adicional",
+      "remover endereço do tutor",
+      "inativar cliente",
+      "bloquear cliente",
+      "desbloquear cliente",
+      "inativar selecionados"
+    ],
+    "component": "AlertDialog",
+    "variants": {
+      "delete": "destructive",
+      "status": "warning",
+      "blockedDeletion": "warning sem botão destrutivo"
+    },
+    "rules": [
+      "AlertDialog deve prender foco.",
+      "ESC e clique fora devem fechar apenas quando a ação não estiver carregando.",
+      "Botão destrutivo deve indicar claramente a ação.",
+      "A descrição deve explicar impacto ou irreversibilidade."
+    ]
+  },
+  "visualDesign": {
+    "tokens": {
+      "useFluuyTokens": true,
+      "radius": "2xl",
+      "noGlow": true,
+      "glass": true
+    },
+    "colors": {
+      "limeUsage": [
+        "status ativo",
+        "seleção",
+        "estado ativo de toggle",
+        "ação primária brand"
+      ],
+      "doNotUseLimeFor": ["espécie do pet", "sexo do pet"],
+      "petSexColors": {
+        "macho": "blue",
+        "femea": "pink",
+        "undefined": "neutral"
+      },
+      "sourceColors": {
+        "manual": "blue",
+        "ai": "purple"
+      }
+    },
+    "buttons": {
+      "primary": "brand",
+      "secondary": "outline",
+      "danger": "ghost-destructive",
+      "navigationNext": "dark no create stepper",
+      "iconButtons": "ghost"
+    }
+  },
+  "accessibility": {
+    "rules": [
+      "Linhas clicáveis devem ter cursor pointer.",
+      "Checkboxes, links internos e menus devem usar stopPropagation para não disparar rowClick.",
+      "Segmented controls devem usar aria-pressed ou aria-selected.",
+      "Tabs devem ter aria-selected.",
+      "Popover deve fechar com ESC e clique fora.",
+      "Combobox deve permitir navegação por teclado quando possível.",
+      "AlertDialog deve prender foco.",
+      "Botões icon-only devem ter aria-label.",
+      "Campos obrigatórios devem indicar visualmente e semanticamente.",
+      "Mensagens de erro devem estar associadas ao campo."
+    ]
+  },
+  "responsive": {
+    "desktop": "layout conforme spec com max-width 1180",
+    "tablet": "toolbar quebra linha; tabela com overflow-x",
+    "mobile": [
+      "conteúdo com padding reduzido",
+      "toggle e botão principal podem quebrar linha",
+      "tabela mantém overflow horizontal",
+      "sheets ocupam 100vw",
+      "campos em grid devem virar 1 coluna"
+    ]
+  },
+  "implementationTasks": [
+    {
+      "id": "types",
+      "title": "Criar tipos TypeScript",
+      "items": [
+        "Customer",
+        "CustomerAddress",
+        "CustomerTag",
+        "CustomerEntityPet",
+        "CustomerStatus",
+        "PersonType",
+        "PetSpecies",
+        "PetSex",
+        "PetSize"
+      ]
+    },
+    {
+      "id": "schemas",
+      "title": "Criar schemas Zod",
+      "items": [
+        "customerFormSchema",
+        "addressSchema",
+        "petFormSchema",
+        "tagSchema",
+        "filtersSchema"
+      ]
+    },
+    {
+      "id": "page",
+      "title": "Implementar ClientsPage",
+      "items": [
+        "estado listView",
+        "header dinâmico",
+        "toggle Clientes/Pets",
+        "botão Novo cliente/Novo pet",
+        "toolbar",
+        "active filters bar",
+        "bulk actions bar",
+        "tabela dinâmica",
+        "paginação"
+      ]
+    },
+    {
+      "id": "tables",
+      "title": "Implementar tabelas",
+      "items": [
+        "ClientsTable com TanStack Table",
+        "PetsTable com TanStack Table",
+        "controle de colunas por visão",
+        "filtros por visão",
+        "row actions",
+        "seleção apenas para clientes"
+      ]
+    },
+    {
+      "id": "client-sheet",
+      "title": "Implementar ClientSheet",
+      "items": [
+        "modo create com stepper",
+        "modo edit com tabs",
+        "status switch com confirmação",
+        "tipo PF/PJ",
+        "campos dinâmicos por PF/PJ",
+        "endereços repetíveis",
+        "tags com criação inline",
+        "consentimento condicional",
+        "notas internas",
+        "aba pets com listagem e PetSheet"
+      ]
+    },
+    {
+      "id": "pet-sheet",
+      "title": "Implementar PetSheet",
+      "items": [
+        "breadcrumb Cliente › nome › Pets",
+        "dados do pet",
+        "idade derivada",
+        "peso com addon kg",
+        "castrado switch card",
+        "tutor adicional colapsável",
+        "endereço do tutor colapsável",
+        "contato de emergência",
+        "persistência em customData"
+      ]
+    },
+    {
+      "id": "dialogs",
+      "title": "Implementar diálogos",
+      "items": [
+        "NewPetClientPickerDialog",
+        "AlertDialog genérico",
+        "confirmação de exclusão",
+        "confirmação de status",
+        "confirmação de remoções internas"
+      ]
+    },
+    {
+      "id": "states",
+      "title": "Implementar estados",
+      "items": [
+        "loading",
+        "empty clients",
+        "empty pets",
+        "empty filtered",
+        "error",
+        "toast success/warning/error"
+      ]
+    }
+  ],
+  "definitionOfDone": [
+    "Topbar e Sidebar foram ignorados completamente.",
+    "Tela principal alterna entre Clientes e Pets.",
+    "Título, descrição, contador, filtros, colunas e botão principal mudam conforme a visão.",
+    "Tabela Clientes segue ordem e regras das colunas especificadas.",
+    "Tabela Pets segue ordem e regras das colunas especificadas.",
+    "Busca, filtros, chips ativos, colunas e paginação funcionam.",
+    "Seleção em lote existe apenas para Clientes.",
+    "Ações de linha funcionam e usam stopPropagation.",
+    "Novo pet exige seleção de cliente antes de abrir PetSheet.",
+    "ClientSheet create usa stepper com validação por etapa.",
+    "ClientSheet edit usa tabs com navegação livre.",
+    "PetSheet funciona nos contextos definidos.",
+    "Todas as exclusões e mudanças sensíveis têm confirmação.",
+    "Campos usam componentes do design system: AffixInput, Combobox, PhoneInput, DatePicker, Textarea, SwitchItem, MultiSelect.",
+    "Máscaras são UX e os dados são normalizados antes da persistência.",
+    "Validação Zod client/server com mensagens pt-BR.",
+    "Layout usa tokens Fluuy, Liquid Glass sem glow e raio 2xl.",
+    "Acessibilidade mínima implementada: aria-label, aria-selected/pressed, foco em dialogs, ESC/click outside em popovers."
+  ]
+}

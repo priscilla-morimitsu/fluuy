@@ -869,6 +869,7 @@ enum CustomerSource {
   website
   referral
   manual
+  ai
   import
   other
 }

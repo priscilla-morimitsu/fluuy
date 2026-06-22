@@ -1,0 +1,57 @@
+{
+  "$schema": "fluuy-origin-badge-spec/v1",
+  "name": "fluuy_origin_badge_spec_prompt",
+  "version": "1.0.0",
+  "language": "pt-BR",
+  "target_model": "Claude / Claude Code",
+  "framework": "Next.js (App Router) + React + TypeScript",
+  "uiBase": "Tailwind CSS + tokens Fluuy + lucide-react",
+  "component": "components/ui/origin-badge.tsx",
+
+  "prompt": "Implemente/mantenha o OriginBadge do Fluuy: badge SOMENTE LEITURA que mostra de onde um registro veio (origem/source). A origem é preenchida automaticamente pelo sistema e NUNCA é editável em formulário — este badge é a única superfície que a exibe nas listas e telas de detalhe. Cada origem tem ícone e cor distintos para diferenciar à primeira vista registros criados pela IA, manualmente por um usuário e capturados pelo site.",
+
+  "props": {
+    "origin": "string | null | undefined — o valor bruto de `source` persistido no registro (enums *_SOURCES) OU uma categoria canônica. É normalizado por resolveOrigin().",
+    "className": "opcional — classes extras."
+  },
+
+  "categories": {
+    "ai": { "label": "Agente IA", "icon": "Bot", "tone": "violeta", "synonyms": ["ai", "agent", "ai_agent"] },
+    "manual": { "label": "Manual", "icon": "UserPen", "tone": "azul (sky)", "synonyms": ["manual", "user", "panel"], "note": "Cadastro feito por um usuário no painel (Manual/Usuário)." },
+    "website": { "label": "Site", "icon": "Globe", "tone": "teal", "synonyms": ["website", "site", "web"] },
+    "whatsapp": { "label": "WhatsApp", "icon": "MessageCircle", "tone": "emerald", "synonyms": ["whatsapp"] },
+    "instagram": { "label": "Instagram", "icon": "AtSign", "tone": "pink", "synonyms": ["instagram"] },
+    "referral": { "label": "Indicação", "icon": "Users", "tone": "amber", "synonyms": ["referral"] },
+    "import": { "label": "Importação", "icon": "Upload", "tone": "slate", "synonyms": ["import"] },
+    "api": { "label": "API", "icon": "Webhook", "tone": "slate", "synonyms": ["api"] },
+    "other": { "label": "Outro", "icon": "CircleDashed", "tone": "neutro (muted)", "fallback": true }
+  },
+
+  "primaryOrigins": "As três origens centrais do produto que DEVEM ser visualmente distintas: Agente IA (ai), Manual/Usuário (manual) e Site (website). Sinônimos de outras origens são normalizados para uma dessas quando aplicável.",
+
+  "style": {
+    "shape": "inline-flex, altura 20px (h-5), gap 4, rounded-4xl (pílula), px-2 py-0.5, text-xs font-medium",
+    "icon": "lucide 12px (size-3), aria-hidden",
+    "tone": "borda + fundo suave + texto legível por categoria, com variantes dark; categoria desconhecida usa fundo --muted/--muted-foreground",
+    "noGlow": "Liquid Glass SEM glow; manter dentro da linguagem visual do projeto"
+  },
+
+  "exports": {
+    "OriginBadge": "componente",
+    "resolveOrigin": "(source) => OriginCategory — normaliza o valor bruto na categoria canônica",
+    "originLabel": "(source) => string — rótulo pt-BR da origem"
+  },
+
+  "usage": {
+    "lists": "Substituir a célula que renderizava o rótulo cru de `source` por <OriginBadge origin={row.original.source} /> nas tabelas de listagem (clientes, pedidos, agendamentos, etc.).",
+    "forms": "NÃO usar em formulário como campo editável. O formulário não tem campo de Origem; o sistema atribui o source (painel ⇒ 'manual', webhooks/IA ⇒ 'ai'/'whatsapp', site ⇒ 'website')."
+  },
+
+  "definition_of_done": [
+    "Badge somente leitura com ícone + cor distintos por origem.",
+    "Agente IA, Manual/Usuário e Site claramente diferenciáveis.",
+    "Normaliza valores brutos de source (e sinônimos) e cai em 'Outro' quando desconhecido.",
+    "Usado nas colunas de origem das listas; nunca como campo de formulário.",
+    "Tokens Fluuy, pílula, sem glow; acessível (ícone decorativo aria-hidden)."
+  ]
+}

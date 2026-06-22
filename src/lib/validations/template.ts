@@ -33,6 +33,22 @@ export const templateFieldSchema = z
 
 export type TemplateField = z.infer<typeof templateFieldSchema>;
 
+/**
+ * Convention for customer_entity templates: the FIRST required field is the
+ * entity's display name (mirrored into CustomerEntity.name and shown in the
+ * customer list column). Falls back to the first field, then null when empty.
+ */
+export function entityNameFieldKey(fields: TemplateField[]): string | null {
+  return fields.find((f) => f.required)?.key ?? fields[0]?.key ?? null;
+}
+
+/** The display name for an entity, derived from its template + custom_data. */
+export function deriveEntityName(fields: TemplateField[], customData: Record<string, unknown>): string {
+  const key = entityNameFieldKey(fields);
+  const value = key ? customData[key] : undefined;
+  return value == null ? "" : String(value).trim();
+}
+
 export const templateSchema = z.object({
   nicheId: z.string().uuid(),
   entityType: z.enum(TEMPLATE_ENTITY_TYPES),
@@ -73,6 +89,13 @@ export function validateCustomData(fields: TemplateField[], customData: Record<s
     }
     if (field.type === "select" && field.options && !field.options.includes(String(value))) {
       errors.push(`${field.key} must be one of: ${field.options.join(", ")}`);
+    }
+    if (field.type === "multiselect" && field.options) {
+      const selected = Array.isArray(value) ? value : [value];
+      const allowed = field.options;
+      if (selected.some((v) => !allowed.includes(String(v)))) {
+        errors.push(`${field.key} must only contain: ${field.options.join(", ")}`);
+      }
     }
   }
   return errors;

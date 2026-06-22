@@ -124,3 +124,13 @@ When creating or reviewing an interface, deliver:
 6. accessibility notes
 7. interface states
 8. final checklist
+
+## Fluuy CRUD interaction conventions (mandatory)
+
+Project-wide rules for CRUD screens — reuse the shared components, don't recreate them. Specs: `.claude/docs/specs/crud/`, `.claude/docs/specs/layout/form-drawer-spec.json`, `.claude/docs/specs/components/status/`, `.claude/docs/specs/components/origin-badge-spec.json`.
+
+- Listing rows are clickable (`cursor-pointer`) and open the edit drawer — `DataTable` `onRowClick`.
+- Editing confirms before saving with an AlertDialog listing the changed fields — `FormDrawerForm` `confirmOnSave`/`initialValues`/`fieldLabels`.
+- Every create/edit/sensitive action shows a `sonner` toast (pt-BR).
+- lifecycle status (ativo/inativo, ativo/inativo/bloqueado, rascunho/ativo/inativo) uses the options-driven `StatusSwitchItem` as the first form field; simple two-state shows no danger affordance; flow status machines keep their own controls.
+- No editable "Origem" field — `source` is system-assigned by entry point; display read-only with `OriginBadge` (distinct icon+color per origin: Agente IA, Manual/Usuário, Site, …).

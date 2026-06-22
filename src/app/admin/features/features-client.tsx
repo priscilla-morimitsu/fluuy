@@ -137,6 +137,7 @@ export default function FeaturesClient({
         tableId="admin-features"
         columns={columns}
         data={rows}
+        onRowClick={(row) => setEditing(toInitial(row))}
         hasActiveFilters={activeFilters.length > 0}
         onClearFilters={clearAll}
         toolbarStart={<SearchInput placeholder="Buscar por nome ou key..." />}

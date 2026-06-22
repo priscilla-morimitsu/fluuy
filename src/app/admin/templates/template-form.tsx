@@ -59,6 +59,20 @@ export default function TemplateForm({
       error={actionError(state)}
       onCancel={onCancel}
       submitLabel={isEdit ? "Salvar alterações" : "Criar template"}
+      confirmOnSave={isEdit}
+      confirmTitle="Confirmar alterações do template?"
+      initialValues={
+        initial && {
+          name: initial.name,
+          description: initial.description ?? "",
+          fields: fieldsDefault,
+        }
+      }
+      fieldLabels={{
+        name: "Nome do template",
+        description: "Descrição",
+        fields: "Campos (JSON)",
+      }}
     >
       <input type="hidden" name="nicheId" value={nicheId} />
       <input type="hidden" name="entityType" value={entityType} />

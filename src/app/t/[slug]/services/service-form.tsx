@@ -4,6 +4,7 @@ import { Plus, Tag, X } from "lucide-react";
 import { useActionState, useEffect, useState, useTransition } from "react";
 import { toast } from "sonner";
 
+import { StatusSwitchItem, type StatusOption } from "@/components/forms/status-switch-item";
 import { Button } from "@/components/ui/button";
 import { Combobox } from "@/components/ui/combobox";
 import { AffixInput, Field } from "@/components/ui/field";
@@ -11,7 +12,6 @@ import { FormDrawerForm, FormSection } from "@/components/ui/form-drawer";
 import { ImageUpload } from "@/components/ui/image-upload";
 import { CurrencyInput } from "@/components/ui/masked-inputs";
 import { MultiSelect } from "@/components/ui/multiselect";
-import { Segmented } from "@/components/ui/segmented";
 import { SwitchCard } from "@/components/ui/switch-card";
 import { Textarea } from "@/components/ui/textarea";
 import { actionError, actionOk } from "@/lib/admin/action-result";
@@ -61,10 +61,38 @@ export type ServiceInitial = {
   locationIds: string[];
 };
 
-const STATUS_OPTIONS = [
-  { value: "draft", label: "Rascunho" },
-  { value: "active", label: "Ativo" },
-  { value: "inactive", label: "Inativo" },
+const STATUS_OPTIONS: StatusOption[] = [
+  {
+    value: "draft",
+    label: "Rascunho",
+    description: "Rascunho — o serviço não aparece para clientes nem para a IA.",
+    confirm: {
+      title: "Voltar para rascunho?",
+      message: "O serviço deixa de ser oferecido e fica oculto até ser publicado novamente.",
+      confirmLabel: "Voltar para rascunho",
+    },
+  },
+  {
+    value: "active",
+    label: "Ativo",
+    tone: "positive",
+    description: "Ativo — o serviço está publicado e disponível.",
+    confirm: {
+      title: "Publicar serviço?",
+      message: "O serviço passa a ser exibido para clientes e oferecido pela IA.",
+      confirmLabel: "Ativar",
+    },
+  },
+  {
+    value: "inactive",
+    label: "Inativo",
+    description: "Inativo — o serviço fica oculto.",
+    confirm: {
+      title: "Inativar serviço?",
+      message: "O serviço deixa de ser exibido para clientes e a IA para de oferecê-lo.",
+      confirmLabel: "Inativar",
+    },
+  },
 ];
 
 export default function ServiceForm({
@@ -92,6 +120,7 @@ export default function ServiceForm({
     : createServiceAction.bind(null, slug);
   const [state, formAction, pending] = useActionState<ServiceActionResult, FormData>(action, undefined);
 
+  const [status, setStatus] = useState(initial?.status ?? "draft");
   const [cats, setCats] = useState(categories);
   const [categoryId, setCategoryId] = useState(initial?.categoryId ?? "");
   const [creatingCat, startCreateCat] = useTransition();
@@ -180,11 +209,36 @@ export default function ServiceForm({
       error={actionError(state)}
       onCancel={onCancel}
       submitLabel={isEdit ? "Salvar alterações" : "Criar serviço"}
+      confirmOnSave={isEdit}
+      confirmTitle="Confirmar alterações do serviço?"
+      initialValues={
+        initial && {
+          name: initial.name,
+          description: initial.description ?? "",
+          basePrice: initial.basePrice ?? "",
+          promotionalPrice: initial.promotionalPrice ?? "",
+          estimatedDurationMinutes: initial.estimatedDurationMinutes != null ? String(initial.estimatedDurationMinutes) : "",
+          status: initial.status,
+          internalNotes: initial.internalNotes ?? "",
+        }
+      }
+      fieldLabels={{
+        name: "Nome",
+        description: "Descrição",
+        basePrice: "Preço base",
+        promotionalPrice: "Preço promocional",
+        estimatedDurationMinutes: "Duração estimada",
+        status: "Status",
+        internalNotes: "Notas internas",
+      }}
     >
       <input type="hidden" name="categoryId" value={categoryId} />
       {removedImage && <input type="hidden" name="removeImage" value="true" />}
 
       <FormSection title="Dados gerais">
+        <div className="col-span-full">
+          <StatusSwitchItem title="Status do serviço" name="status" value={status} onChange={setStatus} options={STATUS_OPTIONS} />
+        </div>
         <Field label="Nome" htmlFor="name" required className="col-span-full">
           <AffixInput id="name" name="name" required maxLength={150} defaultValue={initial?.name} />
         </Field>
@@ -450,9 +504,6 @@ export default function ServiceForm({
       )}
 
       <FormSection title="Publicação">
-        <Field label="Status" htmlFor="status" className="col-span-full">
-          <Segmented name="status" ariaLabel="Status" defaultValue={initial?.status ?? "draft"} options={STATUS_OPTIONS} />
-        </Field>
         <Field label="Notas internas" htmlFor="internalNotes" className="col-span-full" hint="Não exibidas para clientes nem para a IA.">
           <Textarea
             id="internalNotes"

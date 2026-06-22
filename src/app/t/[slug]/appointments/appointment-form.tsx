@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useState } from "react";
+import { toast } from "sonner";
 
 import { Combobox } from "@/components/ui/combobox";
 import { AffixInput, Field } from "@/components/ui/field";
@@ -74,8 +75,41 @@ export default function AppointmentForm({
   const [modality, setModality] = useState(initial?.modality ?? "at_location");
 
   useEffect(() => {
-    if (actionOk(state)) onSuccess?.();
+    if (actionOk(state)) {
+      onSuccess?.();
+      return;
+    }
+    const err = actionError(state);
+    if (err) toast.error(err);
   }, [state, onSuccess]);
+
+  const fieldLabels = {
+    customerId: "Cliente",
+    serviceId: "Serviço",
+    responsibleType: "Responsável",
+    professionalId: "Profissional",
+    locationId: "Local",
+    modality: "Modalidade",
+    startAt: "Início",
+    endAt: "Término",
+    customerNotes: "Observações do cliente",
+    internalNotes: "Notas internas",
+  };
+
+  const initialValues = initial
+    ? {
+        customerId: initial.customerId,
+        serviceId: initial.serviceId,
+        responsibleType: initial.responsibleType,
+        professionalId: initial.professionalId ?? "",
+        locationId: initial.locationId ?? "",
+        modality: initial.modality,
+        startAt: toLocalInput(initial.startAt),
+        endAt: toLocalInput(initial.endAt),
+        customerNotes: initial.customerNotes ?? "",
+        internalNotes: initial.internalNotes ?? "",
+      }
+    : undefined;
 
   return (
     <FormDrawerForm
@@ -84,9 +118,11 @@ export default function AppointmentForm({
       error={actionError(state)}
       onCancel={onCancel}
       submitLabel={isEdit ? "Salvar alterações" : "Criar agendamento"}
+      confirmOnSave={isEdit}
+      confirmTitle="Confirmar alterações do agendamento?"
+      initialValues={initialValues}
+      fieldLabels={fieldLabels}
     >
-      <input type="hidden" name="source" value="manual" />
-
       <FormSection title="Cliente e serviço">
         <Field label="Cliente" htmlFor="customerId" required className="col-span-full">
           <Combobox

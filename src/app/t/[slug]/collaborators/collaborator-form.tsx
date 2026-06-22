@@ -2,6 +2,7 @@
 
 import { useActionState, useEffect, useState } from "react";
 
+import { StatusSwitchItem, type StatusOption } from "@/components/forms/status-switch-item";
 import { Field } from "@/components/ui/field";
 import { Combobox } from "@/components/ui/combobox";
 import { FormDrawerForm, FormSection } from "@/components/ui/form-drawer";
@@ -27,9 +28,29 @@ import {
   type CollaboratorActionResult,
 } from "./actions";
 
-const STATUS_OPTIONS = [
-  { value: "active", label: "Ativo" },
-  { value: "inactive", label: "Inativo" },
+// Two-state lifecycle (active/inactive) — switch control, no danger affordance.
+const STATUS_OPTIONS: StatusOption[] = [
+  {
+    value: "active",
+    label: "Ativo",
+    description: "Ativo — o colaborador aparece e pode ser atribuído.",
+    tone: "positive",
+    confirm: {
+      title: "Ativar colaborador?",
+      message: "O colaborador volta a aparecer e pode receber atribuições.",
+      confirmLabel: "Ativar",
+    },
+  },
+  {
+    value: "inactive",
+    label: "Inativo",
+    description: "Inativo — o colaborador fica oculto e sem acesso.",
+    confirm: {
+      title: "Inativar colaborador?",
+      message: "O colaborador fica oculto e perde o acesso ao sistema até ser reativado.",
+      confirmLabel: "Inativar",
+    },
+  },
 ];
 
 export type CollaboratorInitial = {
@@ -117,6 +138,7 @@ export default function CollaboratorForm({
     : createCollaboratorAction.bind(null, slug);
   const [state, formAction, pending] = useActionState<CollaboratorActionResult, FormData>(action, undefined);
   const [notesLen, setNotesLen] = useState(initial?.internalNotes?.length ?? 0);
+  const [status, setStatus] = useState(initial?.status ?? "active");
   const [hasAccess, setHasAccess] = useState(initial?.hasSystemAccess ?? false);
   const [isProfessional, setIsProfessional] = useState(initial?.isServiceProfessional ?? false);
   const roleOptions = canGrantOwner ? TENANT_ROLE_OPTIONS : TENANT_ROLE_OPTIONS.filter((o) => o.value !== "tenant_owner");
@@ -132,8 +154,39 @@ export default function CollaboratorForm({
       error={actionError(state)}
       onCancel={onCancel}
       submitLabel={isEdit ? "Salvar alterações" : "Criar colaborador"}
+      confirmOnSave={isEdit}
+      confirmTitle="Confirmar alterações do colaborador?"
+      initialValues={
+        initial && {
+          name: initial.name,
+          status: initial.status,
+          phone: initial.phone ?? "",
+          whatsapp: initial.whatsapp ?? "",
+          email: initial.email ?? "",
+          document: initial.document ?? "",
+          internalNotes: initial.internalNotes ?? "",
+        }
+      }
+      fieldLabels={{
+        name: "Nome",
+        status: "Status",
+        phone: "Telefone",
+        whatsapp: "WhatsApp",
+        email: "E-mail",
+        document: "CPF",
+        internalNotes: "Notas internas",
+      }}
     >
       <FormSection title="Informações principais">
+        <div className="col-span-full">
+          <StatusSwitchItem
+            title="Status do colaborador"
+            name="status"
+            value={status}
+            onChange={setStatus}
+            options={STATUS_OPTIONS}
+          />
+        </div>
         <Field label="Nome" htmlFor="name" required className="col-span-full">
           <Input id="name" name="name" required maxLength={150} defaultValue={initial?.name} placeholder="Ex.: Maria Silva" />
         </Field>
@@ -164,9 +217,6 @@ export default function CollaboratorForm({
             onUpdate={updateCollaboratorDepartmentAction.bind(null, slug)}
             onDelete={deleteCollaboratorDepartmentAction.bind(null, slug)}
           />
-        </Field>
-        <Field label="Status" htmlFor="status" required>
-          <Combobox id="status" name="status" defaultValue={initial?.status ?? "active"} options={STATUS_OPTIONS} />
         </Field>
       </FormSection>
 
