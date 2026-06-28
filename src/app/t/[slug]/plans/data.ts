@@ -8,7 +8,12 @@ import {
   offerPlanStatusSchema,
   offerPlanTypeSchema,
 } from "@/lib/validations/offer-plan";
-import { templateFieldSchema, type TemplateField } from "@/lib/validations/template";
+import {
+  templateFieldSchema,
+  templateLayoutSchema,
+  type TemplateField,
+  type TemplateLayout,
+} from "@/lib/validations/template";
 
 const PAGE_SIZES = [10, 20, 50, 100];
 const SORTABLE = new Set<string>(OFFER_PLAN_SORTABLE);
@@ -35,14 +40,20 @@ export type OfferPlanListParams = {
 };
 
 /** Active "plan" template fields for a niche (dynamic customData section). */
-export async function offerPlanTemplateFields(nicheId: string): Promise<TemplateField[]> {
+export async function offerPlanTemplateFields(
+  nicheId: string,
+): Promise<{ fields: TemplateField[]; layout?: TemplateLayout }> {
   const template = await prisma.template.findFirst({
     where: { nicheId, entityType: "plan", status: "active" },
     orderBy: { version: "desc" },
-    select: { fields: true },
+    select: { fields: true, config: true },
   });
   const parsed = templateFieldSchema.array().safeParse(template?.fields ?? []);
-  return parsed.success ? parsed.data : [];
+  const layout = templateLayoutSchema.safeParse((template?.config as { layout?: unknown } | null)?.layout);
+  return {
+    fields: parsed.success ? parsed.data : [],
+    layout: layout.success ? layout.data : undefined,
+  };
 }
 
 function parseDate(v: string | undefined, endOfDay = false): Date | undefined {

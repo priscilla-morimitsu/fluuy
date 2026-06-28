@@ -7,7 +7,12 @@ import {
   serviceDeliveryModeSchema,
   serviceStatusSchema,
 } from "@/lib/validations/service";
-import { templateFieldSchema, type TemplateField } from "@/lib/validations/template";
+import {
+  templateFieldSchema,
+  templateLayoutSchema,
+  type TemplateField,
+  type TemplateLayout,
+} from "@/lib/validations/template";
 
 const PAGE_SIZES = [10, 20, 50, 100];
 const SORTABLE = new Set<string>(SERVICE_SORTABLE);
@@ -27,15 +32,21 @@ export type ServiceListParams = {
   pageSize?: number;
 };
 
-/** Active "service" template fields for a niche (dynamic customData section). */
-export async function serviceTemplateFields(nicheId: string): Promise<TemplateField[]> {
+/** Active "service" template fields + optional step/block layout for a niche. */
+export async function serviceTemplateFields(
+  nicheId: string,
+): Promise<{ fields: TemplateField[]; layout?: TemplateLayout }> {
   const template = await prisma.template.findFirst({
     where: { nicheId, entityType: "service", status: "active" },
     orderBy: { version: "desc" },
-    select: { fields: true },
+    select: { fields: true, config: true },
   });
   const parsed = templateFieldSchema.array().safeParse(template?.fields ?? []);
-  return parsed.success ? parsed.data : [];
+  const layout = templateLayoutSchema.safeParse((template?.config as { layout?: unknown } | null)?.layout);
+  return {
+    fields: parsed.success ? parsed.data : [],
+    layout: layout.success ? layout.data : undefined,
+  };
 }
 
 /** Tenant-scoped, filtered, sorted, paginated service list for the table. */

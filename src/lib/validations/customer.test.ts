@@ -97,8 +97,10 @@ describe("customerEntityCreateSchema", () => {
     expect(customerEntityCreateSchema.safeParse({ entityType: "pet shop!", name: "Rex" }).success).toBe(false);
   });
 
-  it("requires a name of at least 2 chars", () => {
-    expect(customerEntityCreateSchema.safeParse({ entityType: "pet", name: "R" }).success).toBe(false);
+  it("no longer treats name as an input (derived from the template's first required field)", () => {
+    const result = customerEntityCreateSchema.safeParse({ entityType: "pet", name: "R" });
+    expect(result.success).toBe(true);
+    expect(result.success && "name" in result.data).toBe(false);
   });
 });
 

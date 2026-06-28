@@ -24,7 +24,7 @@ import { Combobox } from "@/components/ui/combobox";
 import { DropdownMenuItem, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { FormDrawer } from "@/components/ui/form-drawer";
 import { Label } from "@/components/ui/label";
-import type { TemplateField } from "@/lib/validations/template";
+import type { TemplateField, TemplateLayout } from "@/lib/validations/template";
 
 import {
   deleteProfessionalAction,
@@ -60,6 +60,7 @@ export default function ProfessionalsClient({
   locations,
   members,
   templateFields,
+  templateLayout,
   canWrite,
 }: {
   slug: string;
@@ -71,6 +72,7 @@ export default function ProfessionalsClient({
   locations: IdName[];
   members: MemberOption[];
   templateFields: TemplateField[];
+  templateLayout?: TemplateLayout;
   canWrite: boolean;
 }) {
   const [params, setParams] = useTableParams();
@@ -353,6 +355,7 @@ export default function ProfessionalsClient({
               locations={locations}
               members={members}
               templateFields={templateFields}
+              templateLayout={templateLayout}
               onCancel={() => setCreating(false)}
               onSuccess={() => {
                 setCreating(false);
@@ -376,6 +379,7 @@ export default function ProfessionalsClient({
                 locations={locations}
                 members={members}
                 templateFields={templateFields}
+                templateLayout={templateLayout}
                 initial={editing}
                 onCancel={() => setEditing(null)}
                 onSuccess={() => {

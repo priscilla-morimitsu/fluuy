@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, CreditCard, Package, Plus, StickyNote, Tag, Trash2, Truck, User } from "lucide-react";
+import { Check, CreditCard, Package, Plus, StickyNote, Trash2, Truck, User } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useActionState, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -15,6 +15,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { TemplateFieldsRenderer } from "@/components/crud/template-fields-renderer";
 import { Button } from "@/components/ui/button";
 import { Combobox } from "@/components/ui/combobox";
 import { AffixInput, Field } from "@/components/ui/field";
@@ -28,7 +29,7 @@ import {
   ORDER_PAYMENT_METHODS,
   ORDER_PAYMENT_STATUSES,
 } from "@/lib/validations/order";
-import type { TemplateField } from "@/lib/validations/template";
+import type { TemplateField, TemplateLayout } from "@/lib/validations/template";
 
 import { createOrderAction, updateOrderAction, type OrderActionResult } from "./actions";
 import type { OrderCatalogOption } from "./data";
@@ -131,6 +132,7 @@ export default function OrderForm({
   customers,
   catalog,
   templateFields,
+  templateLayout,
   initial,
   onSuccess,
   onCancel,
@@ -139,6 +141,7 @@ export default function OrderForm({
   customers: { id: string; name: string; phone: string }[];
   catalog: { products: OrderCatalogOption[]; services: OrderCatalogOption[]; offerPlans: OrderCatalogOption[] };
   templateFields: TemplateField[];
+  templateLayout?: TemplateLayout;
   initial?: OrderFormInitial;
   onSuccess?: () => void;
   onCancel?: () => void;
@@ -496,30 +499,7 @@ export default function OrderForm({
             <Field label="Notas internas" htmlFor="internalNotes" className="col-span-full" hint="Não exibidas para o cliente nem para a IA.">
               <Textarea value={internalNotes} onChange={(e) => setInternalNotes(e.target.value)} rows={2} maxLength={2000} />
             </Field>
-            {templateFields.map((field) => {
-              const name = `custom_${field.key}`;
-              const value = initial?.customData?.[field.key];
-              if (field.type === "boolean") {
-                return (
-                  <label key={field.key} className="col-span-full flex items-center gap-2 text-sm">
-                    <input type="checkbox" name={name} defaultChecked={Boolean(value)} className="size-4" />
-                    {field.label}
-                  </label>
-                );
-              }
-              if ((field.type === "select" || field.type === "multiselect") && field.options) {
-                return (
-                  <Field key={field.key} label={field.label} htmlFor={name} required={field.required} className="col-span-full">
-                    <Combobox id={name} name={name} defaultValue={value != null ? String(value) : ""} options={field.options.map((o) => ({ value: o, label: o }))} placeholder="Selecione" emptyText="Sem opções." />
-                  </Field>
-                );
-              }
-              return (
-                <Field key={field.key} label={field.label} htmlFor={name} required={field.required}>
-                  <AffixInput id={name} name={name} leadIcon={<Tag />} type={field.type === "number" ? "number" : "text"} defaultValue={value != null ? String(value) : ""} required={field.required} />
-                </Field>
-              );
-            })}
+            <TemplateFieldsRenderer fields={templateFields} layout={templateLayout} values={initial?.customData} />
           </Grid>
         </FormStepPanel>
       </FormSteps>

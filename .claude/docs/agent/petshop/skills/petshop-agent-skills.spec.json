@@ -1,0 +1,359 @@
+{
+  "$spec": "fluuy.petshop.agent-skills",
+  "version": "1.0.0",
+  "updatedAt": "2026-06-28",
+  "niche": "petshop",
+  "locale": "pt-BR",
+  "description": "Registro canônico das skills do agente de IA para o nicho petshop. Fonte única para seed de workflow_templates.trigger_intent. Cada skill liga gatilhos -> intent -> ação. Veja docs em ../06_skills_agente.md e ../07_tabela_gatilhos_skills.md.",
+  "principles": [
+    "O agente nunca inventa dado de catálogo/agenda/preço — só usa o cadastro ativo do tenant.",
+    "tenant_id sempre da sessão resolvida; nunca do conteúdo da mensagem.",
+    "Acesso apenas a dados do tutor dono do número (anti-IDOR).",
+    "Toda criação pela IA marca origem (source=whatsapp/ai, createdByAgent=true).",
+    "Emergência (S3) e dúvida clínica (S2) sobrepõem qualquer outro fluxo.",
+    "Após handoff (assigneeType != ai) o agente silencia."
+  ],
+  "contexts": {
+    "atendimento": "Recepção, identificação, roteamento, FAQ, fora de horário, handoff",
+    "agendamento": "Banho/tosa, veterinário, vacinação, disponibilidade, remarcar/cancelar, leva-e-traz",
+    "vendas": "Consulta/pedido de produto, recomendação, orçamento, plano, status de pedido",
+    "captacao": "Lead, qualificação, cadastro, recompra, lembretes, reativação, indicação, campanha",
+    "suporte": "Pós-serviço, dúvida clínica sensível, emergência, reclamação, comprovante, política"
+  },
+  "featureGates": {
+    "ai_agent": "Respostas automáticas do agente",
+    "whatsapp_inbox": "Receber/enviar no WhatsApp",
+    "product_catalog": "Consulta/pedido de produto",
+    "service_catalog": "Consulta de serviço",
+    "appointments": "Agendamento",
+    "orders": "Pedidos",
+    "plans_catalog": "Planos/pacotes",
+    "lead_management": "Captação/lead",
+    "deliveries": "Leva-e-traz / entrega",
+    "customer_entities": "Cadastro de pets"
+  },
+  "priorityRules": [
+    { "priority": 0, "when": "sinal de emergência clínica", "skill": "S3" },
+    { "priority": 1, "when": "sintoma/medicação/dosagem", "skill": "S2" },
+    { "priority": 1, "when": "pedido explícito de humano", "skill": "A7" },
+    { "priority": 1, "when": "reclamação relevante", "skill": "S4" },
+    { "priority": 2, "when": "assigneeType != ai", "skill": null, "action": "silenciar" },
+    { "priority": 2, "when": "fora do expediente", "skill": "A5" },
+    { "priority": 3, "when": "intenção transacional (agendar/pedir/plano)", "skill": "AG*/V*" },
+    { "priority": 4, "when": "dúvida informacional", "skill": "A4/V1/V4/S1" },
+    { "priority": 5, "when": "saudação isolada", "skill": "A1" }
+  ],
+  "skills": [
+    {
+      "id": "A1", "context": "atendimento", "name": "Saudação / boas-vindas",
+      "triggerIntent": "initial_contact", "type": "inbound", "gates": ["ai_agent"],
+      "triggers": ["oi", "olá", "bom dia", "boa tarde", "primeira mensagem"],
+      "slots": [], "reads": ["agent_configs", "Tenant"], "writes": ["Conversation"],
+      "output": "Boas-vindas com tom configurado + convite.",
+      "handoff": null, "guard": "Não prometer nada antes de identificar intenção."
+    },
+    {
+      "id": "A2", "context": "atendimento", "name": "Identificar tutor/pet",
+      "triggerIntent": "contact_identification", "type": "inbound|system", "gates": ["ai_agent"],
+      "triggers": ["número novo", "sou tutor de ...", "meu pet é ..."],
+      "slots": ["telefone", "nome_tutor", "pet"], "reads": ["Customer", "Pet", "CustomerLead"],
+      "writes": ["Conversation.customerId|leadId", "CustomerLead?"],
+      "output": "Contexto do tutor/pet carregado.",
+      "handoff": null, "guard": "Anti-IDOR: só dados do dono do número."
+    },
+    {
+      "id": "A3", "context": "atendimento", "name": "Roteamento de intenção",
+      "triggerIntent": "intent_classification", "type": "inbound", "gates": ["ai_agent"],
+      "triggers": ["toda mensagem passa pelo classificador"],
+      "slots": ["intent", "slots"], "reads": ["histórico"], "writes": [],
+      "output": "Skill resolvida + slots extraídos.",
+      "handoff": null, "guard": "Ambiguidade -> 1 pergunta; sensível/urgente sobrepõe."
+    },
+    {
+      "id": "A4", "context": "atendimento", "name": "Info do estabelecimento",
+      "triggerIntent": "store_info_inquiry", "type": "inbound", "gates": ["ai_agent"],
+      "triggers": ["que horas abre", "onde fica", "endereço", "aceita pix", "estacionamento", "atende gato"],
+      "slots": ["topico"], "reads": ["Tenant", "FAQ"], "writes": [],
+      "output": "Resposta objetiva + gancho.", "handoff": null, "guard": "Só dado cadastrado."
+    },
+    {
+      "id": "A5", "context": "atendimento", "name": "Fora de horário",
+      "triggerIntent": "off_hours_contact", "type": "inbound", "gates": ["ai_agent"],
+      "triggers": ["mensagem fora do expediente"],
+      "slots": [], "reads": ["expediente", "agent_configs.off_hours_message"], "writes": ["(segue coletando)"],
+      "output": "Aviso de horário + expectativa de retorno.", "handoff": null, "guard": null
+    },
+    {
+      "id": "A6", "context": "atendimento", "name": "Fora de escopo",
+      "triggerIntent": "out_of_scope_question", "type": "inbound", "gates": ["ai_agent"],
+      "triggers": ["assunto não-pet", "forbidden_topics", "você é robô"],
+      "slots": [], "reads": ["agent_configs.forbidden_topics", "fallback_message"], "writes": [],
+      "output": "Declina e redireciona.", "handoff": null, "guard": "Nunca opinar em assunto proibido."
+    },
+    {
+      "id": "A7", "context": "atendimento", "name": "Handoff humano",
+      "triggerIntent": "human_handoff_request", "type": "inbound|system", "gates": ["ai_agent", "handoff_enabled"],
+      "triggers": ["falar com atendente", "falar com humano", "me passa pra uma pessoa"],
+      "slots": ["motivo"], "reads": [], "writes": ["Conversation.assigneeType=human", "Conversation.status=pending", "ConversationAssignment"],
+      "output": "Confirma transferência.", "handoff": "imediato", "guard": "Após handoff, agente silencia."
+    },
+    {
+      "id": "A8", "context": "atendimento", "name": "Encerramento",
+      "triggerIntent": "conversation_closing", "type": "inbound", "gates": ["ai_agent"],
+      "triggers": ["obrigado", "era só isso", "resolvido", "valeu"],
+      "slots": [], "reads": [], "writes": ["Conversation.status=resolved"],
+      "output": "Agradece e encerra.", "handoff": null, "guard": null
+    },
+    {
+      "id": "AG1", "context": "agendamento", "name": "Preço de banho/tosa",
+      "triggerIntent": "pet_grooming_price_inquiry", "type": "inbound", "gates": ["service_catalog"],
+      "triggers": ["quanto custa o banho", "valor da tosa", "preço banho cachorro grande"],
+      "slots": ["servico", "porte", "pelagem", "especie"], "reads": ["Service", "customData.pricingBySize"], "writes": [],
+      "output": "Preço exato (se porte) ou 'a partir de' + pergunta porte; encadeia AG2.",
+      "handoff": null, "guard": "Nunca cravar valor sem porte; só preço cadastrado."
+    },
+    {
+      "id": "AG2", "context": "agendamento", "name": "Agendar banho/tosa",
+      "triggerIntent": "pet_grooming_booking_request", "type": "inbound",
+      "gates": ["appointments", "service_catalog"], "star": true,
+      "triggers": ["quero marcar banho", "agendar tosa", "tem horário pra banho amanhã"],
+      "slots": ["servico", "pet", "porte", "pelagem", "data_hora", "modalidade", "endereco"],
+      "reads": ["Service", "ServiceAvailabilityRule", "Professional", "exigências(customData)"],
+      "writes": ["Customer?", "Pet?", "Appointment(source=ai,createdByAgent=true)", "AppointmentStatusHistory", "AppointmentReminder"],
+      "output": "Resumo do agendamento + status (a confirmar, se exigido).",
+      "handoff": "pet agressivo / exigência não cumprida / sem horário real",
+      "guard": "Não confirmar horário inexistente; respeitar human_confirmation_required."
+    },
+    {
+      "id": "AG3", "context": "agendamento", "name": "Agendar veterinário",
+      "triggerIntent": "pet_vet_appointment_request", "type": "inbound", "gates": ["appointments"],
+      "triggers": ["marcar consulta", "levar no veterinário", "tem vet hoje"],
+      "slots": ["pet", "motivo", "data_hora"], "reads": ["Service(vet)", "agenda"], "writes": ["Appointment"],
+      "output": "Agendamento de consulta.", "handoff": "sintoma -> S2/S3", "guard": "Sem pré-diagnóstico."
+    },
+    {
+      "id": "AG4", "context": "agendamento", "name": "Agendar vacinação",
+      "triggerIntent": "pet_vaccination_booking_request", "type": "inbound", "gates": ["appointments"],
+      "triggers": ["vacinar filhote", "vacina v10", "antirrábica"],
+      "slots": ["vacina", "pet", "idade", "data_hora"], "reads": ["Service(vacina)", "pré-requisitos"], "writes": ["Appointment"],
+      "output": "Agendamento de vacina.", "handoff": null, "guard": "Não indicar protocolo vacinal por conta própria."
+    },
+    {
+      "id": "AG5", "context": "agendamento", "name": "Consultar disponibilidade",
+      "triggerIntent": "availability_inquiry", "type": "inbound", "gates": ["appointments"],
+      "triggers": ["tem horário sábado", "próximo horário livre", "atende domingo"],
+      "slots": ["servico", "data"], "reads": ["agenda"], "writes": [],
+      "output": "Janelas existentes.", "handoff": null, "guard": "Não prometer encaixe."
+    },
+    {
+      "id": "AG6", "context": "agendamento", "name": "Remarcar",
+      "triggerIntent": "appointment_reschedule_request", "type": "inbound", "gates": ["appointments"],
+      "triggers": ["remarcar", "mudar pra outro dia", "adiar"],
+      "slots": ["agendamento", "nova_data"], "reads": ["Appointment"],
+      "writes": ["Appointment.status=rescheduled", "AppointmentStatusHistory(changedByAgent=true)", "AppointmentReminder"],
+      "output": "Agendamento remarcado.", "handoff": "fora da política de antecedência", "guard": null
+    },
+    {
+      "id": "AG7", "context": "agendamento", "name": "Cancelar",
+      "triggerIntent": "appointment_cancel_request", "type": "inbound", "gates": ["appointments"],
+      "triggers": ["cancelar agendamento", "não vou poder levar"],
+      "slots": ["agendamento"], "reads": ["Appointment"],
+      "writes": ["Appointment.status=cancelled", "cancelledAt", "AppointmentStatusHistory"],
+      "output": "Agendamento cancelado.", "handoff": "multa/no-show -> humano", "guard": "Informar política cadastrada."
+    },
+    {
+      "id": "AG8", "context": "agendamento", "name": "Confirmar agendamento",
+      "triggerIntent": "appointment_confirmation_response", "type": "inbound", "gates": ["appointments"],
+      "triggers": ["confirmo", "sim", "não vou", "pode confirmar"],
+      "slots": ["resposta"], "reads": ["Appointment"], "writes": ["Appointment.status=confirmed|cancelled", "timestamps"],
+      "output": "Confirmação curta.", "handoff": null, "guard": null
+    },
+    {
+      "id": "AG9", "context": "agendamento", "name": "Leva-e-traz (táxi dog)",
+      "triggerIntent": "pet_pickup_delivery_request", "type": "inbound", "gates": ["deliveries", "appointments"],
+      "triggers": ["vocês buscam em casa", "leva e traz", "busca e entrega do pet"],
+      "slots": ["endereco", "bairro", "janela"], "reads": ["cobertura de bairros"],
+      "writes": ["Appointment(at_home/endereço)"],
+      "output": "Leva-e-traz anexado.", "handoff": null, "guard": "Bairro fora da cobertura -> não prometer."
+    },
+    {
+      "id": "V1", "context": "vendas", "name": "Consultar produto",
+      "triggerIntent": "pet_product_inquiry", "type": "inbound", "gates": ["product_catalog"],
+      "triggers": ["tem ração golden 15kg", "preço da areia", "vende antipulga"],
+      "slots": ["categoria", "marca", "especie", "porte", "peso", "sabor"],
+      "reads": ["Product(active,availableForSale)"], "writes": ["demanda(se sem match)"],
+      "output": "Poucos itens + preço/promoção.", "handoff": null, "guard": "Não inventar marca/estoque."
+    },
+    {
+      "id": "V2", "context": "vendas", "name": "Pedido de produto",
+      "triggerIntent": "pet_product_order_request", "type": "inbound", "gates": ["orders"],
+      "triggers": ["quero comprar 2 sacos", "me vê um sachê", "vocês entregam ração"],
+      "slots": ["itens", "quantidade", "fulfillment", "endereco"], "reads": ["Product", "Customer"],
+      "writes": ["Order(source=whatsapp,pending_confirmation)", "OrderItem", "OrderAddress?"],
+      "output": "Resumo do pedido + próximo passo.", "handoff": null, "guard": "Não processa pagamento; equipe confirma."
+    },
+    {
+      "id": "V3", "context": "vendas", "name": "Recomendar ração/produto",
+      "triggerIntent": "pet_food_recommendation", "type": "inbound", "gates": ["product_catalog"],
+      "triggers": ["qual ração indica", "melhor ração pra gato castrado", "ração pro filhote"],
+      "slots": ["especie", "porte", "idade", "restricao"], "reads": ["Pet", "Product"], "writes": [],
+      "output": "Recomendação comercial + cross-sell.", "handoff": "terapêutica/prescrita -> S2", "guard": "Só catálogo."
+    },
+    {
+      "id": "V4", "context": "vendas", "name": "Consultar serviço",
+      "triggerIntent": "pet_service_inquiry", "type": "inbound", "gates": ["service_catalog"],
+      "triggers": ["fazem tosa higiênica", "tem hidratação", "fazem hotel"],
+      "slots": ["servico"], "reads": ["Service(active)"], "writes": [],
+      "output": "Descrição + preço por porte; encadeia AG2/V5.", "handoff": null, "guard": null
+    },
+    {
+      "id": "V5", "context": "vendas", "name": "Orçamento",
+      "triggerIntent": "quote_request", "type": "inbound", "gates": ["service_catalog", "orders"],
+      "triggers": ["faz um orçamento", "quanto fica tudo", "banho+tosa+unha"],
+      "slots": ["itens"], "reads": ["Service", "Product"], "writes": ["oportunidade(Order/lead)"],
+      "output": "Estimativa só com itens cadastrados.", "handoff": "complexo -> humano", "guard": null
+    },
+    {
+      "id": "V6", "context": "vendas", "name": "Interesse em plano",
+      "triggerIntent": "pet_monthly_plan_interest", "type": "inbound|system", "gates": ["plans_catalog"],
+      "triggers": ["tem plano de banho mensal", "pacote sai mais barato", "assinatura"],
+      "slots": ["porte", "servico", "frequencia"], "reads": ["OfferPlan(active)"],
+      "writes": ["CustomerLead|Order(item offer_plan)"],
+      "output": "1-2 planos + benefício + handoff p/ fechamento.", "handoff": "para fechar adesão",
+      "guard": "Não ativa/cobra plano; só itens cadastrados."
+    },
+    {
+      "id": "V7", "context": "vendas", "name": "Status de pedido",
+      "triggerIntent": "order_status_inquiry", "type": "inbound", "gates": ["orders"],
+      "triggers": ["cadê meu pedido", "minha ração já saiu", "status da compra"],
+      "slots": ["pedido"], "reads": ["Order(do tutor)"], "writes": [],
+      "output": "Status real.", "handoff": "atraso/divergência", "guard": "Anti-IDOR: só pedidos do próprio tutor."
+    },
+    {
+      "id": "C1", "context": "captacao", "name": "Capturar lead",
+      "triggerIntent": "lead_capture", "type": "inbound|system", "gates": ["lead_management"],
+      "triggers": ["primeiro contato de número desconhecido"],
+      "slots": ["telefone", "origem"], "reads": [], "writes": ["CustomerLead"],
+      "output": "Lead criado; segue p/ C2.", "handoff": null, "guard": null
+    },
+    {
+      "id": "C2", "context": "captacao", "name": "Qualificar lead",
+      "triggerIntent": "lead_qualification", "type": "inbound", "gates": ["lead_management"],
+      "triggers": ["vim pelo instagram", "é pra um poodle", "moro no bairro X"],
+      "slots": ["pet", "bairro", "interesse", "origem", "urgencia"], "reads": [],
+      "writes": ["CustomerLead.status", "conversão p/ Customer/Pet"],
+      "output": "Lead qualificado e roteado.", "handoff": null, "guard": null
+    },
+    {
+      "id": "C3", "context": "captacao", "name": "Cadastrar pet",
+      "triggerIntent": "pet_registration", "type": "inbound", "gates": ["customer_entities"],
+      "triggers": ["meu cachorro chama Thor, golden de 2 anos", "(embutido em AG2/V2)"],
+      "slots": ["nome", "especie", "raca", "porte", "sexo", "nascimento", "temperamento", "healthNotes"],
+      "reads": [], "writes": ["Pet"],
+      "output": "Pet cadastrado.", "handoff": null, "guard": "Pouco por vez; LGPD."
+    },
+    {
+      "id": "C4", "context": "captacao", "name": "Cadastrar tutor",
+      "triggerIntent": "customer_registration", "type": "inbound", "gates": [],
+      "triggers": ["coleta de nome/telefone (embutido)"],
+      "slots": ["nome", "telefone"], "reads": [], "writes": ["Customer"],
+      "output": "Tutor cadastrado.", "handoff": null, "guard": "Consentimento; sem dado sensível desnecessário."
+    },
+    {
+      "id": "C5", "context": "captacao", "name": "Recompra de ração",
+      "triggerIntent": "pet_food_repurchase_due", "type": "scheduled",
+      "gates": ["product_catalog", "lead_management", "opt_in"],
+      "triggers": ["cron: estimativa de fim da ração <= X dias"],
+      "slots": ["item_recorrente"], "reads": ["histórico"], "writes": ["(oferta)"],
+      "output": "Lembrete + oferta de pedido/pacote.", "handoff": null, "guard": "Consentimento e frequência (anti-spam)."
+    },
+    {
+      "id": "C6", "context": "captacao", "name": "Lembrete de banho",
+      "triggerIntent": "pet_bath_reminder_due", "type": "scheduled", "gates": ["appointments", "opt_in"],
+      "triggers": ["cron: dias desde último banho >= frequência do pet"],
+      "slots": ["pet", "ultimo_banho"], "reads": ["histórico de banho"], "writes": ["(oferta)"],
+      "output": "Lembrete + reagendar/plano.", "handoff": null, "guard": "Opt-in."
+    },
+    {
+      "id": "C7", "context": "captacao", "name": "Reativação de inativo",
+      "triggerIntent": "inactive_customer_reactivation", "type": "scheduled", "gates": ["lead_management", "opt_in"],
+      "triggers": ["cron: sem interação há >= X dias"],
+      "slots": ["cliente_inativo"], "reads": ["inatividade"], "writes": ["(oferta)"],
+      "output": "Reaproximação com oferta cadastrada.", "handoff": null, "guard": "Respeitar opt-out."
+    },
+    {
+      "id": "C8", "context": "captacao", "name": "Indicação",
+      "triggerIntent": "referral_capture", "type": "inbound", "gates": ["lead_management"],
+      "triggers": ["fui indicada pela Maria", "uma amiga falou de vocês"],
+      "slots": ["quem_indicou"], "reads": [], "writes": ["CustomerLead(indicação)"],
+      "output": "Acolhe e conduz à conversão.", "handoff": null, "guard": null
+    },
+    {
+      "id": "C9", "context": "captacao", "name": "Resposta de campanha",
+      "triggerIntent": "campaign_response", "type": "inbound", "gates": ["lead_management"],
+      "triggers": ["vi o anúncio", "tenho um cupom", "promo do dia das mães"],
+      "slots": ["cupom", "origem"], "reads": ["campanha cadastrada"], "writes": ["CustomerLead(source/cupom)"],
+      "output": "Lead com origem/cupom.", "handoff": null, "guard": "Só cupom/condição cadastrada."
+    },
+    {
+      "id": "S1", "context": "suporte", "name": "Dúvida pós-serviço",
+      "triggerIntent": "post_service_care_question", "type": "inbound", "gates": ["ai_agent"],
+      "triggers": ["posso passar perfume depois do banho", "quando pode molhar"],
+      "slots": ["topico"], "reads": ["FAQ", "Service"], "writes": [],
+      "output": "Orientação geral (não-clínica).", "handoff": "virou clínica -> S2", "guard": null
+    },
+    {
+      "id": "S2", "context": "suporte", "name": "Dúvida veterinária sensível",
+      "triggerIntent": "pet_veterinary_sensitive_question", "type": "inbound", "gates": ["ai_agent"],
+      "priority": 1,
+      "triggers": ["meu cão está vomitando", "posso dar dipirona", "que remédio dou", "tá com diarreia"],
+      "slots": ["sintoma", "medicacao"], "reads": [], "writes": ["(oferece consulta)"],
+      "output": "Acolhe + recomenda avaliação + oferece consulta/handoff.",
+      "handoff": "se insistir/risco", "guard": "SEM diagnóstico, prescrição ou dosagem."
+    },
+    {
+      "id": "S3", "context": "suporte", "name": "Emergência",
+      "triggerIntent": "pet_emergency_case", "type": "inbound", "gates": ["ai_agent"],
+      "priority": 0,
+      "triggers": ["comeu chocolate", "convulsão", "não para de sangrar", "engoliu osso", "passando mal", "atropelado"],
+      "slots": ["sinal_urgencia"], "reads": [], "writes": ["Conversation.assigneeType=human", "notificação"],
+      "output": "Orientação curta de urgência + handoff imediato.",
+      "handoff": "imediato", "guard": "Não conduzir triagem; sobrepõe todos os fluxos."
+    },
+    {
+      "id": "S4", "context": "suporte", "name": "Reclamação",
+      "triggerIntent": "complaint", "type": "inbound", "gates": ["ai_agent"], "priority": 1,
+      "triggers": ["a tosa ficou péssima", "voltou machucado", "atrasaram demais"],
+      "slots": ["motivo"], "reads": [], "writes": ["registro", "handoff"],
+      "output": "Empatia + transferência.", "handoff": "imediato", "guard": "Não debater nem minimizar."
+    },
+    {
+      "id": "S5", "context": "suporte", "name": "Comprovante / 2ª via",
+      "triggerIntent": "receipt_request", "type": "inbound", "gates": ["orders"],
+      "triggers": ["me manda o comprovante", "preciso da nota", "2ª via do pagamento"],
+      "slots": ["pedido"], "reads": ["Order", "OrderPayment"], "writes": [],
+      "output": "Status/dado cadastrado; emissão -> humano.", "handoff": "financeiro", "guard": "Anti-IDOR."
+    },
+    {
+      "id": "S6", "context": "suporte", "name": "Atualizar cadastro",
+      "triggerIntent": "profile_update_request", "type": "inbound", "gates": [],
+      "triggers": ["mudei de endereço", "novo telefone", "corrige o nome do pet"],
+      "slots": ["campo"], "reads": ["Customer", "Pet"], "writes": ["Customer|Pet"],
+      "output": "Cadastro atualizado.", "handoff": "mudança crítica", "guard": "Confirmar identidade do dono do número."
+    },
+    {
+      "id": "S7", "context": "suporte", "name": "Política de cancelamento",
+      "triggerIntent": "policy_inquiry", "type": "inbound", "gates": ["ai_agent"],
+      "triggers": ["qual a política de cancelamento", "posso cancelar e ser reembolsado"],
+      "slots": ["tipo_politica"], "reads": ["política cadastrada"], "writes": [],
+      "output": "Texto da política.", "handoff": "aplicação concreta", "guard": "Não criar exceção."
+    },
+    {
+      "id": "S8", "context": "suporte", "name": "Carteira de vacinação",
+      "triggerIntent": "vaccination_record_inquiry", "type": "inbound", "gates": ["customer_entities"],
+      "triggers": ["quais vacinas meu pet já tomou", "carteirinha de vacina"],
+      "slots": ["pet"], "reads": ["registros do Pet"], "writes": [],
+      "output": "O que está registrado.", "handoff": "lacuna -> vet/humano", "guard": "Não emitir documento clínico."
+    }
+  ]
+}

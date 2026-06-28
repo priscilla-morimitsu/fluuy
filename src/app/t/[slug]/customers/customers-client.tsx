@@ -41,7 +41,7 @@ import {
   CUSTOMER_STATUSES,
   pluralizePt,
 } from "@/lib/validations/customer";
-import type { TemplateField } from "@/lib/validations/template";
+import type { TemplateField, TemplateLayout } from "@/lib/validations/template";
 
 import {
   deleteCustomerAction,
@@ -91,6 +91,7 @@ export default function CustomersClient({
   total,
   tags,
   templateFields,
+  templateLayout,
   customerLabel,
   entityLabel,
   entityType,
@@ -112,6 +113,7 @@ export default function CustomersClient({
   total: number;
   tags: CustomerTagOption[];
   templateFields: TemplateField[];
+  templateLayout?: TemplateLayout;
   customerLabel: string | null;
   entityLabel: string;
   entityType: string;
@@ -334,8 +336,8 @@ export default function CustomersClient({
     },
     {
       accessorKey: "name",
-      meta: { label: "Nome" },
-      header: () => <DataTableColumnHeader label="Nome" sortKey="name" />,
+      meta: { label: singular },
+      header: () => <DataTableColumnHeader label={singular} sortKey="name" />,
       cell: ({ row }) => (
         <Link href={`/t/${slug}/customers/${row.original.id}`} className="font-medium hover:underline">
           {row.original.name}
@@ -413,16 +415,16 @@ export default function CustomersClient({
       },
     },
     {
-      accessorKey: "createdAt",
-      meta: { label: "Cadastro em" },
-      header: () => <DataTableColumnHeader label="Cadastro em" sortKey="createdAt" />,
-      cell: ({ row }) => <span className="text-sm text-muted-foreground">{dateFmt.format(row.original.createdAt)}</span>,
-    },
-    {
       accessorKey: "source",
       meta: { label: "Cadastro por" },
       header: () => <DataTableColumnHeader label="Cadastro por" />,
       cell: ({ row }) => <OriginBadge origin={row.original.source} />,
+    },
+    {
+      accessorKey: "createdAt",
+      meta: { label: "Cadastro em" },
+      header: () => <DataTableColumnHeader label="Cadastro em" sortKey="createdAt" />,
+      cell: ({ row }) => <span className="text-sm text-muted-foreground">{dateFmt.format(row.original.createdAt)}</span>,
     },
     {
       id: "whatsapp",
@@ -611,7 +613,9 @@ export default function CustomersClient({
           description={
             isPets
               ? `Todos os ${petsLabel.toLowerCase()} cadastrados, vinculados aos seus tutores.`
-              : "Cadastro e gestão de clientes da empresa."
+              : showPets
+                ? `Gerencie os ${plural.toLowerCase()} do seu negócio, seus contatos e os ${petsLabel.toLowerCase()} vinculados a cada um.`
+                : `Gerencie os ${plural.toLowerCase()} do seu negócio e seus contatos.`
           }
           action={
             canWrite ? (
@@ -645,7 +649,7 @@ export default function CustomersClient({
             hasActiveFilters={activeFilters.length > 0}
             onClearFilters={clearAll}
             toolbarStart={<SearchInput placeholder={petSearchPlaceholder} />}
-            resultCount={<ResultCount filtered={petFiltered} total={petTotal} />}
+            resultCount={<ResultCount filtered={petFiltered} total={petTotal} noun={petSingularLower} nounPlural={petsLabel.toLowerCase()} />}
             toolbarEnd={petFilters}
             activeFilters={<ActiveFiltersBar filters={activeFilters} onClearAll={clearAll} />}
             emptyState={
@@ -733,7 +737,7 @@ export default function CustomersClient({
         hasActiveFilters={activeFilters.length > 0}
         onClearFilters={clearAll}
         toolbarStart={<SearchInput placeholder="Buscar por nome, telefone, e-mail, documento ou tag..." />}
-        resultCount={<ResultCount filtered={filtered} total={total} />}
+        resultCount={<ResultCount filtered={filtered} total={total} noun={singular.toLowerCase()} nounPlural={plural.toLowerCase()} />}
         toolbarEnd={
           <FilterButton activeCount={filterCount} onClear={clearAll}>
             <div className="flex flex-col gap-2">
@@ -839,6 +843,7 @@ export default function CustomersClient({
               slug={slug}
               tags={tags}
               templateFields={templateFields}
+              templateLayout={templateLayout}
               customerLabel={singular}
               entityLabel={entityLabel}
               entityType={entityType}
@@ -865,6 +870,7 @@ export default function CustomersClient({
                 slug={slug}
                 tags={tags}
                 templateFields={templateFields}
+                templateLayout={templateLayout}
                 customerLabel={singular}
                 entityLabel={entityLabel}
                 entityType={entityType}

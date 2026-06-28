@@ -51,6 +51,7 @@ export async function listTemplates(params: TemplateListParams) {
         name: true,
         description: true,
         fields: true,
+        config: true,
         version: true,
         status: true,
         createdAt: true,

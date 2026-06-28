@@ -86,7 +86,7 @@
       "tablet (>=600px)": "460px, max 90vw",
       "hd+ (>=1280px)": "40% da largura, min 480px, max 620px"
     },
-    "fullscreen": "Prop opcional `allowFullscreen` no FormDrawer: renderiza um toggle (Maximize2/Minimize2) no header que expande o painel (≈92vw, conteúdo máx. ~720–780px). Off por padrão (callers existentes inalterados); reseta ao fechar. aria-pressed + aria-label.",
+    "fullscreen": "Toggle (Maximize2/Minimize2) no header de TODO FormDrawer que expande/recolhe o painel (modo expandido ocupa a largura total da tela — 100vw). Ligado por padrão (`allowFullscreen` default true) — todo sheet de formulário pode ser expandido/diminuído; passe `allowFullscreen={false}` para fixar na largura compacta. Reseta ao fechar. aria-pressed + aria-label.",
     "structure": {
       "overlay": "scrim --overlay + blur(6px) (frosted claro), fecha ao clicar fora",
       "panel": "coluna flex: header (fixo) + body (rolável) + footer (fixo); drawer-bg (.glass-drawer, menos transparente que glass-bg) + blur-lg + shadow-lg + border-left",

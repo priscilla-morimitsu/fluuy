@@ -36,7 +36,7 @@ export default async function AppointmentsPage({
   const gridStart = startOfWeek(startOfMonth(monthDate), { weekStartsOn: 0 });
   const gridEnd = endOfWeek(endOfMonth(monthDate), { weekStartsOn: 0 });
 
-  const [{ rows }, options, templateFields] = await Promise.all([
+  const [{ rows }, options, template] = await Promise.all([
     listAppointments(tenant.id, {
       startFrom: gridStart.toISOString(),
       startTo: gridEnd.toISOString(),
@@ -60,7 +60,8 @@ export default async function AppointmentsPage({
       month={month}
       appointments={rows}
       options={options}
-      templateFields={templateFields}
+      templateFields={template.fields}
+      templateLayout={template.layout}
       canWrite={canWrite}
     />
   );

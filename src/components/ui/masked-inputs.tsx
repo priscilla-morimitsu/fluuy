@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronDown, Hash, MapPin, Search } from "lucide-react";
+import { Building2, ChevronDown, Hash, IdCard, MapPin, Search } from "lucide-react";
 import * as React from "react";
 
 import {
@@ -13,6 +13,8 @@ import {
 import { AffixInput } from "@/components/ui/field";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
+  isValidCnpj,
+  isValidCpf,
   isValidCpfCnpj,
   maskCep,
   maskCpfCnpj,
@@ -87,7 +89,9 @@ export function CepInput({
 }
 
 /* ── Phone — integrated country (DDI) combobox, default 🇧🇷 +55, no phone icon ── */
-const PHONE_COUNTRIES = [
+type PhoneCountry = { code: string; flag: string; name: string };
+
+const PHONE_COUNTRIES: readonly PhoneCountry[] = [
   { code: "+55", flag: "🇧🇷", name: "Brasil" },
   { code: "+1", flag: "🇺🇸", name: "Estados Unidos" },
   { code: "+351", flag: "🇵🇹", name: "Portugal" },
@@ -96,6 +100,30 @@ const PHONE_COUNTRIES = [
   { code: "+54", flag: "🇦🇷", name: "Argentina" },
   { code: "+1", flag: "🇨🇦", name: "Canadá" },
 ] as const;
+
+/**
+ * Splits a stored e164-ish digit string into its country + national part.
+ * Brasil is the default: an empty value, a bare BR national number (≤ 11 digits,
+ * which would otherwise collide with the single-digit +1 DDI), or a "55…" e164
+ * all resolve to 🇧🇷. Only longer numbers are matched against other DDIs so
+ * editing a genuinely foreign number still rehydrates the right country.
+ */
+function splitPhone(raw: string): { country: PhoneCountry; national: string } {
+  const digits = onlyDigits(raw);
+  const br = PHONE_COUNTRIES[0];
+  if (!digits) return { country: br, national: "" };
+  // BR e164 (55 + 10/11 national digits).
+  if (digits.startsWith("55") && digits.length >= 12) return { country: br, national: digits.slice(2).slice(0, 11) };
+  // A bare 10–11 digit number is a BR national number (DDD + número).
+  if (digits.length <= 11) return { country: br, national: digits };
+  // Longer: try a non-BR DDI prefix (longest first), else fall back to BR.
+  for (const country of [...PHONE_COUNTRIES].sort((a, b) => b.code.length - a.code.length)) {
+    if (country.code === "+55") continue;
+    const cd = country.code.replace("+", "");
+    if (digits.startsWith(cd)) return { country, national: digits.slice(cd.length).slice(0, 11) };
+  }
+  return { country: br, national: digits.slice(0, 11) };
+}
 
 export function PhoneInput({
   name,
@@ -110,10 +138,9 @@ export function PhoneInput({
   invalid?: boolean;
   disabled?: boolean;
 }) {
-  const [digits, setDigits] = React.useState(onlyDigits(defaultValue).replace(/^55/, "").slice(0, 11));
-  const [country, setCountry] = React.useState<{ code: string; flag: string; name: string }>(
-    PHONE_COUNTRIES[0]
-  );
+  const seed = React.useMemo(() => splitPhone(defaultValue), [defaultValue]);
+  const [digits, setDigits] = React.useState(seed.national);
+  const [country, setCountry] = React.useState<PhoneCountry>(seed.country);
   const [open, setOpen] = React.useState(false);
 
   return (
@@ -179,23 +206,35 @@ export function PhoneInput({
 }
 
 /* ── CPF / CNPJ ── */
+// Per-kind spec: CPF → IdCard icon, 11 digits, isValidCpf; CNPJ → Building2,
+// 14 digits, isValidCnpj. Omit `kind` for the combined "CPF ou CNPJ" field.
+const DOCUMENT_KINDS = {
+  cpf: { icon: <IdCard />, maxDigits: 11, placeholder: "000.000.000-00", isValid: isValidCpf },
+  cnpj: { icon: <Building2 />, maxDigits: 14, placeholder: "00.000.000/0000-00", isValid: isValidCnpj },
+} as const;
+
 export function DocumentInput({
   name,
   id,
   defaultValue = "",
   disabled,
   required,
+  kind,
 }: {
   name?: string;
   id?: string;
   defaultValue?: string;
   disabled?: boolean;
   required?: boolean;
+  /** Lock the field to a single document type (icon + mask + validation). */
+  kind?: "cpf" | "cnpj";
 }) {
-  const [digits, setDigits] = React.useState(onlyDigits(defaultValue).slice(0, 14));
+  const cfg = kind ? DOCUMENT_KINDS[kind] : null;
+  const maxDigits = cfg?.maxDigits ?? 14;
+  const [digits, setDigits] = React.useState(onlyDigits(defaultValue).slice(0, maxDigits));
 
-  const complete = digits.length === 11 || digits.length === 14;
-  const valid = complete && isValidCpfCnpj(digits);
+  const complete = cfg ? digits.length === cfg.maxDigits : digits.length === 11 || digits.length === 14;
+  const valid = complete && (cfg ? cfg.isValid(digits) : isValidCpfCnpj(digits));
   const invalid = complete && !valid;
 
   return (
@@ -204,14 +243,14 @@ export function DocumentInput({
       <AffixInput
         id={id}
         inputMode="numeric"
-        leadIcon={<Hash />}
+        leadIcon={cfg ? cfg.icon : <Hash />}
         ok={valid}
         invalid={invalid}
         disabled={disabled}
         required={required}
         value={maskCpfCnpj(digits)}
-        placeholder="CPF ou CNPJ"
-        onChange={(e) => setDigits(onlyDigits(e.target.value).slice(0, 14))}
+        placeholder={cfg?.placeholder ?? "CPF ou CNPJ"}
+        onChange={(e) => setDigits(onlyDigits(e.target.value).slice(0, maxDigits))}
       />
     </>
   );

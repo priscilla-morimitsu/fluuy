@@ -1,9 +1,10 @@
 "use client";
 
-import { Plus, Tag } from "lucide-react";
+import { Plus } from "lucide-react";
 import { useActionState, useEffect, useState, useTransition } from "react";
 import { toast } from "sonner";
 
+import { TemplateFieldsRenderer } from "@/components/crud/template-fields-renderer";
 import { StatusSwitchItem, type StatusOption } from "@/components/forms/status-switch-item";
 import { Button } from "@/components/ui/button";
 import { Combobox } from "@/components/ui/combobox";
@@ -14,7 +15,7 @@ import { MultiSelect } from "@/components/ui/multiselect";
 import { SwitchCard } from "@/components/ui/switch-card";
 import { Textarea } from "@/components/ui/textarea";
 import { actionError, actionOk } from "@/lib/admin/action-result";
-import type { TemplateField } from "@/lib/validations/template";
+import type { TemplateField, TemplateLayout } from "@/lib/validations/template";
 
 import {
   createProfessionalAction,
@@ -77,6 +78,7 @@ export default function ProfessionalForm({
   locations,
   members,
   templateFields,
+  templateLayout,
   initial,
   onSuccess,
   onCancel,
@@ -87,6 +89,7 @@ export default function ProfessionalForm({
   locations: IdName[];
   members: MemberOption[];
   templateFields: TemplateField[];
+  templateLayout?: TemplateLayout;
   initial?: ProfessionalInitial;
   onSuccess?: () => void;
   onCancel?: () => void;
@@ -309,55 +312,7 @@ export default function ProfessionalForm({
 
       {templateFields.length > 0 && (
         <FormSection title="Campos específicos do nicho">
-          {templateFields.map((field) => {
-            const name = `custom_${field.key}`;
-            const value = initial?.customData?.[field.key];
-            if (field.type === "boolean") {
-              return (
-                <SwitchCard
-                  key={field.key}
-                  title={field.label}
-                  name={name}
-                  defaultChecked={Boolean(value)}
-                  className="col-span-full"
-                />
-              );
-            }
-            if ((field.type === "select" || field.type === "multiselect") && field.options) {
-              return (
-                <Field key={field.key} label={field.label} htmlFor={name} required={field.required} className="col-span-full">
-                  <Combobox
-                    id={name}
-                    name={name}
-                    defaultValue={value != null ? String(value) : ""}
-                    options={field.options.map((o) => ({ value: o, label: o }))}
-                    placeholder="Selecione"
-                    searchPlaceholder="Buscar…"
-                    emptyText="Sem opções."
-                  />
-                </Field>
-              );
-            }
-            if (field.type === "textarea") {
-              return (
-                <Field key={field.key} label={field.label} htmlFor={name} required={field.required} className="col-span-full">
-                  <Textarea id={name} name={name} rows={2} defaultValue={value != null ? String(value) : ""} required={field.required} />
-                </Field>
-              );
-            }
-            return (
-              <Field key={field.key} label={field.label} htmlFor={name} required={field.required}>
-                <AffixInput
-                  id={name}
-                  name={name}
-                  leadIcon={<Tag />}
-                  type={field.type === "number" ? "number" : "text"}
-                  defaultValue={value != null ? String(value) : ""}
-                  required={field.required}
-                />
-              </Field>
-            );
-          })}
+          <TemplateFieldsRenderer fields={templateFields} layout={templateLayout} values={initial?.customData} />
         </FormSection>
       )}
 

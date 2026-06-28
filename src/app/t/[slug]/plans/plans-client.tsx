@@ -36,7 +36,7 @@ import {
   OFFER_PLAN_TYPE_LABELS,
   OFFER_PLAN_TYPES,
 } from "@/lib/validations/offer-plan";
-import type { TemplateField } from "@/lib/validations/template";
+import type { TemplateField, TemplateLayout } from "@/lib/validations/template";
 
 import {
   deleteOfferPlanAction,
@@ -75,6 +75,7 @@ export default function PlansClient({
   services,
   products,
   templateFields,
+  templateLayout,
   canWrite,
 }: {
   slug: string;
@@ -85,6 +86,7 @@ export default function PlansClient({
   services: CatalogOption[];
   products: CatalogOption[];
   templateFields: TemplateField[];
+  templateLayout?: TemplateLayout;
   canWrite: boolean;
 }) {
   const [params, setParams] = useTableParams();
@@ -420,6 +422,7 @@ export default function PlansClient({
               services={services}
               products={products}
               templateFields={templateFields}
+              templateLayout={templateLayout}
               onCancel={() => setCreating(false)}
               onSuccess={() => {
                 setCreating(false);

@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { ForbiddenError, UnauthorizedError } from "@/lib/rbac";
 import { resolveTenantContext } from "@/lib/tenant-context";
-import { templateFieldSchema } from "@/lib/validations/template";
+import { templateFieldSchema, templateLayoutSchema } from "@/lib/validations/template";
 
 import CollaboratorsClient from "./collaborators-client";
 import { listCollaborators } from "./data";
@@ -51,11 +51,12 @@ export default async function CollaboratorsPage({
     prisma.template.findFirst({
       where: { nicheId: tenant.nicheId, entityType: "collaborator", status: "active" },
       orderBy: { version: "desc" },
-      select: { fields: true },
+      select: { fields: true, config: true },
     }),
   ]);
 
   const parsedFields = templateFieldSchema.array().safeParse(template?.fields ?? []);
+  const parsedLayout = templateLayoutSchema.safeParse((template?.config as { layout?: unknown } | null)?.layout);
 
   return (
     <CollaboratorsClient
@@ -68,6 +69,7 @@ export default async function CollaboratorsPage({
       departments={departments}
       professionals={professionals}
       templateFields={parsedFields.success ? parsedFields.data : []}
+      templateLayout={parsedLayout.success ? parsedLayout.data : undefined}
     />
   );
 }

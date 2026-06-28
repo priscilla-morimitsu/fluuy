@@ -30,7 +30,7 @@ import { Label } from "@/components/ui/label";
 import { OriginBadge } from "@/components/ui/origin-badge";
 import { cn } from "@/lib/utils";
 import { APPOINTMENT_MODALITIES, APPOINTMENT_RESPONSIBLE_TYPES, APPOINTMENT_STATUSES } from "@/lib/validations/appointment";
-import type { TemplateField } from "@/lib/validations/template";
+import type { TemplateField, TemplateLayout } from "@/lib/validations/template";
 
 import AppointmentForm, { type AppointmentOptions } from "./appointment-form";
 import type { AppointmentListRow } from "./data";
@@ -50,6 +50,7 @@ export default function AppointmentsClient({
   appointments,
   options,
   templateFields,
+  templateLayout,
   canWrite,
 }: {
   slug: string;
@@ -57,6 +58,7 @@ export default function AppointmentsClient({
   appointments: AppointmentListRow[];
   options: AppointmentOptions;
   templateFields: TemplateField[];
+  templateLayout?: TemplateLayout;
   canWrite: boolean;
 }) {
   const router = useRouter();
@@ -289,6 +291,7 @@ export default function AppointmentsClient({
             slug={slug}
             options={options}
             templateFields={templateFields}
+            templateLayout={templateLayout}
             defaultStartAt={draftStart}
             onCancel={() => setCreating(false)}
             onSuccess={() => {

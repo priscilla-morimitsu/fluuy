@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 
 import { prisma } from "@/lib/prisma";
-import { templateFieldSchema } from "@/lib/validations/template";
+import { templateFieldSchema, templateLayoutSchema } from "@/lib/validations/template";
 
 import TenantProfileForm from "./tenant-profile-form";
 
@@ -22,6 +22,8 @@ export default async function TenantSettingsPage({
 
   const fields = templateFieldSchema.array().safeParse(template?.fields ?? []);
   const templateFields = fields.success ? fields.data : [];
+  const layout = templateLayoutSchema.safeParse((template?.config as { layout?: unknown } | null)?.layout);
+  const templateLayout = layout.success ? layout.data : undefined;
 
   return (
     <div className="flex flex-col gap-6">
@@ -38,6 +40,7 @@ export default async function TenantSettingsPage({
         }}
         customData={(tenant.customData as Record<string, unknown>) ?? {}}
         templateFields={templateFields}
+        templateLayout={templateLayout}
       />
     </div>
   );

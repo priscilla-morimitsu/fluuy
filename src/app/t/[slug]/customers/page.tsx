@@ -9,6 +9,7 @@ import {
   customerEntityTypes,
   customerNicheLabels,
   customerTemplateFields,
+  customerTemplateLayout,
   listCustomerOptions,
   listCustomers,
   listCustomerTags,
@@ -68,12 +69,13 @@ export default async function CustomersPage({
   let templateFields: Awaited<ReturnType<typeof customerTemplateFields>> = [];
   let labels: Awaited<ReturnType<typeof customerNicheLabels>> = { customerLabel: null, entityLabel: null };
   let entityTemplateFields: Awaited<ReturnType<typeof customerEntityTemplateFields>> = [];
+  let templateLayout: Awaited<ReturnType<typeof customerTemplateLayout>> = undefined;
   let entityTypes: string[] = [];
   let petData: Awaited<ReturnType<typeof listPets>> | null = null;
   let customerOptions: Awaited<ReturnType<typeof listCustomerOptions>> = [];
 
   try {
-    [{ rows, filtered, total }, tags, templateFields, labels, entityTemplateFields, entityTypes] = await Promise.all([
+    [{ rows, filtered, total }, tags, templateFields, labels, entityTemplateFields, entityTypes, templateLayout] = await Promise.all([
       listCustomers(tenant.id, {
         q: str(sp.q),
         status: str(sp.status),
@@ -96,6 +98,7 @@ export default async function CustomersPage({
       customerNicheLabels(tenant.nicheId),
       customerEntityTemplateFields(tenant.nicheId),
       customerEntityTypes(tenant.id),
+      customerTemplateLayout(tenant.nicheId),
     ]);
 
     // The pet entity type used by listPets: prefer "pet" if present in stored
@@ -132,6 +135,7 @@ export default async function CustomersPage({
       total={total}
       tags={tags.map((t) => ({ id: t.id, name: t.name, color: t.color, customerCount: t.customerCount }))}
       templateFields={templateFields}
+      templateLayout={templateLayout}
       customerLabel={labels.customerLabel}
       entityLabel={labels.entityLabel?.trim() || "Pet"}
       entityType={resolvedEntityType}

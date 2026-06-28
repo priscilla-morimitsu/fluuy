@@ -26,7 +26,7 @@ import { DropdownMenuItem, DropdownMenuSeparator } from "@/components/ui/dropdow
 import { FormDrawer } from "@/components/ui/form-drawer";
 import { Label } from "@/components/ui/label";
 import { OriginBadge } from "@/components/ui/origin-badge";
-import type { TemplateField } from "@/lib/validations/template";
+import type { TemplateField, TemplateLayout } from "@/lib/validations/template";
 import {
   ORDER_CHANNELS,
   ORDER_FULFILLMENT_TYPES,
@@ -66,6 +66,7 @@ export default function OrdersClient({
   customers,
   catalog,
   templateFields,
+  templateLayout,
   canWrite,
 }: {
   slug: string;
@@ -75,6 +76,7 @@ export default function OrdersClient({
   customers: { id: string; name: string; phone: string }[];
   catalog: { products: OrderCatalogOption[]; services: OrderCatalogOption[]; offerPlans: OrderCatalogOption[] };
   templateFields: TemplateField[];
+  templateLayout?: TemplateLayout;
   canWrite: boolean;
 }) {
   const [params, setParams] = useTableParams();
@@ -294,6 +296,7 @@ export default function OrdersClient({
           customers={customers}
           catalog={catalog}
           templateFields={templateFields}
+          templateLayout={templateLayout}
           onCancel={() => setCreating(false)}
           onSuccess={() => {
             setCreating(false);
@@ -315,6 +318,7 @@ export default function OrdersClient({
             customers={customers}
             catalog={catalog}
             templateFields={templateFields}
+            templateLayout={templateLayout}
             initial={editing}
             onCancel={() => setEditing(null)}
             onSuccess={() => {

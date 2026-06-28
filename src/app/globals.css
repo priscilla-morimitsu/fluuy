@@ -65,6 +65,7 @@
   --lime-300: oklch(0.902 0.193 121); /* #D6F272 */
   --lime-400: oklch(0.86 0.19 121);
   --lime-500: oklch(0.78 0.17 121); /* active badge dot (collapsed) */
+  --lime-600: oklch(0.64 0.14 121); /* link hover + tone:brand accent on light */
 
   /* Neutral scale (spec-referenced) */
   --neutral-0: oklch(1 0 0); /* white — text on dark buttons/tooltip */
@@ -118,7 +119,7 @@
   /* Mobile dock — 80% less transparent than --glass-bg (transparency 0.45 → 0.09) */
   --dock-bg: oklch(1 0 0 / 0.91);
   --glass-blur: blur(20px) saturate(180%);
-  --glass-blur-lg: blur(28px) saturate(180%); /* drawer backdrop (slightly stronger) */
+  --glass-blur-lg: blur(28px) saturate(180%); /* drawer panel backdrop (slightly stronger) */
   --glass-shadow:
     0 4px 24px oklch(0 0 0 / 0.08), inset 0 1px 0 oklch(1 0 0 / 0.9);
 
@@ -196,7 +197,7 @@
   /* Mobile dock — 80% less transparent than --glass-bg (transparency 0.58 → 0.116) */
   --dock-bg: oklch(0.27 0.004 117 / 0.884);
   --glass-blur: blur(20px) saturate(160%);
-  --glass-blur-lg: blur(28px) saturate(160%); /* drawer backdrop (slightly stronger) */
+  --glass-blur-lg: blur(28px) saturate(160%); /* drawer panel backdrop (slightly stronger) */
   --glass-shadow:
     0 4px 24px oklch(0 0 0 / 0.32), inset 0 1px 0 oklch(1 0 0 / 0.05);
 

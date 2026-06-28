@@ -9,7 +9,7 @@ import {
   customerSourceSchema,
   customerStatusSchema,
 } from "@/lib/validations/customer";
-import { templateFieldSchema, type TemplateField } from "@/lib/validations/template";
+import { templateFieldSchema, templateLayoutSchema, type TemplateField, type TemplateLayout } from "@/lib/validations/template";
 
 const PAGE_SIZES = [10, 20, 50, 100];
 const SORTABLE = new Set<string>(CUSTOMER_SORTABLE);
@@ -43,6 +43,17 @@ export async function customerTemplateFields(nicheId: string): Promise<TemplateF
   });
   const parsed = templateFieldSchema.array().safeParse(template?.fields ?? []);
   return parsed.success ? parsed.data : [];
+}
+
+/** Optional step/block layout for the active "customer" template of a niche. */
+export async function customerTemplateLayout(nicheId: string): Promise<TemplateLayout | undefined> {
+  const template = await prisma.template.findFirst({
+    where: { nicheId, entityType: "customer", status: "active" },
+    orderBy: { version: "desc" },
+    select: { config: true },
+  });
+  const parsed = templateLayoutSchema.safeParse((template?.config as { layout?: unknown } | null)?.layout);
+  return parsed.success ? parsed.data : undefined;
 }
 
 /** Niche labels that drive the dynamic UI wording (Tutor / Paciente / …). */

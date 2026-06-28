@@ -26,7 +26,7 @@ import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { FormDrawer } from "@/components/ui/form-drawer";
 import { Label } from "@/components/ui/label";
 import type { ManagedItem } from "@/components/ui/managed-combobox";
-import type { TemplateField } from "@/lib/validations/template";
+import type { TemplateField, TemplateLayout } from "@/lib/validations/template";
 
 import {
   deleteCollaboratorAction,
@@ -57,6 +57,7 @@ export default function CollaboratorsClient({
   departments,
   professionals,
   templateFields,
+  templateLayout,
 }: {
   slug: string;
   role: TenantRole;
@@ -67,6 +68,7 @@ export default function CollaboratorsClient({
   departments: ManagedItem[];
   professionals: { id: string; name: string }[];
   templateFields: TemplateField[];
+  templateLayout?: TemplateLayout;
 }) {
   const canWrite = role === "tenant_owner" || role === "tenant_manager";
   const canGrantOwner = role === "tenant_owner";
@@ -285,6 +287,7 @@ export default function CollaboratorsClient({
           departments={departments}
           professionals={professionals}
           templateFields={templateFields}
+          templateLayout={templateLayout}
           canManageEntities={canWrite}
           canGrantOwner={canGrantOwner}
           onCancel={() => setCreating(false)}
@@ -303,6 +306,7 @@ export default function CollaboratorsClient({
             departments={departments}
             professionals={professionals}
             templateFields={templateFields}
+          templateLayout={templateLayout}
             canManageEntities={canWrite}
             canGrantOwner={canGrantOwner}
             initial={editing}

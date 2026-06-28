@@ -1,13 +1,12 @@
 "use client";
 
-import { Tag } from "lucide-react";
 import { useState } from "react";
 
-import { Combobox } from "@/components/ui/combobox";
+import { CustomFieldInput } from "@/components/crud/custom-field-input";
+import { TemplateFieldsRenderer } from "@/components/crud/template-fields-renderer";
 import { DatePicker } from "@/components/ui/date-picker";
 import { AffixInput, Field } from "@/components/ui/field";
-import { Textarea } from "@/components/ui/textarea";
-import type { TemplateField } from "@/lib/validations/template";
+import type { TemplateField, TemplateLayout } from "@/lib/validations/template";
 
 // Template field keys rendered as a date picker (stored as yyyy-MM-dd text in
 // custom_data). `nasc` (birth date) also shows a derived age + life-stage pill.
@@ -102,16 +101,27 @@ export function TemplateFieldInputs({
   fields,
   prefix = "custom_",
   values,
+  layout,
 }: {
   fields: TemplateField[];
   prefix?: string;
   values?: Record<string, unknown>;
+  layout?: TemplateLayout;
 }) {
+  // A structured (step/block) template delegates to the shared renderer; the
+  // pet-specific specialisations below only apply to the flat (legacy) layout.
+  if (layout && layout.steps.length > 0) {
+    return <TemplateFieldsRenderer fields={fields} layout={layout} values={values} prefix={prefix} />;
+  }
   return (
     <>
       {fields.map((field) => {
         const name = `${prefix}${field.key}`;
         const value = values?.[field.key];
+        // Pet-specific specialisations kept local: the birth-date (`nasc`) field
+        // renders a date picker with a derived age/life-stage pill, and weight
+        // fields (key ending `_kg`) get a "kg" suffix. Everything else delegates
+        // to the shared renderer (all types + widgets).
         if (field.type === "text" && DATE_FIELD_KEYS.has(field.key)) {
           return (
             <TemplateDateField
@@ -124,56 +134,22 @@ export function TemplateFieldInputs({
             />
           );
         }
-        if (field.type === "boolean") {
+        if (field.type === "number" && field.key.endsWith("_kg")) {
           return (
-            <Field key={field.key} label={field.label} htmlFor={name} className="col-span-full">
-              <Combobox
+            <Field key={field.key} label={field.label} htmlFor={name} required={field.required}>
+              <AffixInput
                 id={name}
                 name={name}
-                defaultValue={value === true ? "true" : value === false ? "false" : ""}
-                options={[
-                  { value: "true", label: "Sim" },
-                  { value: "false", label: "Não" },
-                ]}
-                placeholder="Selecione"
-                emptyText="Sem opções."
-              />
-            </Field>
-          );
-        }
-        if ((field.type === "select" || field.type === "multiselect") && field.options) {
-          return (
-            <Field key={field.key} label={field.label} htmlFor={name} required={field.required} className="col-span-full">
-              <Combobox
-                id={name}
-                name={name}
+                suffix="kg"
+                type="number"
+                inputMode="decimal"
+                step="0.01"
                 defaultValue={value != null ? String(value) : ""}
-                options={field.options.map((o) => ({ value: o, label: o }))}
-                placeholder="Selecione"
-                searchPlaceholder="Buscar…"
-                emptyText="Sem opções."
               />
             </Field>
           );
         }
-        if (field.type === "textarea") {
-          return (
-            <Field key={field.key} label={field.label} htmlFor={name} required={field.required} className="col-span-full">
-              <Textarea id={name} name={name} rows={2} defaultValue={value != null ? String(value) : ""} />
-            </Field>
-          );
-        }
-        return (
-          <Field key={field.key} label={field.label} htmlFor={name} required={field.required}>
-            <AffixInput
-              id={name}
-              name={name}
-              leadIcon={<Tag />}
-              type={field.type === "number" ? "number" : "text"}
-              defaultValue={value != null ? String(value) : ""}
-            />
-          </Field>
-        );
+        return <CustomFieldInput key={field.key} field={field} value={value} prefix={prefix} />;
       })}
     </>
   );

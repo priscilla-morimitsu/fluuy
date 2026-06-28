@@ -28,7 +28,7 @@ export default async function EditOrderPage({
   }
   const { tenant } = ctx;
 
-  const [order, customers, catalog, templateFields] = await Promise.all([
+  const [order, customers, catalog, template] = await Promise.all([
     getOrder(tenant.id, orderId),
     listCustomerOptions(tenant.id),
     listOrderCatalog(tenant.id),
@@ -84,7 +84,7 @@ export default async function EditOrderPage({
       </Link>
       <h2 className="text-xl font-semibold">Editar pedido {order.orderCode}</h2>
       <div className="glass min-h-0 flex-1 overflow-hidden rounded-2xl border border-(--glass-border)">
-        <OrderForm slug={slug} customers={customers} catalog={catalog} templateFields={templateFields} initial={initial} />
+        <OrderForm slug={slug} customers={customers} catalog={catalog} templateFields={template.fields} templateLayout={template.layout} initial={initial} />
       </div>
     </div>
   );

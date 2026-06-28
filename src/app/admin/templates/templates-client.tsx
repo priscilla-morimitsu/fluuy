@@ -42,6 +42,7 @@ function toInitial(row: TemplateListRow): TemplateInitial {
     name: row.name,
     description: row.description,
     fields: row.fields,
+    config: row.config,
   };
 }
 

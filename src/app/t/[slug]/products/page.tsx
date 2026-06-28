@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { ForbiddenError, UnauthorizedError } from "@/lib/rbac";
 import { resolveTenantContext } from "@/lib/tenant-context";
-import { templateFieldSchema } from "@/lib/validations/template";
+import { templateFieldSchema, templateLayoutSchema } from "@/lib/validations/template";
 
 import { listProducts } from "./data";
 import ProductsClient from "./products-client";
@@ -50,11 +50,13 @@ export default async function ProductsPage({
     prisma.template.findFirst({
       where: { nicheId: tenant.nicheId, entityType: "product", status: "active" },
       orderBy: { version: "desc" },
-      select: { fields: true },
+      select: { fields: true, config: true },
     }),
   ]);
 
   const parsedFields = templateFieldSchema.array().safeParse(template?.fields ?? []);
+  const parsedLayout = templateLayoutSchema.safeParse((template?.config as { layout?: unknown } | null)?.layout);
+  const templateLayout = parsedLayout.success ? parsedLayout.data : undefined;
 
   return (
     <ProductsClient
@@ -65,6 +67,7 @@ export default async function ProductsPage({
       total={list.total}
       categories={categories}
       templateFields={parsedFields.success ? parsedFields.data : []}
+      templateLayout={templateLayout}
     />
   );
 }

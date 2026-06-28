@@ -130,7 +130,7 @@ export async function createProfessionalAction(
     const userIdRaw = String(formData.get("userId") ?? "") || null;
     if (!(await validUserId(tenant.id, userIdRaw))) return { error: "Usuário não pertence a este tenant." };
 
-    const fields = await professionalTemplateFields(tenant.nicheId);
+    const { fields } = await professionalTemplateFields(tenant.nicheId);
     const customData = readCustomData(fields, formData);
     const cdErrors = validateCustomData(fields, customData);
     if (cdErrors.length > 0) return { error: cdErrors[0] };
@@ -186,7 +186,7 @@ export async function updateProfessionalAction(
     const userIdRaw = String(formData.get("userId") ?? "") || null;
     if (!(await validUserId(tenant.id, userIdRaw))) return { error: "Usuário não pertence a este tenant." };
 
-    const fields = await professionalTemplateFields(tenant.nicheId);
+    const { fields } = await professionalTemplateFields(tenant.nicheId);
     const customData = readCustomData(fields, formData);
     const cdErrors = validateCustomData(fields, customData);
     if (cdErrors.length > 0) return { error: cdErrors[0] };

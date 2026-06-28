@@ -5,16 +5,16 @@ import { useActionState, useEffect, useState } from "react";
 import { StatusSwitchItem, type StatusOption } from "@/components/forms/status-switch-item";
 import { Field } from "@/components/ui/field";
 import { FormDrawerForm, FormSection } from "@/components/ui/form-drawer";
+import { TemplateFieldsRenderer } from "@/components/crud/template-fields-renderer";
 import { Combobox } from "@/components/ui/combobox";
 import { ImageUpload } from "@/components/ui/image-upload";
 import { Input } from "@/components/ui/input";
 import { CurrencyInput } from "@/components/ui/masked-inputs";
-import { MultiSelect } from "@/components/ui/multiselect";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { actionError, actionOk } from "@/lib/admin/action-result";
 import { PRODUCT_UNITS } from "@/lib/validations/product";
-import type { TemplateField } from "@/lib/validations/template";
+import type { TemplateField, TemplateLayout } from "@/lib/validations/template";
 
 import { createProductAction, updateProductAction, type ProductActionResult } from "./actions";
 import { CategoryCombobox } from "./category-combobox";
@@ -91,40 +91,11 @@ export type ProductInitial = {
   customData: Record<string, unknown>;
 };
 
-function CustomField({ field, value }: { field: TemplateField; value: unknown }) {
-  const name = `custom_${field.key}`;
-  if (field.type === "boolean") return <BooleanField name={name} defaultChecked={value === true} label={field.label} />;
-  return (
-    <Field label={field.label} htmlFor={name} required={field.required} className="col-span-full">
-      {field.type === "textarea" ? (
-        <Textarea id={name} name={name} rows={2} defaultValue={value != null ? String(value) : ""} />
-      ) : field.type === "number" ? (
-        <Input id={name} name={name} type="number" step="any" defaultValue={value != null ? String(value) : ""} />
-      ) : field.type === "select" ? (
-        <Combobox id={name} name={name} defaultValue={value != null ? String(value) : ""} options={(field.options ?? []).map((o) => ({ value: o, label: o }))} />
-      ) : field.type === "multiselect" ? (
-        <MultiSelect id={name} name={name} defaultValue={Array.isArray(value) ? value.map(String) : []} options={(field.options ?? []).map((o) => ({ value: o, label: o }))} />
-      ) : (
-        <Input id={name} name={name} defaultValue={value != null ? String(value) : ""} />
-      )}
-    </Field>
-  );
-}
-
-function BooleanField({ name, defaultChecked, label }: { name: string; defaultChecked: boolean; label: string }) {
-  const [on, setOn] = useState(defaultChecked);
-  return (
-    <Field label={label} className="col-span-full">
-      <input type="hidden" name={name} value={on ? "on" : ""} />
-      <Switch checked={on} onCheckedChange={setOn} />
-    </Field>
-  );
-}
-
 export default function ProductForm({
   slug,
   categories,
   templateFields,
+  templateLayout,
   canManageCategories,
   initial,
   onSuccess,
@@ -133,6 +104,7 @@ export default function ProductForm({
   slug: string;
   categories: ProductCategoryOption[];
   templateFields: TemplateField[];
+  templateLayout?: TemplateLayout;
   canManageCategories: boolean;
   initial?: ProductInitial;
   onSuccess?: () => void;
@@ -243,9 +215,12 @@ export default function ProductForm({
 
       {templateFields.length > 0 && (
         <FormSection title="Campos específicos do nicho">
-          {templateFields.map((field) => (
-            <CustomField key={field.key} field={field} value={initial?.customData?.[field.key]} />
-          ))}
+          <TemplateFieldsRenderer
+            fields={templateFields}
+            layout={templateLayout}
+            values={initial?.customData}
+            prefix="custom_"
+          />
         </FormSection>
       )}
 

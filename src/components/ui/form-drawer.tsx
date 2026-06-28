@@ -54,11 +54,19 @@ export function FormDrawer({
   /** Hide the default footer (the body supplies a pinned footer instead). */
   hideFooter = false,
   /**
-   * When true, renders a fullscreen toggle in the header that widens the panel
-   * (content max-width ≈720px when expanded). Off by default — existing callers
-   * are unaffected.
+   * Renders a fullscreen toggle in the header that widens the panel (content
+   * max-width ≈720px when expanded). On by default so every form sheet can be
+   * expanded/collapsed; pass `false` to pin a sheet to the compact width.
    */
-  allowFullscreen = false,
+  allowFullscreen = true,
+  /** Use an opaque surface instead of the translucent glass panel. */
+  solid = false,
+  /**
+   * Suppress the default header text (title/description) when the body supplies
+   * its own header — e.g. a breadcrumb header. The title stays as an sr-only
+   * label for accessibility and the fullscreen toggle is still rendered.
+   */
+  hideHeaderText = false,
   children,
 }: {
   open: boolean;
@@ -74,6 +82,8 @@ export function FormDrawer({
   contentScrolls?: boolean;
   hideFooter?: boolean;
   allowFullscreen?: boolean;
+  solid?: boolean;
+  hideHeaderText?: boolean;
   children: React.ReactNode;
 }) {
   const [fullscreen, setFullscreen] = React.useState(false);
@@ -89,10 +99,13 @@ export function FormDrawer({
         side="right"
         showCloseButton
         className={cn(
-          "glass-drawer flex h-full flex-col gap-0 border-l border-(--glass-border) p-0",
+          "flex h-full flex-col gap-0 border-l p-0",
+          solid
+            ? "bg-popover border-border"
+            : "glass-drawer border-(--glass-border)",
           allowFullscreen && fullscreen
-            ? // Expanded: wider panel, content capped at ≈720px.
-              "data-[side=right]:w-full data-[side=right]:sm:w-[92vw] data-[side=right]:sm:max-w-[780px]"
+            ? // Expanded: full viewport width.
+              "data-[side=right]:w-screen data-[side=right]:max-w-none data-[side=right]:sm:w-screen data-[side=right]:sm:max-w-none"
             : // Responsive width: 100% mobile · 460px tablet · ~40% (480–620px) HD+
               cn(
                 "data-[side=right]:w-full data-[side=right]:sm:w-[460px] data-[side=right]:sm:max-w-[90vw]",
@@ -100,7 +113,12 @@ export function FormDrawer({
               )
         )}
       >
-        <SheetHeader className="shrink-0 border-b border-(--glass-border) p-5">
+        <SheetHeader
+          className={cn(
+            "shrink-0",
+            hideHeaderText ? "p-0" : "border-b border-(--glass-border) p-5"
+          )}
+        >
           {allowFullscreen && (
             <Button
               type="button"
@@ -114,8 +132,8 @@ export function FormDrawer({
               {fullscreen ? <Minimize2 /> : <Maximize2 />}
             </Button>
           )}
-          <SheetTitle>{title}</SheetTitle>
-          {description && <SheetDescription>{description}</SheetDescription>}
+          <SheetTitle className={hideHeaderText ? "sr-only" : undefined}>{title}</SheetTitle>
+          {description && !hideHeaderText && <SheetDescription>{description}</SheetDescription>}
         </SheetHeader>
 
         <div
@@ -289,7 +307,7 @@ export function FormDrawerForm({
   );
 }
 
-/** A titled group of fields. */
+/** A titled group of fields, laid out with the {@link FormGrid}. */
 export function FormSection({
   title,
   children,
@@ -323,7 +341,7 @@ export function FormGrid({
   className?: string;
 }) {
   return (
-    <div className={cn("grid grid-cols-1 gap-3.5 @[440px]:grid-cols-2", className)}>
+    <div className={cn("grid grid-cols-1 gap-3.5 @[400px]:grid-cols-2", className)}>
       {children}
     </div>
   );

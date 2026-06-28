@@ -1,0 +1,150 @@
+{
+  "$spec": "fluuy.zatten.mcp-tools",
+  "version": "1.0.0",
+  "updatedAt": "2026-06-28",
+  "niche": "petshop",
+  "locale": "pt-BR",
+  "description": "Registro canônico das tools do MCP Fluuy consumidas pelo agente Zatten, com gatilhos. Derivado das skills do petshop (../../petshop/skills/petshop-agent-skills.spec.json). Status: implemented | phase2_read | phase3_write.",
+  "endpoint": {
+    "url": "/api/mcp/mcp",
+    "transport": "streamable-http",
+    "auth": "bearer-per-tenant",
+    "tenantResolution": "from token (McpAccessToken); never from input",
+    "contactResolution": "tutor resolved by phone within tenant (anti-IDOR)"
+  },
+  "principles": [
+    "Dado e ação sempre via tool; o agente nunca inventa preço/estoque/horário/agenda.",
+    "tenant_id vem do token; telefone resolve o tutor dentro do tenant.",
+    "Tools de escrita: confirmar com o tutor, idempotentes, marcam origem (createdByAgent/source), sem pagamento.",
+    "Emergência/dúvida clínica não usam tool como triagem — guard-rail no prompt (S2/S3)."
+  ],
+  "nativeZattenActions": {
+    "transferencia": "Handoff humano (padrão). Opcionalmente espelhado por solicitar_handoff.",
+    "captura_dados_agendamento": "Disponíveis, mas preferimos as tools do MCP para gravar no Fluuy."
+  },
+  "promptOnlySkills": ["A1", "A3", "A5", "A6", "A8", "S1", "S2", "S3", "S7"],
+  "proactiveFluuySkills": ["C5", "C6", "C7"],
+  "tools": [
+    {
+      "name": "info_estabelecimento", "status": "implemented", "context": "atendimento",
+      "type": "read", "scope": "read", "skills": ["A4"],
+      "triggers": ["que horas abre", "onde fica", "endereço", "aceita pix", "fazem entrega", "atende gato"],
+      "inputs": ["topico?"], "reads": ["Tenant"], "writes": [],
+      "gate": null, "guard": "Só dados cadastrados do tenant."
+    },
+    {
+      "name": "identificar_tutor", "status": "phase2_read", "context": "atendimento",
+      "type": "read", "scope": "read", "skills": ["A2"],
+      "triggers": ["início de toda conversa (resolver tutor pelo telefone)"],
+      "inputs": ["phone"], "reads": ["Customer", "Pet", "CustomerLead"], "writes": [],
+      "gate": null, "guard": "Anti-IDOR: só o dono do número."
+    },
+    {
+      "name": "buscar_servicos", "status": "phase2_read", "context": "vendas",
+      "type": "read", "scope": "read", "skills": ["V4", "AG1"],
+      "triggers": ["fazem tosa", "quanto custa o banho", "tem hidratação", "fazem hotel"],
+      "inputs": ["termo?", "especie?", "porte?"], "reads": ["Service", "ServiceCategory"], "writes": [],
+      "gate": "service_catalog", "guard": "Preço por porte; sem porte → 'a partir de'."
+    },
+    {
+      "name": "buscar_produtos", "status": "phase2_read", "context": "vendas",
+      "type": "read", "scope": "read", "skills": ["V1", "V3"],
+      "triggers": ["tem ração golden 15kg", "preço da areia", "qual ração indica"],
+      "inputs": ["termo?", "marca?", "especie?", "porte?"], "reads": ["Product", "ProductCategory"], "writes": [],
+      "gate": "product_catalog", "guard": "Não inventar marca/estoque; terapêutica → guard-rail clínico."
+    },
+    {
+      "name": "consultar_planos", "status": "phase2_read", "context": "vendas",
+      "type": "read", "scope": "read", "skills": ["V6"],
+      "triggers": ["tem plano de banho mensal", "pacote sai mais barato", "assinatura"],
+      "inputs": ["tipo?", "servico?"], "reads": ["OfferPlan", "OfferPlanServiceItem", "OfferPlanProductItem"], "writes": [],
+      "gate": "plans_catalog", "guard": "Só itens cadastrados; não ativa/cobra."
+    },
+    {
+      "name": "consultar_disponibilidade", "status": "phase2_read", "context": "agendamento",
+      "type": "read", "scope": "read", "skills": ["AG5"],
+      "triggers": ["tem horário sábado", "próximo horário livre", "atende domingo"],
+      "inputs": ["servicoId", "data?"], "reads": ["ServiceAvailabilityRule", "Appointment", "Professional", "Location"], "writes": [],
+      "gate": "appointments", "guard": "Só janelas reais; não prometer encaixe."
+    },
+    {
+      "name": "listar_pets", "status": "phase2_read", "context": "atendimento",
+      "type": "read", "scope": "read", "skills": ["A2", "S8"],
+      "triggers": ["quais pets tenho", "carteira de vacinação"],
+      "inputs": ["phone"], "reads": ["Pet"], "writes": [],
+      "gate": "customer_entities", "guard": "Anti-IDOR; não emitir documento clínico."
+    },
+    {
+      "name": "status_pedido", "status": "phase2_read", "context": "vendas",
+      "type": "read", "scope": "read", "skills": ["V7"],
+      "triggers": ["cadê meu pedido", "minha ração já saiu", "status da compra"],
+      "inputs": ["phone", "numero?"], "reads": ["Order", "OrderItem", "OrderPayment"], "writes": [],
+      "gate": "orders", "guard": "Anti-IDOR; atraso/divergência → handoff."
+    },
+    {
+      "name": "consultar_agendamentos", "status": "phase2_read", "context": "agendamento",
+      "type": "read", "scope": "read", "skills": ["AG8"],
+      "triggers": ["tenho agendamento marcado", "quando é o banho do Thor"],
+      "inputs": ["phone"], "reads": ["Appointment"], "writes": [],
+      "gate": "appointments", "guard": "Anti-IDOR."
+    },
+    {
+      "name": "cadastrar_tutor", "status": "phase3_write", "context": "captacao",
+      "type": "write", "scope": "write", "skills": ["C4"],
+      "triggers": ["tutor novo durante agendamento/pedido (embutido)"],
+      "inputs": ["phone", "nome"], "reads": ["Customer"], "writes": ["Customer"],
+      "gate": null, "guard": "Idempotente por telefone; consentimento; LGPD."
+    },
+    {
+      "name": "cadastrar_pet", "status": "phase3_write", "context": "captacao",
+      "type": "write", "scope": "write", "skills": ["C3"],
+      "triggers": ["meu cão chama Thor, golden de 2 anos (embutido)"],
+      "inputs": ["phone", "nome", "especie", "porte?", "raca?", "sexo?", "nascimento?"], "reads": ["Customer"], "writes": ["Pet"],
+      "gate": "customer_entities", "guard": "Exige tutor; pouco por vez."
+    },
+    {
+      "name": "registrar_lead", "status": "phase3_write", "context": "captacao",
+      "type": "write", "scope": "write", "skills": ["C1", "C2", "C8", "C9"],
+      "triggers": ["primeiro contato/interesse de não-cliente", "fui indicada por", "tenho cupom"],
+      "inputs": ["phone", "interesse", "origem?"], "reads": [], "writes": ["CustomerLead"],
+      "gate": "lead_management", "guard": "Só cupom/condição cadastrada."
+    },
+    {
+      "name": "criar_agendamento", "status": "phase3_write", "context": "agendamento",
+      "type": "write", "scope": "write", "skills": ["AG2", "AG3", "AG4", "AG9"],
+      "triggers": ["quero marcar banho/consulta/vacina (após confirmar serviço+horário)"],
+      "inputs": ["phone", "servicoId", "inicio", "modalidade", "petId?", "obs?"],
+      "reads": ["Service", "Customer", "Pet"], "writes": ["Appointment", "AppointmentStatusHistory", "AppointmentReminder"],
+      "gate": "appointments", "guard": "source=ai, createdByAgent; pending_confirmation; idempotência; valida disponibilidade."
+    },
+    {
+      "name": "remarcar_agendamento", "status": "phase3_write", "context": "agendamento",
+      "type": "write", "scope": "write", "skills": ["AG6"],
+      "triggers": ["preciso remarcar", "muda pra outro dia"],
+      "inputs": ["phone", "agendamentoId", "novoInicio"], "reads": ["Appointment"], "writes": ["Appointment", "AppointmentStatusHistory", "AppointmentReminder"],
+      "gate": "appointments", "guard": "Política de antecedência; fora → handoff."
+    },
+    {
+      "name": "cancelar_agendamento", "status": "phase3_write", "context": "agendamento",
+      "type": "write", "scope": "write", "skills": ["AG7"],
+      "triggers": ["quero cancelar", "não vou poder levar"],
+      "inputs": ["phone", "agendamentoId", "motivo?"], "reads": ["Appointment"], "writes": ["Appointment", "AppointmentStatusHistory"],
+      "gate": "appointments", "guard": "Multa/no-show → informar política; cobrança → humano."
+    },
+    {
+      "name": "criar_pedido_rascunho", "status": "phase3_write", "context": "vendas",
+      "type": "write", "scope": "write", "skills": ["V2", "V5"],
+      "triggers": ["quero comprar 2 sacos", "me vê um sachê", "monta um orçamento"],
+      "inputs": ["phone", "itens[]", "entrega"], "reads": ["Product", "Service", "OfferPlan", "Customer"],
+      "writes": ["Order", "OrderItem", "OrderSequence", "OrderAddress"],
+      "gate": "orders", "guard": "source=whatsapp; rascunho; não processa pagamento."
+    },
+    {
+      "name": "solicitar_handoff", "status": "phase3_write", "context": "atendimento",
+      "type": "write", "scope": "write", "skills": ["A7", "S3", "S4"],
+      "triggers": ["falar com atendente", "emergência", "reclamação séria"],
+      "inputs": ["phone", "motivo", "urgencia"], "reads": [], "writes": ["Conversation", "ConversationAssignment"],
+      "gate": "human_handoff", "guard": "Prefira a Ação nativa 'Transferência'; use a tool p/ espelhar no Fluuy."
+    }
+  ]
+}

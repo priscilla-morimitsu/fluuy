@@ -18,7 +18,8 @@ import {
   type OfferPlanProductItemInput,
   type OfferPlanServiceItemInput,
 } from "@/lib/validations/offer-plan";
-import { validateCustomData, type TemplateField } from "@/lib/validations/template";
+import { readCustomData } from "@/lib/custom-data";
+import { validateCustomData } from "@/lib/validations/template";
 
 import { getOfferPlan, offerPlanTemplateFields, type OfferPlanDetail } from "./data";
 
@@ -60,18 +61,6 @@ function parseForm(formData: FormData) {
     availableForSale: bool("availableForSale"),
     internalNotes: formData.get("internalNotes") ?? "",
   };
-}
-
-function readCustomData(fields: TemplateField[], formData: FormData): Record<string, unknown> {
-  const data: Record<string, unknown> = {};
-  for (const field of fields) {
-    const raw = formData.get(`custom_${field.key}`);
-    if (field.type === "boolean") data[field.key] = raw === "on" || raw === "true";
-    else if (field.type === "number") {
-      if (raw !== null && raw !== "") data[field.key] = Number(raw);
-    } else if (raw !== null && raw !== "") data[field.key] = String(raw);
-  }
-  return data;
 }
 
 function readServiceItems(
@@ -221,7 +210,7 @@ async function buildWriteData(
 
   if (!(await assertCategory(tenant.id, d.categoryId))) return { ok: false, error: "Categoria inválida." };
 
-  const fields = await offerPlanTemplateFields(tenant.nicheId);
+  const { fields } = await offerPlanTemplateFields(tenant.nicheId);
   const customData = readCustomData(fields, formData);
   const cdErrors = validateCustomData(fields, customData);
   if (cdErrors.length > 0) return { ok: false, error: cdErrors[0] };

@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import type { Prisma } from "@/generated/prisma/client";
 import type { AdminActionResult } from "@/lib/admin/action-result";
+import { readCustomData } from "@/lib/custom-data";
 import { sendCollaboratorInviteEmail } from "@/lib/auth/providers/resend";
 import { onlyDigits } from "@/lib/masks";
 import { prisma } from "@/lib/prisma";
@@ -46,18 +47,6 @@ async function collaboratorTemplateFields(nicheId: string): Promise<TemplateFiel
   });
   const parsed = templateFieldSchema.array().safeParse(template?.fields ?? []);
   return parsed.success ? parsed.data : [];
-}
-
-function readCustomData(fields: TemplateField[], formData: FormData): Record<string, unknown> {
-  const data: Record<string, unknown> = {};
-  for (const field of fields) {
-    const raw = formData.get(`custom_${field.key}`);
-    if (field.type === "boolean") data[field.key] = raw === "on" || raw === "true";
-    else if (field.type === "number") {
-      if (raw !== null && raw !== "") data[field.key] = Number(raw);
-    } else if (raw !== null && raw !== "") data[field.key] = String(raw);
-  }
-  return data;
 }
 
 function parseForm(formData: FormData) {

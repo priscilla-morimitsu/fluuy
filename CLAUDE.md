@@ -82,3 +82,64 @@ project's design language (shadcn/ui, "Liquid Glass without glow") and quality b
 Keep these consistent with the existing `nextjs-app-router-patterns` and `database` skills and
 the security/multi-tenant rules above — design choices never override server-side auth, tenant
 isolation, or input validation.
+
+## Form fields & component specs (consistency across all screens)
+_Single source of truth for buttons and form inputs — read BEFORE building any form or field_
+
+The design system is documented as canonical JSON specs under
+`.claude/docs/specs/components/` and `.claude/docs/specs/layout/`. Treat them as the source of
+truth and keep every screen and form consistent with them — same components, same variants,
+same states everywhere. Do NOT hand-roll a one-off input, toggle, segmented control, or button
+when a spec'd component already covers the case.
+
+Before implementing or modifying ANY form field, button, or input:
+
+1. **Read the relevant spec first** — `button-component-spec.json` (buttons + dedicated
+   components: ButtonGroup, ButtonDropdown, Toggle, ToggleGroup, SwitchToggle, FilterButton,
+   IconButton), `form-fields-component-spec.json` and `forms-spec.json` (field types, labels,
+   states, validation/error display), and `layout/form-drawer-spec.json` (form layout, sections,
+   footer actions). The spec is canonical — if code and spec disagree, fix the code.
+2. **Reuse the existing component from `src/components/ui/`** that matches the spec'd field
+   (e.g. `field.tsx`, `input.tsx`, `masked-inputs.tsx`, `combobox.tsx`, `multiselect.tsx`,
+   `date-picker.tsx`, `checkbox-card.tsx`, `radio-group.tsx`, `segmented.tsx`, `toggle.tsx`,
+   `toggle-group.tsx`, `switch.tsx`, `switch-card.tsx`, `switch-toggle.tsx`, `button.tsx`).
+   Pick the component the spec assigns to that field's intent — don't substitute a visually
+   similar one. If none fits, extend the shadcn/Radix base per the spec rather than inventing a
+   bespoke control, and add it to `src/components/ui/`.
+3. **Match the established pattern** used by the other forms (Server Actions over
+   react-hook-form, `Field` wrapper for label/error/hint, masked-input hidden-value convention,
+   `FormSection`/`form-drawer` layout, footer action order, the `brand` primary submit button).
+   When in doubt, mirror an existing reviewed form (e.g. `customers/customer-form.tsx`).
+4. **Honor the spec's design rules** — DS tokens only (never `--neutral-100` in hovers; use
+   `--secondary`/`--border` so dark mode survives), radius 2xl, no glow, `tone × appearance`
+   for semantic colors, and the accessibility requirements (labels, `aria-*`, focus, keyboard).
+5. **If the spec is missing a needed field or is out of date**, update the spec in the same
+   change so it stays the single source of truth — never let screens silently diverge.
+
+### Choosing the right Button per context
+
+The `<Button>` (`src/components/ui/button.tsx`) is the only button — never style a raw
+`<button>` or hand-roll button classes. Pick the `variant` by the action's INTENT (not by how
+it should look), so the same kind of action looks identical on every screen. Per
+`button-component-spec.json`:
+
+- `variant="brand"` — **the** primary action that persists to the backend (save / create /
+  send / generate). Exactly ONE per context/form, and it carries `loading` while the Server
+  Action runs. This is the default submit button.
+- `variant="default"` — general UI actions (export, import, continue, open menus).
+- `variant="secondary"` — supporting actions (back, cancel, skip).
+- `variant="outline"` — low-emphasis alternative in toolbars/cards (filter, sort, configure).
+- `variant="ghost"` — tertiary actions and icon buttons in dense areas (close, "more", row
+  actions).
+- `variant="link"` — inline navigation/actions inside text ("Saiba mais", "Esqueci a senha").
+- `variant="destructive"` — irreversible actions (delete, block). ALWAYS behind an
+  `AlertDialog` confirmation, never a bare click.
+
+For semantic-color actions (success / info / warning / danger / neutral / brand) use the
+`tone` + `appearance` axis (`solid · soft · outline · ghost · link`) instead of inventing
+colors. Icon-only buttons use `size="icon"` and MUST pass `tooltip` (sets the hover tooltip +
+accessible label). Use the dedicated components when they fit — `ButtonGroup` (sequential
+Anterior/Próximo), `ButtonDropdown` (grouped actions under one trigger), `Toggle`/`ToggleGroup`
+(on-off / segmented selection), `SwitchToggle` (single button flipping two colored values),
+`FilterButton` (Filtros + Popover) — rather than rebuilding them. Keep footer action order and
+the primary/secondary pairing consistent with existing forms.

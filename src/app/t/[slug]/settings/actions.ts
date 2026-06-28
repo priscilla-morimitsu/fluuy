@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import type { Prisma } from "@/generated/prisma/client";
+import { readCustomData } from "@/lib/custom-data";
 import { prisma } from "@/lib/prisma";
 import { requireTenantRole } from "@/lib/rbac";
 import { tenantProfileSchema } from "@/lib/validations/tenant";
@@ -32,17 +33,7 @@ export async function updateTenantProfileAction(
     return { error: parsed.error.issues[0]?.message ?? "Dados inválidos." };
   }
 
-  const customData: Record<string, unknown> = {};
-  for (const field of templateFields) {
-    const raw = formData.get(`custom_${field.key}`);
-    if (field.type === "boolean") {
-      customData[field.key] = raw === "on";
-    } else if (field.type === "number") {
-      customData[field.key] = raw === null || raw === "" ? undefined : Number(raw);
-    } else {
-      customData[field.key] = raw === null ? undefined : String(raw);
-    }
-  }
+  const customData = readCustomData(templateFields, formData);
 
   const customDataErrors = validateCustomData(templateFields, customData);
   if (customDataErrors.length > 0) {

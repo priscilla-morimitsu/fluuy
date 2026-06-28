@@ -19,6 +19,7 @@ import {
   slugify,
   type CustomerAddressInput,
 } from "@/lib/validations/customer";
+import { readCustomData } from "@/lib/custom-data";
 import { deriveEntityName, validateCustomData, type TemplateField } from "@/lib/validations/template";
 
 import {
@@ -76,23 +77,6 @@ function parseForm(formData: FormData) {
     consentSource: g("consentSource") ?? "",
     internalNotes: g("internalNotes") ?? "",
   };
-}
-
-function readCustomData(fields: TemplateField[], formData: FormData, prefix = "custom_"): Record<string, unknown> {
-  const data: Record<string, unknown> = {};
-  for (const field of fields) {
-    const raw = formData.get(`${prefix}${field.key}`);
-    if (field.type === "boolean") {
-      // Only persist an explicit choice — an untouched select submits "".
-      if (raw === "on" || raw === "true") data[field.key] = true;
-      else if (raw === "false") data[field.key] = false;
-    } else if (field.type === "number") {
-      if (raw !== null && raw !== "") data[field.key] = Number(raw);
-    } else if (raw !== null && raw !== "") {
-      data[field.key] = String(raw);
-    }
-  }
-  return data;
 }
 
 type EntityEntry = { id: string | null; name: string; status: "active" | "inactive"; customData: Record<string, unknown> };
@@ -327,9 +311,13 @@ export async function updateCustomerAction(
     const tagIds = await ownedTagIds(tenant.id, readTagIds(formData));
 
     // Related entities (pets): diff against what's stored for this entity type.
+    // The edit drawer manages pets through the dedicated PetSheet (immediate,
+    // independent persistence), so it opts out here to avoid this diff deleting
+    // pets the customer form no longer carries. Create still posts them inline.
+    const entitiesUnmanaged = formData.get("entitiesUnmanaged") === "1";
     const entityCtx = await entityContext(slug, tenant.nicheId);
     let entityOps: Prisma.PrismaPromise<unknown>[] = [];
-    if (entityCtx.canEntities) {
+    if (entityCtx.canEntities && !entitiesUnmanaged) {
       const parsedEntities = readEntities(entityCtx.fields, formData);
       if (!parsedEntities.ok) return { error: parsedEntities.error };
       const stored = await prisma.customerEntity.findMany({

@@ -1,6 +1,6 @@
 "use client";
 
-import { Ban, CircleHelp, TriangleAlert } from "lucide-react";
+import { Ban, CircleHelp, Lock, TriangleAlert } from "lucide-react";
 import { useState } from "react";
 
 import {
@@ -13,6 +13,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 
@@ -77,7 +78,17 @@ export function StatusSwitchItem({
   const [busy, setBusy] = useState(false);
 
   const current = options.find((o) => o.value === value) ?? options[0];
-  const useSwitch = control === "switch" || (control === "auto" && options.length === 2);
+
+  // "Blockable" 3-state (positive + neutral toggled by a Switch, plus a danger
+  // terminal state reached via a Bloquear/Desbloquear action) — the status spec
+  // layout. Other shapes keep the Switch (2 options) or pills (3+ without that
+  // active/inactive/blocked shape).
+  const danger = options.find((o) => o.tone === "danger");
+  const positive = options.find((o) => o.tone === "positive");
+  const neutral = options.find((o) => o !== danger && o !== positive);
+  const blockMode = control !== "pills" && options.length === 3 && Boolean(danger && positive && neutral);
+  const isBlocked = blockMode && value === danger?.value;
+  const useSwitch = !blockMode && (control === "switch" || (control === "auto" && options.length === 2));
 
   const confirm = async () => {
     if (!target) return;
@@ -90,6 +101,7 @@ export function StatusSwitchItem({
     }
   };
 
+  // Active (positive current, not blocked) gets the lime highlight.
   const isSelected = current?.tone === "positive";
 
   return (
@@ -101,17 +113,46 @@ export function StatusSwitchItem({
           "flex items-center gap-3 rounded-2xl border bg-card p-3.5 transition-colors",
           isSelected
             ? "border-[var(--lime-400)] bg-(--lime-50) shadow-[0_0_0_1px_var(--lime-400)]"
-            : "border-border",
+            : isBlocked
+              ? "border-border bg-muted/40"
+              : "border-border",
           className,
         )}
       >
         <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-          <span className="text-sm font-semibold text-foreground">{title}</span>
+          <span className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
+            {isBlocked && <Ban className="size-4 shrink-0 text-muted-foreground" aria-hidden />}
+            {title}
+          </span>
           <span className="text-xs text-muted-foreground">{current?.description}</span>
+          {blockMode && !isBlocked && danger && (
+            <button
+              type="button"
+              onClick={() => setTarget(danger)}
+              className="mt-1 inline-flex w-fit items-center gap-1 text-xs font-medium text-destructive hover:underline"
+            >
+              <Ban className="size-3.5" aria-hidden /> Bloquear acesso
+            </button>
+          )}
         </div>
 
         <div className="flex shrink-0 items-center gap-1.5">
-          {useSwitch ? (
+          {blockMode ? (
+            isBlocked ? (
+              <Button type="button" variant="secondary" size="sm" onClick={() => positive && setTarget(positive)}>
+                <Lock className="size-4" /> Desbloquear
+              </Button>
+            ) : (
+              <Switch
+                checked={value === positive?.value}
+                aria-label={title}
+                onCheckedChange={(checked) => {
+                  const next = checked ? positive : neutral;
+                  if (next && next.value !== value) setTarget(next);
+                }}
+              />
+            )
+          ) : useSwitch ? (
             <Switch
               checked={value === options[0]?.value}
               aria-label={title}

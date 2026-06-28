@@ -303,6 +303,7 @@ model Tenant {
   customerTags                     CustomerTag[]
   customerTagAssignments           CustomerTagAssignment[]
   customerEntities                 CustomerEntity[]
+  pets                             Pet[]
   customerLeads                    CustomerLead[]
   offerPlans                       OfferPlan[]
   offerPlanCategories              OfferPlanCategory[]
@@ -323,6 +324,8 @@ model Tenant {
   messageWebhookEventLogs          MessageWebhookEventLog[]
   messageConsents                  MessageConsent[]
   conversationAssignments          ConversationAssignment[]
+
+  mcpAccessTokens                  McpAccessToken[]
 
   @@index([nicheId])
   @@index([status])
@@ -904,6 +907,7 @@ model Customer {
   addresses    CustomerAddress[]
   tagLinks     CustomerTagAssignment[]
   entities     CustomerEntity[]
+  pets         Pet[]
   orders       Order[]
   appointments Appointment[]
 
@@ -1021,6 +1025,46 @@ model CustomerEntity {
   @@index([customerId])
   @@index([tenantId, entityType])
   @@map("customer_entities")
+}
+
+enum PetStatus {
+  active
+  inactive
+}
+
+enum PetSex {
+  male
+  female
+}
+
+// Petshop-specific pet, owned by a Customer. Dedicated table with concrete
+// columns (the MVP drops the generic template/custom_data system for petshop —
+// see memory templates-out-of-mvp). Feature gate stays customer_entities.
+model Pet {
+  id          String    @id @default(uuid())
+  tenantId    String    @map("tenant_id")
+  customerId  String    @map("customer_id")
+  name        String
+  species     String?
+  breed       String?
+  birthDate   DateTime? @map("birth_date")
+  size        String?
+  sex         PetSex?
+  weightKg    Decimal?  @map("weight_kg") @db.Decimal(6, 2)
+  neutered    Boolean?
+  temperament String[]  @default([])
+  healthNotes String?   @map("health_notes")
+  status      PetStatus @default(active)
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([customerId])
+  @@index([tenantId, status])
+  @@map("pets")
 }
 
 // Tenant-scoped lead (feature: lead_management). Distinct from the public
@@ -2075,4 +2119,35 @@ model ConversationAssignment {
   @@index([tenantId])
   @@index([conversationId])
   @@map("conversation_assignments")
+}
+
+enum McpAccessTokenStatus {
+  active
+  revoked
+}
+
+// Per-tenant bearer token for the remote MCP server (/api/mcp) consumed by the
+// Zatten agent. One token = one tenant: verifyMcpBearer hashes the incoming
+// bearer (sha256) and resolves tenant_id from here — tenant_id is NEVER taken
+// from tool input. Only the hash is stored; the plaintext is shown once on mint.
+// See .claude/docs/specs/integrations/zatten-mcp/spec-zatten-mcp.md.
+model McpAccessToken {
+  id              String               @id @default(uuid())
+  tenantId        String               @map("tenant_id")
+  name            String
+  tokenHash       String               @unique @map("token_hash")
+  tokenPrefix     String               @map("token_prefix")
+  scopes          String[]             @default(["read"])
+  status          McpAccessTokenStatus @default(active)
+  lastUsedAt      DateTime?            @map("last_used_at")
+  expiresAt       DateTime?            @map("expires_at")
+  createdByUserId String?              @map("created_by_user_id")
+  createdAt       DateTime             @default(now()) @map("created_at")
+  updatedAt       DateTime             @updatedAt @map("updated_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([tenantId, status])
+  @@map("mcp_access_tokens")
 }

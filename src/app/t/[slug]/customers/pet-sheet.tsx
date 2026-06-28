@@ -1,10 +1,13 @@
 "use client";
 
-import { useActionState, useEffect, useMemo } from "react";
+import { UserPlus } from "lucide-react";
+import { useActionState, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
+import { Button } from "@/components/ui/button";
 import { FormDrawer, FormDrawerForm, FormSection } from "@/components/ui/form-drawer";
 import { actionError, actionOk } from "@/lib/admin/action-result";
+import { pluralizePt } from "@/lib/validations/customer";
 import type { TemplateField } from "@/lib/validations/template";
 
 import {
@@ -109,6 +112,14 @@ export function PetSheet({
     return labels;
   }, [templateFields]);
 
+  // The optional second tutor is hidden behind an "Adicionar tutor" button until
+  // requested — but stays open from the start when the pet already has one.
+  const hasTutor = groups.tutor2.some((f) => {
+    const v = pet?.customData?.[f.key];
+    return v != null && String(v).trim() !== "";
+  });
+  const [showTutor, setShowTutor] = useState(hasTutor);
+
   return (
     <FormDrawer
       open
@@ -116,16 +127,24 @@ export function PetSheet({
       title={isEdit ? `Editar ${entityLabel.toLowerCase()}` : `Novo ${entityLabel.toLowerCase()}`}
       hideFooter
       allowFullscreen
+      solid
+      hideHeaderText
       contentScrolls={false}
     >
-      {/* Breadcrumb header — sits above the form body inside the scroll area. */}
+      {/* Breadcrumb header — the sheet's only visible header (FormDrawer's default
+          title is suppressed via hideHeaderText). */}
       <div className="border-b border-(--glass-border) px-5 pt-1 pb-3">
         <p className="text-xs text-muted-foreground">
-          Cliente › <span className="font-medium text-foreground">{client.name}</span>
+          Cliente › <span className="font-medium text-foreground">{client.name}</span> › {pluralizePt(entityLabel)}
         </p>
         <h2 className="text-2xl font-bold tracking-tight">
           {isEdit ? `Editar ${entityLabel.toLowerCase()}` : `Novo ${entityLabel.toLowerCase()}`}
         </h2>
+        <p className="mt-0.5 text-sm text-muted-foreground">
+          {isEdit
+            ? `Editar dados do ${entityLabel.toLowerCase()} vinculado ao cliente.`
+            : `Cadastre um ${entityLabel.toLowerCase()} vinculado ao cliente.`}
+        </p>
       </div>
 
       <FormDrawerForm
@@ -144,34 +163,29 @@ export function PetSheet({
         <input type="hidden" name="entityType" value={entityType} readOnly />
         <input type="hidden" name="status" value={pet?.status ?? "active"} readOnly />
 
-        <FormSection title="Dados do pet">
+        {/* Main pet fields — no section heading, matching the spec. */}
+        <FormSection>
           <TemplateFieldInputs fields={groups.main} values={pet?.customData} />
         </FormSection>
 
-        {groups.tutor2.length > 0 && (
-          <details className="rounded-xl border border-border bg-card/40 p-3.5">
-            <summary className="cursor-pointer text-xs font-bold tracking-[0.06em] text-muted-foreground">
-              Tutor adicional
-            </summary>
-            <div className="mt-3.5">
-              <FormSection>
-                <TemplateFieldInputs fields={groups.tutor2} values={pet?.customData} />
-              </FormSection>
+        {/* Optional second tutor — a button that reveals the fields on demand. */}
+        {groups.tutor2.length > 0 &&
+          (showTutor ? (
+            <FormSection title="Tutor adicional">
+              <TemplateFieldInputs fields={groups.tutor2} values={pet?.customData} />
+            </FormSection>
+          ) : (
+            <div>
+              <Button type="button" tone="neutral" appearance="outline" size="sm" className="rounded-lg" onClick={() => setShowTutor(true)}>
+                <UserPlus /> Adicionar tutor
+              </Button>
             </div>
-          </details>
-        )}
+          ))}
 
         {groups.emergency.length > 0 && (
-          <details className="rounded-xl border border-border bg-card/40 p-3.5">
-            <summary className="cursor-pointer text-xs font-bold tracking-[0.06em] text-muted-foreground">
-              Contato de emergência
-            </summary>
-            <div className="mt-3.5">
-              <FormSection>
-                <TemplateFieldInputs fields={groups.emergency} values={pet?.customData} />
-              </FormSection>
-            </div>
-          </details>
+          <FormSection title="Contato de emergência">
+            <TemplateFieldInputs fields={groups.emergency} values={pet?.customData} />
+          </FormSection>
         )}
       </FormDrawerForm>
     </FormDrawer>

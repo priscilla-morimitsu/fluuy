@@ -1,6 +1,7 @@
 "use client";
 
-import { Building2, Check, Copy, Loader2, Pencil, Plus, Star, Tag, Trash2, User, X } from "lucide-react";
+import { Building2, Check, ChevronRight, Copy, Loader2, Mail, MapPin, PawPrint, Pencil, Plus, Tag, Trash2, User, X } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { type FormEventHandler, useActionState, useEffect, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 
@@ -16,15 +17,17 @@ import {
 } from "@/components/ui/alert-dialog";
 import { StatusSwitchItem, type StatusOption } from "@/components/forms/status-switch-item";
 import { AddressFormFields } from "@/components/ui/address-fields";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Combobox } from "@/components/ui/combobox";
 import { DatePicker } from "@/components/ui/date-picker";
 import { AffixInput, Field } from "@/components/ui/field";
-import { FormSection } from "@/components/ui/form-drawer";
+import { FormGrid, FormSection } from "@/components/ui/form-drawer";
+import { GlassTimeline, type TimelineItem } from "@/components/ui/glass-timeline";
 import { DocumentInput, PhoneInput } from "@/components/ui/masked-inputs";
 import { MultiSelect } from "@/components/ui/multiselect";
+import { SwitchToggle } from "@/components/ui/switch-toggle";
 import { Textarea } from "@/components/ui/textarea";
-import { cn } from "@/lib/utils";
 import { onlyDigits } from "@/lib/masks";
 import type { AddressValue } from "@/lib/address/types";
 import { actionError, actionOk } from "@/lib/admin/action-result";
@@ -34,17 +37,38 @@ import {
   CUSTOMER_STATUS_LABELS,
   pluralizePt,
 } from "@/lib/validations/customer";
-import { deriveEntityName, type TemplateField } from "@/lib/validations/template";
+import { cn } from "@/lib/utils";
+import {
+  deriveEntityName,
+  entityNameFieldKey,
+  type TemplateField,
+  type TemplateLayout,
+} from "@/lib/validations/template";
 
 import {
   createCustomerAction,
   createCustomerTagAction,
+  deleteCustomerEntityAction,
   deleteCustomerTagAction,
+  getCustomerAction,
   updateCustomerAction,
   updateCustomerTagAction,
   type CustomerActionResult,
 } from "./actions";
+import { PetSheet, type PetSheetPet } from "./pet-sheet";
 import { TemplateFieldInputs } from "./template-fields";
+
+/** Short "valor · valor · valor" summary of a pet's first non-name fields. */
+function petSummary(fields: TemplateField[], values: Record<string, unknown>): string {
+  const nameKey = entityNameFieldKey(fields);
+  return fields
+    .filter((f) => f.key !== nameKey)
+    .map((f) => values[f.key])
+    .filter((v) => v != null && String(v).trim() !== "")
+    .slice(0, 3)
+    .map((v) => (Array.isArray(v) ? v.join(", ") : String(v)))
+    .join(" · ");
+}
 
 export type CustomerTagOption = { id: string; name: string; color: string | null; customerCount: number };
 
@@ -93,36 +117,34 @@ export type CustomerInitial = {
 
 type PersonType = "individual" | "company";
 
-/** Controlled PF/PJ segmented toggle that submits via a hidden `personType` input. */
+/** Controlled PF/PJ switch (single button) that submits via a hidden `personType` input. */
 function PersonTypeToggle({ value, onChange }: { value: PersonType; onChange: (v: PersonType) => void }) {
-  const options: { value: PersonType; label: string; icon: typeof User }[] = [
-    { value: "individual", label: "Pessoa física", icon: User },
-    { value: "company", label: "Pessoa jurídica", icon: Building2 },
-  ];
   return (
-    <div role="radiogroup" aria-label="Tipo de cliente" className="inline-flex h-11 items-center gap-1 rounded-xl bg-muted p-1 text-sm">
-      <input type="hidden" name="personType" value={value} />
-      {options.map((o) => {
-        const Icon = o.icon;
-        const selected = value === o.value;
-        return (
-          <button
-            key={o.value}
-            type="button"
-            role="radio"
-            aria-checked={selected}
-            onClick={() => onChange(o.value)}
-            className={cn(
-              "flex flex-1 items-center justify-center gap-1.5 rounded-xl px-3 py-1.5 font-medium transition-colors focus-visible:ring-3 focus-visible:ring-ring/50",
-              selected ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
-            )}
-          >
-            <Icon className="size-4" />
-            {o.label}
-          </button>
-        );
-      })}
-    </div>
+    <SwitchToggle
+      name="personType"
+      value={value}
+      onChange={(v) => onChange(v === "company" ? "company" : "individual")}
+      a={{
+        value: "individual",
+        label: "Pessoa física",
+        icon: <User />,
+        tint: "var(--lime-200)",
+        c: "var(--lime-600)",
+        bd: "var(--lime-400)",
+        solid: "var(--lime-300)",
+        on: "var(--neutral-900)",
+      }}
+      b={{
+        value: "company",
+        label: "Pessoa jurídica",
+        icon: <Building2 />,
+        tint: "oklch(0.63 0.09 230 / 0.14)",
+        c: "oklch(0.5 0.1 230)",
+        bd: "oklch(0.63 0.09 230 / 0.42)",
+        solid: "oklch(0.63 0.09 230)",
+        on: "#fff",
+      }}
+    />
   );
 }
 
@@ -207,6 +229,7 @@ export default function CustomerForm({
   slug,
   tags,
   templateFields,
+  templateLayout,
   customerLabel,
   entityLabel,
   entityType,
@@ -219,6 +242,7 @@ export default function CustomerForm({
   slug: string;
   tags: CustomerTagOption[];
   templateFields: TemplateField[];
+  templateLayout?: TemplateLayout;
   customerLabel: string;
   entityLabel: string;
   entityType: string;
@@ -298,18 +322,61 @@ export default function CustomerForm({
   const [addressesDirty, setAddressesDirty] = useState(false);
   const markAddressesDirty = () => setAddressesDirty(true);
 
-  // Pets — the niche's related entities, edited inline. Same uid/index scheme as
-  // addresses; each row submits pet{i}_id / pet{i}_status / pet{i}_custom_*.
+  // Pets — the niche's related entities. On CREATE they're edited inline and
+  // submitted with the customer (pet{i}_id / pet{i}_status / pet{i}_custom_*).
+  // On EDIT they're managed independently through the dedicated PetSheet, so the
+  // customer save opts out of touching entities (see `entitiesUnmanaged`).
   const [pets, setPets] = useState<PetEntry[]>(
     () => (initial?.entities.filter((e) => e.entityType === entityType).map(toPetEntry) ?? []),
   );
 
-  // Steps — Pets step only appears when the related-entities feature is on.
-  const steps: { key: string; title: string }[] = [
-    { key: "main", title: "Dados" },
-    { key: "tags", title: "Tags e endereços" },
-    ...(showPets ? [{ key: "pets", title: `${pluralizePt(entityLabel)}` }] : []),
-    { key: "more", title: "Mais informações" },
+  // Edit-mode pet list (cards) + the PetSheet editor it opens. Seeded from the
+  // loaded customer and refetched after each PetSheet save / delete.
+  const initialPetList = (): PetSheetPet[] =>
+    initial?.entities
+      .filter((e) => e.entityType === entityType)
+      .map((e) => ({ id: e.id, status: e.status, customData: e.customData })) ?? [];
+  const [petList, setPetList] = useState<PetSheetPet[]>(initialPetList);
+  const [petEditor, setPetEditor] = useState<{ pet?: PetSheetPet } | null>(null);
+  const [petToDelete, setPetToDelete] = useState<PetSheetPet | null>(null);
+  const [petsBusy, startPetsBusy] = useTransition();
+
+  const refreshPets = () => {
+    if (!initial) return;
+    startPetsBusy(async () => {
+      const res = await getCustomerAction(slug, initial.id);
+      if ("customer" in res) {
+        setPetList(
+          res.customer.entities
+            .filter((e) => e.entityType === entityType)
+            .map((e) => ({ id: e.id, status: e.status, customData: e.customData })),
+        );
+      }
+    });
+  };
+
+  const confirmDeletePet = () => {
+    const pet = petToDelete;
+    if (!pet || !initial) return;
+    startPetsBusy(async () => {
+      const res = await deleteCustomerEntityAction(slug, initial.id, pet.id);
+      if (actionOk(res)) {
+        toast.success(`${entityLabel} removido.`);
+        setPetList((prev) => prev.filter((p) => p.id !== pet.id));
+      } else {
+        toast.error(actionError(res) ?? "Não foi possível remover.");
+      }
+      setPetToDelete(null);
+    });
+  };
+
+  // Steps — mirror the design mockup: Identificação · Endereço · Detalhes · Pets
+  // (the Pets step, when the related-entities feature is on, sits last).
+  const steps: { key: string; title: string; icon: LucideIcon }[] = [
+    { key: "ident", title: "Identificação", icon: User },
+    { key: "address", title: "Endereço", icon: MapPin },
+    { key: "details", title: "Detalhes", icon: Tag },
+    ...(showPets ? [{ key: "pets", title: `${pluralizePt(entityLabel)}`, icon: PawPrint }] : []),
   ];
   const [step, setStep] = useState(0);
   const isLast = step === steps.length - 1;
@@ -392,7 +459,7 @@ export default function CustomerForm({
 
   // Lightweight client gate so the user can't skip the only hard-required step.
   const goNext = () => {
-    if (activeKey === "main" && formRef.current) {
+    if (activeKey === "ident" && formRef.current) {
       const data = new FormData(formRef.current);
       const name = String(data.get("name") ?? "").trim();
       const phone = onlyDigits(String(data.get("phone") ?? ""));
@@ -446,64 +513,66 @@ export default function CustomerForm({
   return (
     <form ref={formRef} action={formAction} onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
       <div className="@container flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto p-5">
-        {/* Navigation — tabs (free) on edit, sequential stepper on create */}
+        {/* Navigation — edit: tabs (free jumping) · create: glass timeline. */}
         {isEdit ? (
           <div
             role="tablist"
             aria-label="Seções do cliente"
-            className="flex flex-wrap items-center gap-1.5 text-xs"
+            className="flex flex-wrap items-center gap-1.5"
             onKeyDown={(e) => {
               if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
               e.preventDefault();
               const dir = e.key === "ArrowRight" ? 1 : -1;
-              const nextIndex = (step + dir + steps.length) % steps.length;
-              setStep(nextIndex);
-              const nextTab = e.currentTarget.querySelector<HTMLButtonElement>(`#tab-${steps[nextIndex].key}`);
-              nextTab?.focus();
+              const next = (step + dir + steps.length) % steps.length;
+              setStep(next);
+              e.currentTarget.querySelector<HTMLButtonElement>(`#tab-${steps[next].key}`)?.focus();
             }}
           >
-            {steps.map((s, i) => (
-              <button
-                key={s.key}
-                id={`tab-${s.key}`}
-                type="button"
-                role="tab"
-                aria-selected={i === step}
-                aria-controls={`tabpanel-${s.key}`}
-                tabIndex={i === step ? 0 : -1}
-                onClick={() => setStep(i)}
-                className={
-                  "rounded-full border px-2.5 py-1 font-medium transition-colors " +
-                  (i === step
-                    ? "border-[var(--lime-400)] bg-(--lime-50) text-foreground"
-                    : "border-border text-muted-foreground hover:bg-muted")
-                }
-              >
-                {s.title}
-              </button>
-            ))}
+            {steps.map((s, i) => {
+              const Icon = s.icon;
+              const active = i === step;
+              return (
+                <button
+                  key={s.key}
+                  id={`tab-${s.key}`}
+                  type="button"
+                  role="tab"
+                  aria-selected={active}
+                  aria-controls={`tabpanel-${s.key}`}
+                  tabIndex={active ? 0 : -1}
+                  onClick={() => setStep(i)}
+                  className={cn(
+                    "inline-flex items-center gap-2 rounded-xl border px-3.5 py-2 text-sm font-medium transition-colors [&_svg]:size-4",
+                    active
+                      ? "border-[var(--lime-300)] bg-[var(--lime-100)] text-foreground"
+                      : "border-transparent text-muted-foreground hover:bg-muted",
+                  )}
+                >
+                  <Icon /> {s.title}
+                </button>
+              );
+            })}
           </div>
         ) : (
-          <ol className="flex flex-wrap items-center gap-1.5 text-xs">
-            {steps.map((s, i) => (
-              <li key={s.key} className="flex items-center gap-1.5">
-                <button
-                  type="button"
-                  onClick={() => setStep(i)}
-                  className={
-                    "rounded-full border px-2.5 py-1 font-medium transition-colors " +
-                    (i === step
-                      ? "border-[var(--lime-400)] bg-(--lime-50) text-foreground"
-                      : "border-border text-muted-foreground hover:bg-muted")
-                  }
-                  aria-current={i === step ? "step" : undefined}
-                >
-                  {i + 1}. {s.title}
-                </button>
-                {i < steps.length - 1 && <span className="text-muted-foreground/50">›</span>}
-              </li>
-            ))}
-          </ol>
+          <div role="tablist" aria-label="Seções do cliente">
+            <GlassTimeline
+              items={steps.map<TimelineItem>((s, i) => {
+                const Icon = s.icon;
+                return {
+                  id: s.key,
+                  title: s.title,
+                  icon: <Icon />,
+                  status: i < step ? "completed" : i === step ? "current" : "upcoming",
+                  buttonId: `tab-${s.key}`,
+                  controls: `tabpanel-${s.key}`,
+                };
+              })}
+              onItemClick={(_id, i) => setStep(i)}
+            />
+            <p className="mt-3 text-xs text-muted-foreground">
+              Etapa <span className="font-semibold text-foreground">{step + 1}</span> de {steps.length}
+            </p>
+          </div>
         )}
 
         {actionError(state) && (
@@ -518,33 +587,52 @@ export default function CustomerForm({
         ))}
         <input type="hidden" name="addressCount" value={addresses.length} />
         <input type="hidden" name="defaultAddressIndex" value={defaultIndex >= 0 ? defaultIndex : ""} />
-        {showPets && <input type="hidden" name="petCount" value={pets.length} />}
+        {/* Create posts pets inline (pet{i}_*); edit manages them via the
+            PetSheet and tells the action to leave entities untouched. */}
+        {showPets && !isEdit && <input type="hidden" name="petCount" value={pets.length} />}
+        {showPets && isEdit && <input type="hidden" name="entitiesUnmanaged" value="1" />}
 
-        {/* Step 1 — Dados */}
+        {/* Step 1 — Identificação */}
         <div
-          hidden={activeKey !== "main"}
+          hidden={activeKey !== "ident"}
           className="flex flex-col gap-5"
-          {...(isEdit ? { role: "tabpanel", id: "tabpanel-main", "aria-labelledby": "tab-main" } : {})}
+          role="tabpanel" id="tabpanel-ident" aria-labelledby="tab-ident"
         >
-          <FormSection title="Informações principais">
+          <FormSection title="Situação cadastral">
             <div className="col-span-full">
               <StatusSwitchItem title="Status do cliente" name="status" value={status} onChange={setStatus} options={STATUS_OPTIONS} />
             </div>
-            <Field label="Tipo de cliente" className="col-span-full">
-              <PersonTypeToggle value={personType} onChange={setPersonType} />
-            </Field>
-            <Field label={nameLabel} htmlFor="name" required className="col-span-full">
-              <AffixInput
-                id="name"
-                name="name"
-                maxLength={150}
-                defaultValue={initial?.name}
-                leadIcon={isCompany ? <Building2 /> : <User />}
-              />
-            </Field>
           </FormSection>
 
-          <FormSection title="Contato">
+          <FormSection title="Dados básicos">
+            {/* Tipo de cliente takes only the width its toggle needs; Nome fills the rest. */}
+            <div className="col-span-full flex flex-wrap items-end gap-3.5">
+              <Field label="Tipo de cliente" className="shrink-0">
+                <PersonTypeToggle value={personType} onChange={setPersonType} />
+              </Field>
+              <Field label={nameLabel} htmlFor="name" required className="min-w-[12rem] flex-1">
+                <AffixInput
+                  id="name"
+                  name="name"
+                  maxLength={150}
+                  defaultValue={initial?.name}
+                  leadIcon={isCompany ? <Building2 /> : <User />}
+                />
+              </Field>
+            </div>
+            <Field label={documentLabel} htmlFor="document" hint="Opcional. Não exibido para a IA nem para o cliente.">
+              <DocumentInput id="document" name="document" defaultValue={initial?.document ?? ""} />
+            </Field>
+            {/* Kept mounted (visually hidden for companies) so the hidden yyyy-MM-dd
+                input is always submitted and an existing birthDate is never wiped. */}
+            <div hidden={isCompany}>
+              <Field label="Data de nascimento" htmlFor="birthDate">
+                <DatePicker id="birthDate" name="birthDate" value={birthDate} onChange={setBirthDate} />
+              </Field>
+            </div>
+          </FormSection>
+
+          <FormSection title="Canais de contato">
             <Field label="Telefone principal" htmlFor="phone" required hint="Usado para identificar o cliente no WhatsApp.">
               <PhoneInput id="phone" name="phone" defaultValue={initial?.phone ?? ""} />
             </Field>
@@ -557,31 +645,105 @@ export default function CustomerForm({
               </div>
             </Field>
             <Field label="E-mail" htmlFor="email" className="col-span-full">
-              <AffixInput id="email" name="email" type="email" defaultValue={initial?.email ?? ""} placeholder="email@exemplo.com" />
+              <AffixInput id="email" name="email" type="email" leadIcon={<Mail />} defaultValue={initial?.email ?? ""} placeholder="email@exemplo.com" />
             </Field>
-          </FormSection>
-
-          <FormSection title="Documento e dados pessoais">
-            <Field label={documentLabel} htmlFor="document" hint="Opcional. Não exibido para a IA nem para o cliente.">
-              <DocumentInput id="document" name="document" defaultValue={initial?.document ?? ""} />
-            </Field>
-            {/* Kept mounted (visually hidden for companies) so the hidden yyyy-MM-dd
-                input is always submitted and an existing birthDate is never wiped. */}
-            <div hidden={isCompany}>
-              <Field label="Data de nascimento" htmlFor="birthDate">
-                <DatePicker id="birthDate" name="birthDate" value={birthDate} onChange={setBirthDate} />
-              </Field>
-            </div>
           </FormSection>
         </div>
 
-        {/* Step 2 — Tags e endereços */}
+        {/* Step 2 — Endereço */}
         <div
-          hidden={activeKey !== "tags"}
+          hidden={activeKey !== "address"}
           className="flex flex-col gap-5"
-          {...(isEdit ? { role: "tabpanel", id: "tabpanel-tags", "aria-labelledby": "tab-tags" } : {})}
+          role="tabpanel" id="tabpanel-address" aria-labelledby="tab-address"
         >
-          <FormSection title="Tags">
+          <section className="flex flex-col gap-3.5">
+            <div className="flex items-center justify-between gap-2">
+              <h3 className="text-xs font-bold tracking-[0.06em] text-muted-foreground uppercase">Endereços</h3>
+              <Button type="button" tone="neutral" appearance="outline" size="sm" className="rounded-lg" onClick={addAddress}>
+                <Plus /> Adicionar endereço
+              </Button>
+            </div>
+            <div className="flex flex-col gap-4">
+              {addresses.length === 0 && (
+                <p className="text-sm text-muted-foreground">Nenhum endereço cadastrado.</p>
+              )}
+              {addresses.map((entry, i) => {
+                const isDefault = defaultUid === entry.uid;
+                return (
+                  <div
+                    key={entry.uid}
+                    className={cn(
+                      "flex flex-col gap-3 rounded-lg border p-3",
+                      isDefault ? "border-[var(--lime-500)]" : "border-border",
+                    )}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setDefaultUid(entry.uid);
+                          markAddressesDirty();
+                        }}
+                        aria-pressed={isDefault}
+                        aria-label={`Definir endereço ${i + 1} como padrão`}
+                        className="flex items-center gap-2"
+                      >
+                        <span
+                          className={cn(
+                            "grid size-4 shrink-0 place-items-center rounded-full border",
+                            isDefault ? "border-[var(--lime-500)]" : "border-border",
+                          )}
+                        >
+                          {isDefault && <span className="size-2 rounded-full bg-[var(--lime-500)]" />}
+                        </span>
+                        <span className="text-sm font-medium">Endereço {i + 1}</span>
+                        {isDefault && <Badge variant="success">Padrão</Badge>}
+                      </button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        aria-label={`Remover endereço ${i + 1}`}
+                        onClick={() => removeAddress(entry.uid)}
+                      >
+                        <Trash2 className="text-destructive" />
+                      </Button>
+                    </div>
+                    <FormGrid>
+                      <Field label="Tipo" htmlFor={`addr${i}_type`}>
+                        <Combobox
+                          id={`addr${i}_type`}
+                          name={`addr${i}_type`}
+                          defaultValue={entry.type}
+                          options={ADDRESS_TYPE_OPTIONS}
+                          onValueChange={markAddressesDirty}
+                        />
+                      </Field>
+                      <Field label="Identificação" htmlFor={`addr${i}_name`} hint="Ex.: Casa, Trabalho">
+                        <AffixInput
+                          id={`addr${i}_name`}
+                          name={`addr${i}_name`}
+                          defaultValue={entry.name}
+                          maxLength={120}
+                          onChange={markAddressesDirty}
+                        />
+                      </Field>
+                    </FormGrid>
+                    <AddressFormFields prefix={`addr${i}_`} defaultValue={entry.defaultValue} onChange={markAddressesDirty} />
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        </div>
+
+        {/* Step 3 — Detalhes */}
+        <div
+          hidden={activeKey !== "details"}
+          className="flex flex-col gap-5"
+          role="tabpanel" id="tabpanel-details" aria-labelledby="tab-details"
+        >
+          <FormSection title="Segmentação">
             <Field label="Tags do cliente" htmlFor="tagsSelect" className="col-span-full">
               <MultiSelect
                 key={`tags-${tagKey}`}
@@ -690,129 +852,6 @@ export default function CustomerForm({
             )}
           </FormSection>
 
-          <FormSection title="Endereços">
-            <div className="col-span-full flex flex-col gap-4">
-              {addresses.length === 0 && (
-                <p className="text-sm text-muted-foreground">Nenhum endereço. Adicione um endereço, se necessário.</p>
-              )}
-              {addresses.map((entry, i) => (
-                <div key={entry.uid} className="flex flex-col gap-3 rounded-lg border border-border p-3">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-sm font-medium">Endereço {i + 1}</span>
-                    <span className="flex items-center gap-1">
-                      <Button
-                        type="button"
-                        variant={defaultUid === entry.uid ? "secondary" : "ghost"}
-                        size="sm"
-                        onClick={() => {
-                          setDefaultUid(entry.uid);
-                          markAddressesDirty();
-                        }}
-                      >
-                        <Star className={defaultUid === entry.uid ? "fill-current" : ""} />
-                        {defaultUid === entry.uid ? "Padrão" : "Definir padrão"}
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        aria-label={`Remover endereço ${i + 1}`}
-                        onClick={() => removeAddress(entry.uid)}
-                      >
-                        <X />
-                      </Button>
-                    </span>
-                  </div>
-                  <div className="grid grid-cols-1 gap-3 @[440px]:grid-cols-2">
-                    <Field label="Tipo" htmlFor={`addr${i}_type`}>
-                      <Combobox
-                        id={`addr${i}_type`}
-                        name={`addr${i}_type`}
-                        defaultValue={entry.type}
-                        options={ADDRESS_TYPE_OPTIONS}
-                        onValueChange={markAddressesDirty}
-                      />
-                    </Field>
-                    <Field label="Identificação" htmlFor={`addr${i}_name`} hint="Ex.: Casa, Trabalho">
-                      <AffixInput
-                        id={`addr${i}_name`}
-                        name={`addr${i}_name`}
-                        defaultValue={entry.name}
-                        maxLength={120}
-                        onChange={markAddressesDirty}
-                      />
-                    </Field>
-                  </div>
-                  <AddressFormFields prefix={`addr${i}_`} defaultValue={entry.defaultValue} onChange={markAddressesDirty} />
-                </div>
-              ))}
-              <div>
-                <Button type="button" variant="ghost" size="sm" onClick={addAddress}>
-                  <Plus /> Adicionar endereço
-                </Button>
-              </div>
-            </div>
-          </FormSection>
-        </div>
-
-        {/* Step 3 — Pets (related entities) */}
-        {showPets && (
-          <div
-            hidden={activeKey !== "pets"}
-            className="flex flex-col gap-4"
-            {...(isEdit ? { role: "tabpanel", id: "tabpanel-pets", "aria-labelledby": "tab-pets" } : {})}
-          >
-            <p className="text-sm text-muted-foreground">
-              O cliente é o tutor principal. Adicione um ou mais {pluralizePt(entityLabel).toLowerCase()} vinculados a ele.
-            </p>
-            {pets.length === 0 && (
-              <p className="text-sm text-muted-foreground">Nenhum {entityLower} adicionado.</p>
-            )}
-            {pets.map((pet, i) => (
-              <div key={pet.uid} className="flex flex-col gap-3 rounded-lg border border-border p-3">
-                <input type="hidden" name={`pet${i}_id`} value={pet.id ?? ""} />
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-sm font-medium">
-                    {deriveEntityName(entityTemplateFields, pet.values) || `${entityLabel} ${i + 1}`}
-                  </span>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    aria-label={`Remover ${entityLabel} ${i + 1}`}
-                    onClick={() => removePet(pet.uid)}
-                  >
-                    <X />
-                  </Button>
-                </div>
-                <div className="grid grid-cols-1 gap-3.5 @[440px]:grid-cols-2">
-                  <TemplateFieldInputs fields={entityTemplateFields} prefix={`pet${i}_custom_`} values={pet.values} />
-                  <Field label="Status" htmlFor={`pet${i}_status`}>
-                    <Combobox
-                      id={`pet${i}_status`}
-                      name={`pet${i}_status`}
-                      value={pet.status}
-                      onValueChange={(v) => setPetStatus(pet.uid, v)}
-                      options={PET_STATUS_OPTIONS}
-                    />
-                  </Field>
-                </div>
-              </div>
-            ))}
-            <div>
-              <Button type="button" variant="ghost" size="sm" onClick={addPet}>
-                <Plus /> Adicionar {entityLower}
-              </Button>
-            </div>
-          </div>
-        )}
-
-        {/* Last step — Consentimento, observações e campos do nicho */}
-        <div
-          hidden={activeKey !== "more"}
-          className="flex flex-col gap-5"
-          {...(isEdit ? { role: "tabpanel", id: "tabpanel-more", "aria-labelledby": "tab-more" } : {})}
-        >
           <FormSection title="Consentimento (LGPD)">
             <Field label="Consentimento aceito em" htmlFor="consentAcceptedAt">
               <DatePicker id="consentAcceptedAt" name="consentAcceptedAt" value={consentDate} onChange={setConsentDate} />
@@ -848,10 +887,123 @@ export default function CustomerForm({
 
           {templateFields.length > 0 && (
             <FormSection title="Campos específicos do nicho">
-              <TemplateFieldInputs fields={templateFields} values={initial?.customData} />
+              <TemplateFieldInputs fields={templateFields} layout={templateLayout} values={initial?.customData} />
             </FormSection>
           )}
         </div>
+
+        {/* Step 4 — Pets (related entities) */}
+        {showPets && (
+          <div
+            hidden={activeKey !== "pets"}
+            className="flex flex-col gap-4"
+            role="tabpanel" id="tabpanel-pets" aria-labelledby="tab-pets"
+          >
+            {isEdit ? (
+              // Edit — pets are real records: a card list that opens the dedicated
+              // PetSheet for create/edit and deletes via the entity action.
+              <>
+                <div className="flex items-center justify-between gap-2">
+                  <h3 className="text-xs font-bold tracking-[0.06em] text-muted-foreground uppercase">
+                    {pluralizePt(entityLabel)} do cliente
+                  </h3>
+                  <Button type="button" tone="neutral" appearance="outline" size="sm" className="rounded-lg" onClick={() => setPetEditor({})}>
+                    <Plus /> Adicionar {entityLower}
+                  </Button>
+                </div>
+                {petList.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">Nenhum {entityLower} adicionado.</p>
+                ) : (
+                  <ul className="flex flex-col gap-3">
+                    {petList.map((pet, i) => {
+                      const name = deriveEntityName(entityTemplateFields, pet.customData) || `${entityLabel} ${i + 1}`;
+                      const summary = petSummary(entityTemplateFields, pet.customData);
+                      return (
+                        <li
+                          key={pet.id}
+                          className="flex items-center gap-2 rounded-2xl border border-border bg-card p-3"
+                        >
+                          <button
+                            type="button"
+                            onClick={() => setPetEditor({ pet })}
+                            className="flex flex-1 items-center gap-3 text-left"
+                            aria-label={`Editar ${name}`}
+                          >
+                            <span className="grid size-10 shrink-0 place-items-center rounded-full bg-[var(--lime-100)] text-[var(--lime-700)] [&_svg]:size-5">
+                              <PawPrint />
+                            </span>
+                            <span className="flex min-w-0 flex-col">
+                              <span className="truncate font-semibold text-foreground">{name}</span>
+                              {summary && <span className="truncate text-xs text-muted-foreground">{summary}</span>}
+                            </span>
+                          </button>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            tooltip={`Remover ${name}`}
+                            disabled={petsBusy}
+                            onClick={() => setPetToDelete(pet)}
+                          >
+                            <Trash2 className="text-destructive" />
+                          </Button>
+                          <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </>
+            ) : (
+              // Create — the customer doesn't exist yet, so pets are edited inline
+              // and submitted with the form (pet{i}_*).
+              <>
+                <p className="text-sm text-muted-foreground">
+                  O cliente é o tutor principal. Adicione um ou mais {pluralizePt(entityLabel).toLowerCase()} vinculados a ele.
+                </p>
+                {pets.length === 0 && (
+                  <p className="text-sm text-muted-foreground">Nenhum {entityLower} adicionado.</p>
+                )}
+                {pets.map((pet, i) => (
+                  <div key={pet.uid} className="flex flex-col gap-3 rounded-lg border border-border p-3">
+                    <input type="hidden" name={`pet${i}_id`} value={pet.id ?? ""} />
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-sm font-medium">
+                        {deriveEntityName(entityTemplateFields, pet.values) || `${entityLabel} ${i + 1}`}
+                      </span>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        aria-label={`Remover ${entityLabel} ${i + 1}`}
+                        onClick={() => removePet(pet.uid)}
+                      >
+                        <X />
+                      </Button>
+                    </div>
+                    <div className="grid grid-cols-1 gap-3.5 @[440px]:grid-cols-2">
+                      <TemplateFieldInputs fields={entityTemplateFields} prefix={`pet${i}_custom_`} values={pet.values} />
+                      <Field label="Status" htmlFor={`pet${i}_status`}>
+                        <Combobox
+                          id={`pet${i}_status`}
+                          name={`pet${i}_status`}
+                          value={pet.status}
+                          onValueChange={(v) => setPetStatus(pet.uid, v)}
+                          options={PET_STATUS_OPTIONS}
+                        />
+                      </Field>
+                    </div>
+                  </div>
+                ))}
+                <div>
+                  <Button type="button" tone="neutral" appearance="outline" size="sm" className="rounded-lg" onClick={addPet}>
+                    <Plus /> Adicionar {entityLower}
+                  </Button>
+                </div>
+              </>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Footer — edit: Cancelar / Salvar · create: stepper navigation */}
@@ -926,6 +1078,45 @@ export default function CustomerForm({
               }}
             >
               Salvar alterações
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Dedicated pet create/edit sheet (edit mode only). Portals out of this
+          form, so its own <form> isn't nested. Refetches the list on save. */}
+      {isEdit && showPets && petEditor && (
+        <PetSheet
+          slug={slug}
+          client={{ id: initial!.id, name: initial!.name }}
+          entityType={entityType}
+          entityLabel={entityLabel}
+          templateFields={entityTemplateFields}
+          pet={petEditor.pet}
+          onClose={() => setPetEditor(null)}
+          onSaved={refreshPets}
+        />
+      )}
+
+      <AlertDialog open={petToDelete !== null} onOpenChange={(open) => !open && setPetToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remover {entityLower}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {petToDelete
+                ? `"${deriveEntityName(entityTemplateFields, petToDelete.customData) || entityLabel}" será removido deste cliente. Esta ação não pode ser desfeita.`
+                : ""}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                confirmDeletePet();
+              }}
+            >
+              Remover
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -11,7 +11,7 @@ import {
   orderSourceSchema,
   orderStatusSchema,
 } from "@/lib/validations/order";
-import { templateFieldSchema, type TemplateField } from "@/lib/validations/template";
+import { templateFieldSchema, templateLayoutSchema, type TemplateField, type TemplateLayout } from "@/lib/validations/template";
 
 const PAGE_SIZES = [10, 20, 50, 100];
 const SORTABLE = new Set<string>(ORDER_SORTABLE);
@@ -38,14 +38,20 @@ export type OrderListParams = {
   pageSize?: number;
 };
 
-export async function orderTemplateFields(nicheId: string): Promise<TemplateField[]> {
+export async function orderTemplateFields(
+  nicheId: string,
+): Promise<{ fields: TemplateField[]; layout?: TemplateLayout }> {
   const template = await prisma.template.findFirst({
     where: { nicheId, entityType: "order", status: "active" },
     orderBy: { version: "desc" },
-    select: { fields: true },
+    select: { fields: true, config: true },
   });
   const parsed = templateFieldSchema.array().safeParse(template?.fields ?? []);
-  return parsed.success ? parsed.data : [];
+  const layout = templateLayoutSchema.safeParse((template?.config as { layout?: unknown } | null)?.layout);
+  return {
+    fields: parsed.success ? parsed.data : [],
+    layout: layout.success ? layout.data : undefined,
+  };
 }
 
 function dateRange(from?: string, to?: string): Prisma.DateTimeFilter | undefined {
