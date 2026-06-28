@@ -17,7 +17,8 @@ import {
   FINAL_STATUSES,
   type AppointmentStatus,
 } from "@/lib/validations/appointment";
-import { validateCustomData, type TemplateField } from "@/lib/validations/template";
+import { validateCustomData } from "@/lib/validations/template";
+import { readCustomData } from "@/lib/custom-data";
 
 import { appointmentTemplateFields, getAppointment, type AppointmentDetail } from "./data";
 
@@ -53,25 +54,13 @@ function parseForm(formData: FormData) {
     orderItemId: s(formData, "orderItemId"),
     modality: s(formData, "modality"),
     status: s(formData, "status"),
-    source: s(formData, "source"),
+    // Origin is system-assigned, never read from the form (see create action).
     startAt: s(formData, "startAt"),
     endAt: s(formData, "endAt"),
     timezone: s(formData, "timezone"),
     customerNotes: formData.get("customerNotes") ?? "",
     internalNotes: formData.get("internalNotes") ?? "",
   };
-}
-
-function readCustomData(fields: TemplateField[], formData: FormData): Record<string, unknown> {
-  const data: Record<string, unknown> = {};
-  for (const field of fields) {
-    const raw = formData.get(`custom_${field.key}`);
-    if (field.type === "boolean") data[field.key] = raw === "on" || raw === "true";
-    else if (field.type === "number") {
-      if (raw !== null && raw !== "") data[field.key] = Number(raw);
-    } else if (raw !== null && raw !== "") data[field.key] = String(raw);
-  }
-  return data;
 }
 
 async function exists(model: { findFirst: (args: { where: object; select: { id: true } }) => Promise<{ id: string } | null> }, where: object): Promise<boolean> {
@@ -155,7 +144,7 @@ export async function createAppointmentAction(
       return { error: "Já existe um agendamento nesse horário para o profissional ou local." };
     }
 
-    const fields = await appointmentTemplateFields(tenant.nicheId);
+    const { fields } = await appointmentTemplateFields(tenant.nicheId);
     const customData = readCustomData(fields, formData);
     const cdErrors = validateCustomData(fields, customData);
     if (cdErrors.length > 0) return { error: cdErrors[0] };
@@ -175,7 +164,9 @@ export async function createAppointmentAction(
         orderItemId: d.orderItemId ?? null,
         modality: d.modality,
         status,
-        source: d.source ?? "manual",
+        // Panel-created appointments are "manual"; other origins (ai, order…)
+        // are set by their own intake paths.
+        source: "manual",
         startAt: d.startAt,
         endAt,
         timezone: d.timezone ?? "America/Sao_Paulo",
@@ -221,7 +212,7 @@ export async function updateAppointmentAction(
       return { error: "Já existe um agendamento nesse horário para o profissional ou local." };
     }
 
-    const fields = await appointmentTemplateFields(tenant.nicheId);
+    const { fields } = await appointmentTemplateFields(tenant.nicheId);
     const customData = readCustomData(fields, formData);
     const cdErrors = validateCustomData(fields, customData);
     if (cdErrors.length > 0) return { error: cdErrors[0] };

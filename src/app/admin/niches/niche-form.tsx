@@ -45,6 +45,22 @@ export default function NicheForm({
       error={actionError(state)}
       onCancel={onCancel}
       submitLabel={isEdit ? "Salvar alterações" : "Criar nicho"}
+      confirmOnSave={isEdit}
+      confirmTitle="Confirmar alterações do nicho?"
+      initialValues={
+        initial && {
+          name: initial.name,
+          customerLabel: initial.customerLabel ?? "",
+          entityLabel: initial.entityLabel ?? "",
+          description: initial.description ?? "",
+        }
+      }
+      fieldLabels={{
+        name: "Nome",
+        customerLabel: "Label do cliente",
+        entityLabel: "Label da entidade",
+        description: "Descrição",
+      }}
     >
       <FormSection title="Identificação">
         <Field label="Key" htmlFor="key" required={!isEdit} hint={isEdit ? "Imutável após a criação." : "snake_case (ex: pet_services)"}>

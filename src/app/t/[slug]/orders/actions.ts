@@ -17,7 +17,9 @@ import {
   type OrderCreateInput,
   type OrderStatus,
 } from "@/lib/validations/order";
-import { validateCustomData, type TemplateField } from "@/lib/validations/template";
+import { validateCustomData } from "@/lib/validations/template";
+
+import { readCustomData } from "@/lib/custom-data";
 
 import { getOrder, orderTemplateFields } from "./data";
 import type { OrderFormInitial } from "./order-form";
@@ -100,18 +102,6 @@ function parsePayload(formData: FormData): unknown {
   }
 }
 
-function readCustomData(fields: TemplateField[], formData: FormData): Record<string, unknown> {
-  const data: Record<string, unknown> = {};
-  for (const field of fields) {
-    const raw = formData.get(`custom_${field.key}`);
-    if (field.type === "boolean") data[field.key] = raw === "on" || raw === "true";
-    else if (field.type === "number") {
-      if (raw !== null && raw !== "") data[field.key] = Number(raw);
-    } else if (raw !== null && raw !== "") data[field.key] = String(raw);
-  }
-  return data;
-}
-
 async function customerInTenant(tenantId: string, customerId: string): Promise<boolean> {
   const c = await prisma.customer.findFirst({ where: { id: customerId, tenantId }, select: { id: true } });
   return Boolean(c);
@@ -163,7 +153,7 @@ export async function createOrderAction(
     if (!(await customerInTenant(tenant.id, d.customerId))) return { error: "Informe o cliente." };
     if (!(await validateItemRefs(tenant.id, d.items))) return { error: "Item inválido." };
 
-    const fields = await orderTemplateFields(tenant.nicheId);
+    const { fields } = await orderTemplateFields(tenant.nicheId);
     const customData = readCustomData(fields, formData);
     const cdErrors = validateCustomData(fields, customData);
     if (cdErrors.length > 0) return { error: cdErrors[0] };
@@ -193,7 +183,9 @@ export async function createOrderAction(
           orderNumber,
           orderCode: orderCode(orderNumber),
           customerId: d.customerId,
-          source: d.source,
+          // Origin is system-assigned, never user-supplied: a panel-created order
+          // is "manual"; other origins (ai, order…) are set by their own paths.
+          source: d.source ?? "manual",
           channel: d.channel,
           status,
           fulfillmentType: d.fulfillmentType ?? null,
@@ -284,7 +276,7 @@ export async function updateOrderAction(
     if (!(await customerInTenant(tenant.id, d.customerId))) return { error: "Informe o cliente." };
     if (!(await validateItemRefs(tenant.id, d.items))) return { error: "Item inválido." };
 
-    const fields = await orderTemplateFields(tenant.nicheId);
+    const { fields } = await orderTemplateFields(tenant.nicheId);
     const customData = readCustomData(fields, formData);
     const cdErrors = validateCustomData(fields, customData);
     if (cdErrors.length > 0) return { error: cdErrors[0] };
@@ -302,7 +294,8 @@ export async function updateOrderAction(
         where: { id: orderId, tenantId: tenant.id },
         data: {
           customerId: d.customerId,
-          source: d.source,
+          // `source` is intentionally omitted on update — the original origin is
+          // preserved and never overwritten by a panel edit.
           channel: d.channel,
           fulfillmentType: d.fulfillmentType ?? null,
           subtotal: subtotal.toFixed(2),

@@ -1,0 +1,103 @@
+{
+  "$schema": "fluuy-status-switch-spec/v1",
+  "name": "fluuy_status_switch_item_spec_prompt",
+  "version": "1.0.0",
+  "language": "pt-BR",
+  "target_model": "Claude / Claude Code",
+  "repository": { "url": "https://github.com/priscilla-morimitsu/fluuy", "full_name": "priscilla-morimitsu/fluuy" },
+  "framework": "Next.js (App Router) + React + TypeScript",
+  "uiBase": "shadcn/ui (Switch, AlertDialog, Button) + tokens Fluuy + lucide-react",
+  "prototype": "components/forms/status-switch.card.html",
+
+  "prompt": "Implemente o componente StatusSwitchItem do Fluuy seguindo EXATAMENTE esta especificação. É um Choice Card (Item) que controla o status de uma entidade (ex.: tenant) entre Ativo, Inativo e Bloqueado. Toda mudança de status passa por um diálogo de confirmação que descreve o impacto. Base shadcn/ui; tokens Fluuy; lucide-react; Liquid Glass SEM glow. Não invente cores/raios fora dos tokens.",
+
+  "componentName": "StatusSwitchItem",
+
+  "v2_generalization": {
+    "summary": "O StatusSwitchItem é DIRIGIDO POR OPÇÕES e se ADAPTA ao contexto onde é aplicado. Cada formulário passa o conjunto de status (com os valores persistidos reais), os rótulos/descrições e a mensagem de impacto por transição. Toda mudança continua passando por um AlertDialog de confirmação.",
+    "api": {
+      "value": "string — status atual (controlado); deve ser um dos options[].value (o valor de enum persistido, ex.: 'active').",
+      "options": "StatusOption[] — { value, label, description, tone?: 'default'|'positive'|'danger', confirm: { title, message, confirmLabel?, danger? } }.",
+      "onChange": "(next: string) => void | Promise<void> — chamado APÓS confirmação.",
+      "name": "string? — emite <input type=hidden> com o value atual para postar no FormData.",
+      "control": "'auto' | 'switch' | 'pills' — 'auto': 2 opções → Switch; 3+ → pills selecionáveis.",
+      "first_option_is_on": "No modo switch, options[0] é o estado 'ligado/ativo'."
+    },
+    "rendering": {
+      "two_state": "Ativo/Inativo (ou Disponível/Indisponível): renderiza um Switch. SEM link/affordance destrutivo (não passar opção tone:'danger').",
+      "three_state_lifecycle": "rascunho/ativo/inativo: pills selecionáveis; nenhuma opção danger.",
+      "three_state_blocked": "ativo/inativo/bloqueado: a opção 'bloqueado' usa tone:'danger' (pílula vermelha com ícone Ban) e confirm.danger:true."
+    },
+    "placement": "DEVE ser o PRIMEIRO campo do formulário (antes do nome), ocupando a linha inteira (col-span-full).",
+    "simple_two_state_no_danger": "Para status simples ativo/inativo ou disponível/indisponível, NÃO exibir o botão/link destrutivo — basta não declarar opção com tone:'danger'.",
+    "overlay_when_nested": "Quando aberto DENTRO de um drawer (que já tem scrim), o AlertDialog usa overlay transparente (overlayClassName='bg-transparent') para não duplicar o overlay de fundo.",
+    "exception": "Máquinas de status de fluxo (pedido, agendamento, tenant active/trial/suspended/blocked) NÃO usam este componente — mantêm seus próprios controles."
+  },
+
+  "props": {
+    "title": "string — rótulo do item (ex.: 'Status do tenant')",
+    "status": "'ativo' | 'inativo' | 'bloqueado' (controlado) ou defaultStatus (não-controlado)",
+    "onChange": "(next: 'ativo' | 'inativo' | 'bloqueado') => void | Promise<void> — chamado APÓS confirmação",
+    "labels": "opcional — sobrescreve textos de subtítulo/diálogos"
+  },
+
+  "states": {
+    "ativo": { "switch": "ligado (--lime-400)", "card": "selecionado (borda --lime-400 + ring + fundo --lime-50)", "sub": "Ativo — o tenant tem acesso normal.", "actions": ["toggle→inativo", "link Bloquear acesso"] },
+    "inativo": { "switch": "desligado (--neutral-300)", "card": "neutro", "sub": "Inativo — o tenant está suspenso temporariamente.", "actions": ["toggle→ativo", "link Bloquear acesso"] },
+    "bloqueado": { "switch": "OCULTO", "card": "neutro", "sub": "Acesso bloqueado — o tenant não consegue entrar.", "actions": ["botão Desbloquear (outline, ícone LockOpen)"] }
+  },
+
+  "layout": {
+    "card": "Choice Card: display flex, align-items center, gap 12, padding 14, borda 1px --border, raio var(--radius-2xl), fundo --card. Selecionado (ativo): borda+ring --lime-400, fundo --lime-50.",
+    "textBlock": "esquerda, flex 1: título (text-sm, weight 600) + subtítulo (text-xs, --muted-foreground) + (quando não bloqueado) link danger 'Bloquear acesso' abaixo da descrição.",
+    "control": "direita, flex-shrink 0: Switch (ativo/inativo) OU botão 'Desbloquear' (quando bloqueado).",
+    "dangerLink": "button link: text-xs, weight 600, cor --destructive, sublinhado, ícone Ban 13px; margin-top 7."
+  },
+
+  "interactions": {
+    "toggleSwitch": "Clicar no switch NÃO altera o estado direto — abre AlertDialog de confirmação. Só aplica onChange ao confirmar.",
+    "blockLink": "Clicar em 'Bloquear acesso' abre AlertDialog destrutivo (Bloquear). Ao confirmar → status='bloqueado'.",
+    "unblockButton": "No estado bloqueado o switch some e aparece 'Desbloquear'. Ao confirmar → status='inativo' (NUNCA volta direto para ativo).",
+    "cancel": "Fechar o diálogo (Cancelar / clique fora / Esc) mantém o status anterior."
+  },
+
+  "confirmDialog": {
+    "component": "shadcn AlertDialog",
+    "anatomy": "ícone em badge (TriangleAlert p/ destrutivo em fundo destructive/12%, CircleHelp p/ neutro em fundo --lime-50) + título + mensagem de impacto; rodapé com Cancelar (outline) + Confirmar (brand, ou destructive quando danger).",
+    "messages": {
+      "reativar": { "danger": false, "title": "Reativar tenant?", "message": "O tenant voltará a ter acesso e os agentes de IA retomarão o atendimento.", "confirm": "Reativar" },
+      "inativar": { "danger": false, "title": "Inativar tenant?", "message": "O acesso será suspenso temporariamente. As conversas em andamento serão pausadas até a reativação.", "confirm": "Inativar" },
+      "bloquear": { "danger": true, "title": "Bloquear tenant?", "message": "O tenant perderá o acesso imediatamente e todos os agentes serão desligados. Esta ação exige desbloqueio manual para ser revertida.", "confirm": "Bloquear" },
+      "desbloquear": { "danger": false, "title": "Desbloquear tenant?", "message": "O bloqueio será removido e o tenant ficará como Inativo. Ative-o em seguida para liberar o acesso.", "confirm": "Desbloquear" }
+    }
+  },
+
+  "tokens": {
+    "radius": "var(--radius-2xl) no card e diálogo; var(--radius-xl) nos botões/badge",
+    "switchOn": "--lime-400", "switchOff": "--neutral-300", "thumb": "#fff",
+    "selectedCard": "borda --lime-400, fundo --lime-50, ring 0 0 0 1px --lime-400",
+    "danger": "--destructive", "overlay": "var(--overlay) + blur(6px)"
+  },
+
+  "accessibility": {
+    "switch": "role=switch + aria-checked; operável por teclado (Enter/Space) → abre confirmação.",
+    "dialog": "AlertDialog com foco preso, Esc cancela, foco inicial no botão seguro (Cancelar).",
+    "blockLink/unblock": "button reais com rótulo textual; ícones decorativos (aria-hidden).",
+    "liveRegion": "anunciar mudança de status após confirmação (aria-live polite)."
+  },
+
+  "backendNotes": [
+    "onChange só dispara após confirmação; tratar como ação assíncrona (mostrar loading no botão Confirmar).",
+    "Transições válidas: ativo↔inativo (livre, confirmado); ativo/inativo→bloqueado (destrutivo); bloqueado→inativo (desbloqueio). NUNCA bloqueado→ativo direto.",
+    "Bloqueio deve persistir e exigir permissão adequada (ex.: tenant_owner/platform_admin); registrar auditoria.",
+    "Mensagens de impacto refletem efeitos reais (desligar agentes, pausar conversas)."
+  ],
+
+  "definition_of_done": [
+    "Três estados (ativo/inativo/bloqueado) com aparência e ações corretas.",
+    "Toda alteração passa por AlertDialog de confirmação com mensagem de impacto.",
+    "Bloqueado oculta o switch e mostra 'Desbloquear'; desbloquear retorna a Inativo.",
+    "onChange só após confirmar; cancelar preserva o estado.",
+    "Tokens Fluuy, raio 2xl, sem glow; acessibilidade (role=switch, AlertDialog, teclado)."
+  ]
+}

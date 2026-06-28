@@ -24,7 +24,7 @@ import { Combobox } from "@/components/ui/combobox";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { Label } from "@/components/ui/label";
 import type { TenantRole } from "@/components/nav/nav-types";
-import type { TemplateField } from "@/lib/validations/template";
+import type { TemplateField, TemplateLayout } from "@/lib/validations/template";
 
 import {
   deleteProductAction,
@@ -50,6 +50,7 @@ export default function ProductsClient({
   total,
   categories,
   templateFields,
+  templateLayout,
 }: {
   slug: string;
   role: TenantRole;
@@ -58,6 +59,7 @@ export default function ProductsClient({
   total: number;
   categories: ProductCategoryOption[];
   templateFields: TemplateField[];
+  templateLayout?: TemplateLayout;
 }) {
   const canWrite = role !== "tenant_viewer";
   const canDelete = role === "tenant_owner" || role === "tenant_manager";
@@ -215,6 +217,7 @@ export default function ProductsClient({
         tableId="tenant-products"
         columns={columns}
         data={rows}
+        onRowClick={canWrite ? (row) => openEdit(row.id) : undefined}
         hasActiveFilters={activeFilters.length > 0}
         onClearFilters={clearAll}
         toolbarStart={<SearchInput placeholder="Buscar por nome, marca, SKU ou código..." />}
@@ -268,6 +271,7 @@ export default function ProductsClient({
           slug={slug}
           categories={categories}
           templateFields={templateFields}
+          templateLayout={templateLayout}
           canManageCategories={canManageCategories}
           onCancel={() => setCreating(false)}
           onSuccess={() => {

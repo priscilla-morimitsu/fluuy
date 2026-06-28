@@ -42,6 +42,7 @@ function toInitial(row: TemplateListRow): TemplateInitial {
     name: row.name,
     description: row.description,
     fields: row.fields,
+    config: row.config,
   };
 }
 
@@ -159,6 +160,7 @@ export default function TemplatesClient({
         tableId="admin-templates"
         columns={columns}
         data={rows}
+        onRowClick={(row) => setEditing(toInitial(row))}
         hasActiveFilters={activeFilters.length > 0}
         onClearFilters={clearAll}
         toolbarStart={<SearchInput placeholder="Buscar por nome..." />}

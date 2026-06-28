@@ -9,7 +9,12 @@ import {
   appointmentSourceSchema,
   appointmentStatusSchema,
 } from "@/lib/validations/appointment";
-import { templateFieldSchema, type TemplateField } from "@/lib/validations/template";
+import {
+  templateFieldSchema,
+  templateLayoutSchema,
+  type TemplateField,
+  type TemplateLayout,
+} from "@/lib/validations/template";
 
 const PAGE_SIZES = [10, 20, 50, 100, 200];
 const SORTABLE = new Set<string>(APPOINTMENT_SORTABLE);
@@ -33,14 +38,20 @@ export type AppointmentListParams = {
   pageSize?: number;
 };
 
-export async function appointmentTemplateFields(nicheId: string): Promise<TemplateField[]> {
+export async function appointmentTemplateFields(
+  nicheId: string,
+): Promise<{ fields: TemplateField[]; layout?: TemplateLayout }> {
   const template = await prisma.template.findFirst({
     where: { nicheId, entityType: "appointment", status: "active" },
     orderBy: { version: "desc" },
-    select: { fields: true },
+    select: { fields: true, config: true },
   });
   const parsed = templateFieldSchema.array().safeParse(template?.fields ?? []);
-  return parsed.success ? parsed.data : [];
+  const layout = templateLayoutSchema.safeParse((template?.config as { layout?: unknown } | null)?.layout);
+  return {
+    fields: parsed.success ? parsed.data : [],
+    layout: layout.success ? layout.data : undefined,
+  };
 }
 
 export async function listAppointments(tenantId: string, params: AppointmentListParams) {

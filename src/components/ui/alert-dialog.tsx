@@ -41,13 +41,19 @@ function AlertDialogOverlay({
 function AlertDialogContent({
   className,
   size = "default",
+  overlayClassName,
   ...props
 }: AlertDialogPrimitive.Popup.Props & {
   size?: "default" | "sm"
+  /**
+   * Override the backdrop. Pass `bg-transparent` for dialogs opened on top of
+   * another scrim (e.g. inside a form drawer) so the overlay isn't doubled.
+   */
+  overlayClassName?: string
 }) {
   return (
     <AlertDialogPortal>
-      <AlertDialogOverlay />
+      <AlertDialogOverlay className={overlayClassName} />
       <AlertDialogPrimitive.Popup
         data-slot="alert-dialog-content"
         data-size={size}

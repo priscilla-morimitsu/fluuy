@@ -43,6 +43,20 @@ export default function FeatureForm({
       error={actionError(state)}
       onCancel={onCancel}
       submitLabel={isEdit ? "Salvar alterações" : "Criar feature"}
+      confirmOnSave={isEdit}
+      confirmTitle="Confirmar alterações da feature?"
+      initialValues={
+        initial && {
+          name: initial.name,
+          group: initial.group ?? "",
+          description: initial.description ?? "",
+        }
+      }
+      fieldLabels={{
+        name: "Nome",
+        group: "Grupo",
+        description: "Descrição",
+      }}
     >
       <FormSection title="Identificação">
         <Field label="Key" htmlFor="key" required={!isEdit} hint={isEdit ? "Imutável após a criação." : "snake_case"}>

@@ -15,6 +15,9 @@ const PUBLIC_PATHS = [
   "/api/auth",
   "/api/health",
   "/api/whatsapp/webhook",
+  // MCP server for the Zatten agent: authenticated per-tenant via Bearer token
+  // at the route (withMcpAuth), so the session middleware must not gate it.
+  "/api/mcp",
 ];
 
 export default auth((req) => {

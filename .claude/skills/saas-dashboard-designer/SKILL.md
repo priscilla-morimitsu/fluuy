@@ -60,3 +60,11 @@ Deliver:
 4. data states
 5. accessibility notes
 6. responsive behavior
+
+## Fluuy CRUD list + form conventions (mandatory)
+
+- Table rows are clickable (`cursor-pointer`) and open the edit drawer (`DataTable` `onRowClick`); the row actions menu still works.
+- Editing confirms before saving via an AlertDialog listing the changed fields (`FormDrawerForm` `confirmOnSave`).
+- `sonner` toasts on create/edit/sensitive actions (pt-BR).
+- lifecycle status uses the options-driven `StatusSwitchItem` as the first form field (simple two-state shows no danger affordance); flow status machines keep their own controls.
+- Origin (`source`) is system-assigned (no form field) and shown read-only with `OriginBadge` — distinct icon+color per origin (Agente IA, Manual/Usuário, Site, …).

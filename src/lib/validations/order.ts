@@ -125,7 +125,8 @@ export type OrderAddressInput = z.infer<typeof orderAddressInputSchema>;
 export const orderCreateSchema = z
   .object({
     customerId: z.string({ message: "Informe o cliente." }).uuid("Informe o cliente."),
-    source: orderSourceSchema,
+    // Origin is system-assigned (default "manual"), never sent by the form.
+    source: orderSourceSchema.optional(),
     channel: orderChannelSchema,
     status: orderStatusSchema.optional(),
     fulfillmentType: orderFulfillmentTypeSchema.nullish(),

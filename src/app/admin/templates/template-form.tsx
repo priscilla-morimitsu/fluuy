@@ -8,15 +8,10 @@ import { AffixInput, Field } from "@/components/ui/field";
 import { FormDrawerForm, FormSection } from "@/components/ui/form-drawer";
 import { Textarea } from "@/components/ui/textarea";
 import { actionError, actionOk } from "@/lib/admin/action-result";
-import { TEMPLATE_ENTITY_TYPES } from "@/lib/validations/template";
+import { TEMPLATE_ENTITY_TYPES, templateFieldSchema, templateLayoutSchema } from "@/lib/validations/template";
 
 import { createTemplateAction, updateTemplateAction, type ActionResult } from "./actions";
-
-const FIELDS_PLACEHOLDER = JSON.stringify(
-  [{ key: "species", label: "Espécie", type: "select", required: true, options: ["dog", "cat"] }],
-  null,
-  2,
-);
+import { FieldBuilder } from "./field-builder";
 
 export type TemplateInitial = {
   id: string;
@@ -25,6 +20,7 @@ export type TemplateInitial = {
   name: string;
   description: string | null;
   fields: unknown;
+  config: unknown;
 };
 
 export default function TemplateForm({
@@ -46,7 +42,10 @@ export default function TemplateForm({
     if (actionOk(state)) onSuccess?.();
   }, [state, onSuccess]);
 
-  const fieldsDefault = initial ? JSON.stringify(initial.fields, null, 2) : "[]";
+  // Seed the visual builder from the stored fields + layout (tolerant of legacy shapes).
+  const initialFields = templateFieldSchema.array().safeParse(initial?.fields ?? []);
+  const configLayout = (initial?.config as { layout?: unknown } | null)?.layout;
+  const initialLayout = templateLayoutSchema.safeParse(configLayout);
 
   // niche/entity are immutable after creation; Combobox is the standard select.
   const [nicheId, setNicheId] = useState(initial?.nicheId ?? "");
@@ -59,6 +58,18 @@ export default function TemplateForm({
       error={actionError(state)}
       onCancel={onCancel}
       submitLabel={isEdit ? "Salvar alterações" : "Criar template"}
+      confirmOnSave={isEdit}
+      confirmTitle="Confirmar alterações do template?"
+      initialValues={
+        initial && {
+          name: initial.name,
+          description: initial.description ?? "",
+        }
+      }
+      fieldLabels={{
+        name: "Nome do template",
+        description: "Descrição",
+      }}
     >
       <input type="hidden" name="nicheId" value={nicheId} />
       <input type="hidden" name="entityType" value={entityType} />
@@ -96,21 +107,10 @@ export default function TemplateForm({
       </FormSection>
 
       <FormSection title="Campos do template">
-        <Field
-          label="Fields (JSON)"
-          htmlFor="fields"
-          className="col-span-full"
-          hint="Editar os campos incrementa a versão do template automaticamente."
-        >
-          <Textarea
-            id="fields"
-            name="fields"
-            rows={8}
-            className="min-h-[84px] font-mono text-sm"
-            placeholder={FIELDS_PLACEHOLDER}
-            defaultValue={fieldsDefault}
-          />
-        </Field>
+        <FieldBuilder
+          initial={initialFields.success ? initialFields.data : undefined}
+          layout={initialLayout.success ? initialLayout.data : undefined}
+        />
       </FormSection>
     </FormDrawerForm>
   );

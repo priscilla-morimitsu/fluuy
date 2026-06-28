@@ -3,6 +3,16 @@
 import { Building2, IdCard, Mail, SlidersHorizontal } from "lucide-react";
 import { useActionState, useEffect, useRef, useState } from "react";
 
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Combobox } from "@/components/ui/combobox";
 import { AffixInput, Field } from "@/components/ui/field";
 import { FormGrid } from "@/components/ui/form-drawer";
@@ -22,6 +32,24 @@ const FLAGS = [
   { name: "hasPickup", label: "Retirada", hint: "Retirada no local" },
   { name: "acceptsOnlinePayment", label: "Pagamento online", hint: "Cobrança online" },
 ] as const;
+
+// pt-BR labels for the scalar fields surfaced in the "confirm changes" dialog.
+const FIELD_LABELS: Record<string, string> = {
+  nicheId: "Nicho",
+  name: "Nome",
+  legalName: "Razão social",
+  document: "CNPJ / CPF",
+  description: "Descrição",
+  publicPhone: "Telefone público",
+  publicEmail: "E-mail público",
+  notificationPhone: "Telefone de notificação",
+  hasProducts: "Produtos",
+  hasServices: "Serviços",
+  hasPlans: "Planos",
+  hasDelivery: "Entrega",
+  hasPickup: "Retirada",
+  acceptsOnlinePayment: "Pagamento online",
+};
 
 const STEPS: FormStep[] = [
   { id: "ident", label: "Identificação", icon: IdCard },
@@ -68,11 +96,67 @@ export default function TenantForm({
   const [nicheInvalid, setNicheInvalid] = useState(false);
   const [descLen, setDescLen] = useState(initial?.description?.length ?? 0);
 
+  // Edit confirmation: lists changed fields before the save proceeds.
+  const [changedFields, setChangedFields] = useState<string[] | null>(null);
+  const confirmedRef = useRef(false);
+
   useEffect(() => {
     if (actionOk(state)) onSuccess?.();
   }, [state, onSuccess]);
 
   const error = actionError(state);
+
+  // Original scalar/flag values, used to diff on save (edit mode only).
+  const originalValues = (): Record<string, string> =>
+    initial
+      ? {
+          nicheId: initial.nicheId,
+          name: initial.name,
+          legalName: initial.legalName ?? "",
+          document: initial.document ?? "",
+          description: initial.description ?? "",
+          publicPhone: initial.publicPhone ?? "",
+          publicEmail: initial.publicEmail ?? "",
+          notificationPhone: initial.notificationPhone ?? "",
+          hasProducts: String(initial.hasProducts),
+          hasServices: String(initial.hasServices),
+          hasPlans: String(initial.hasPlans),
+          hasDelivery: String(initial.hasDelivery),
+          hasPickup: String(initial.hasPickup),
+          acceptsOnlinePayment: String(initial.acceptsOnlinePayment),
+        }
+      : {};
+
+  const diffFields = (form: HTMLFormElement): string[] => {
+    const data = new FormData(form);
+    const original = originalValues();
+    const flagNames = new Set(FLAGS.map((f) => f.name as string));
+    return Object.keys(original).filter((key) => {
+      const current = flagNames.has(key)
+        ? String(data.get(key) === "on" || data.get(key) === "true")
+        : key === "nicheId"
+          ? nicheId
+          : String(data.get(key) ?? "");
+      return current !== original[key];
+    });
+  };
+
+  // Edit mode: intercept submit to confirm changes first. The actual submit is
+  // re-triggered after the user confirms (confirmedRef guards re-entry).
+  const onSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    if (!isEdit || confirmedRef.current) {
+      confirmedRef.current = false;
+      return;
+    }
+    e.preventDefault();
+    setChangedFields(diffFields(e.currentTarget));
+  };
+
+  const confirmSave = () => {
+    confirmedRef.current = true;
+    setChangedFields(null);
+    formRef.current?.requestSubmit();
+  };
 
   // First invalid field in DOM order across all steps (drives focus-first-error).
   const validate = (): HTMLElement | null => {
@@ -92,7 +176,7 @@ export default function TenantForm({
   };
 
   return (
-    <form ref={formRef} action={formAction} className="flex min-h-0 flex-1 flex-col">
+    <form ref={formRef} action={formAction} onSubmit={onSubmit} className="flex min-h-0 flex-1 flex-col">
       <input type="hidden" name="nicheId" value={nicheId} />
       {error && (
         <p className="mx-5 mt-5 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
@@ -192,6 +276,32 @@ export default function TenantForm({
           </div>
         </FormStepPanel>
       </FormSteps>
+
+      <AlertDialog open={changedFields !== null} onOpenChange={(open) => !open && setChangedFields(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar alterações do tenant?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {changedFields && changedFields.length > 0
+                ? `Os seguintes campos serão alterados: ${changedFields
+                    .map((f) => FIELD_LABELS[f] ?? f)
+                    .join(", ")}.`
+                : "Nenhum campo foi alterado. Deseja salvar mesmo assim?"}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                confirmSave();
+              }}
+            >
+              Salvar alterações
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </form>
   );
 }

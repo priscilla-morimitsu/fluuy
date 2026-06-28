@@ -64,7 +64,7 @@ export function ToggleGroup({
             disabled={disabled}
             onClick={() => onItem(o.value)}
             className={cn(
-              "inline-flex h-[50px] min-w-[50px] items-center justify-center gap-1.5 border font-semibold text-sm outline-none transition-colors",
+              "inline-flex h-[44px] min-w-[44px] items-center justify-center gap-1.5 border font-semibold text-sm outline-none transition-colors",
               "focus-visible:z-10 focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50",
               "[&_svg]:size-[18px] [&_svg]:shrink-0 [&_svg]:[stroke-width:2.2]",
               o.label ? "px-3.5" : "px-0",
@@ -73,7 +73,7 @@ export function ToggleGroup({
               i > 0 && "-ml-px",
               on
                 ? "z-10 border-[var(--lime-400)] bg-[var(--lime-300)] text-[var(--neutral-900)]"
-                : "border-border bg-transparent text-foreground hover:bg-[var(--neutral-100)]"
+                : "border-border bg-transparent text-foreground hover:bg-[var(--secondary)]"
             )}
           >
             {o.icon}

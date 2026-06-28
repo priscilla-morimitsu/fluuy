@@ -1,9 +1,21 @@
 "use client";
 
-import { CreditCard, Package, Plus, StickyNote, Tag, Trash2, Truck, User } from "lucide-react";
+import { Check, CreditCard, Package, Plus, StickyNote, Trash2, Truck, User } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useActionState, useEffect, useMemo, useState } from "react";
+import { useActionState, useEffect, useMemo, useRef, useState } from "react";
+import { toast } from "sonner";
 
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { TemplateFieldsRenderer } from "@/components/crud/template-fields-renderer";
 import { Button } from "@/components/ui/button";
 import { Combobox } from "@/components/ui/combobox";
 import { AffixInput, Field } from "@/components/ui/field";
@@ -16,9 +28,8 @@ import {
   ORDER_FULFILLMENT_TYPES,
   ORDER_PAYMENT_METHODS,
   ORDER_PAYMENT_STATUSES,
-  ORDER_SOURCES,
 } from "@/lib/validations/order";
-import type { TemplateField } from "@/lib/validations/template";
+import type { TemplateField, TemplateLayout } from "@/lib/validations/template";
 
 import { createOrderAction, updateOrderAction, type OrderActionResult } from "./actions";
 import type { OrderCatalogOption } from "./data";
@@ -29,7 +40,6 @@ import {
   ORDER_ITEM_TYPE_LABELS,
   ORDER_PAYMENT_METHOD_LABELS,
   ORDER_PAYMENT_STATUS_LABELS,
-  ORDER_SOURCE_LABELS,
 } from "./labels";
 
 type ItemType = "product" | "service" | "offer_plan" | "custom";
@@ -122,6 +132,7 @@ export default function OrderForm({
   customers,
   catalog,
   templateFields,
+  templateLayout,
   initial,
   onSuccess,
   onCancel,
@@ -130,6 +141,7 @@ export default function OrderForm({
   customers: { id: string; name: string; phone: string }[];
   catalog: { products: OrderCatalogOption[]; services: OrderCatalogOption[]; offerPlans: OrderCatalogOption[] };
   templateFields: TemplateField[];
+  templateLayout?: TemplateLayout;
   initial?: OrderFormInitial;
   onSuccess?: () => void;
   onCancel?: () => void;
@@ -140,7 +152,6 @@ export default function OrderForm({
   const [state, formAction, pending] = useActionState<OrderActionResult, FormData>(action, undefined);
 
   const [customerId, setCustomerId] = useState(initial?.customerId ?? "");
-  const [source, setSource] = useState(initial?.source ?? "manual");
   const [channel, setChannel] = useState(initial?.channel ?? "panel");
   const [status, setStatus] = useState("draft");
   const [fulfillmentType, setFulfillmentType] = useState(initial?.fulfillmentType ?? "");
@@ -178,7 +189,11 @@ export default function OrderForm({
   });
 
   useEffect(() => {
-    if (!actionOk(state)) return;
+    if (!actionOk(state)) {
+      const err = actionError(state);
+      if (err) toast.error(err);
+      return;
+    }
     if (onSuccess) onSuccess();
     else {
       router.push(`/t/${slug}/orders`);
@@ -209,7 +224,6 @@ export default function OrderForm({
     const addressFilled = Object.values(addr).some((v) => v.trim() !== "");
     return {
       customerId: customerId || undefined,
-      source,
       channel,
       ...(isEdit ? {} : { status }),
       fulfillmentType: fulfillmentType || null,
@@ -234,7 +248,7 @@ export default function OrderForm({
       })),
       address: showAddress && addressFilled ? { type: fulfillmentType, ...addr } : null,
     };
-  }, [customerId, source, channel, isEdit, status, fulfillmentType, discountType, discountValue, deliveryFee, paymentMethod, paymentStatus, amountPaid, customerNotes, internalNotes, items, showAddress, addr]);
+  }, [customerId, channel, isEdit, status, fulfillmentType, discountType, discountValue, deliveryFee, paymentMethod, paymentStatus, amountPaid, customerNotes, internalNotes, items, showAddress, addr]);
 
   /** Client-side pre-check for FormSteps: focus the first incomplete step. */
   const validate = (): HTMLElement | null => {
@@ -244,8 +258,51 @@ export default function OrderForm({
     return null;
   };
 
+  // Confirm-before-save on edit: list the fields that changed vs. the original
+  // order before the save proceeds (mirrors the FormDrawerForm reference). The
+  // multi-step form submits via requestSubmit, so we gate it in onSubmit.
+  const confirmedRef = useRef(false);
+  const [changed, setChanged] = useState<string[] | null>(null);
+
+  const computeChanged = (): string[] => {
+    if (!initial) return [];
+    const result: string[] = [];
+    const customer = customers.find((c) => c.id === customerId);
+    const initialCustomer = customers.find((c) => c.id === initial.customerId);
+    if (customerId !== initial.customerId) result.push(`Cliente: ${initialCustomer?.name ?? "—"} → ${customer?.name ?? "—"}`);
+    if (channel !== initial.channel) result.push("Canal");
+    if ((fulfillmentType || "") !== (initial.fulfillmentType ?? "")) result.push("Forma de atendimento");
+    if ((discountType || "") !== (initial.discountType ?? "")) result.push("Tipo de desconto");
+    if (discountValue !== (initial.discountValue ?? "")) result.push("Valor do desconto");
+    if (deliveryFee !== (initial.deliveryFee ?? "")) result.push("Taxa de entrega");
+    if ((paymentMethod || "") !== (initial.paymentMethod ?? "")) result.push("Forma de pagamento");
+    if (paymentStatus !== initial.paymentStatus) result.push("Status do pagamento");
+    if (amountPaid !== initial.amountPaid) result.push("Valor pago");
+    if (customerNotes !== (initial.customerNotes ?? "")) result.push("Observações do cliente");
+    if (internalNotes !== (initial.internalNotes ?? "")) result.push("Notas internas");
+    if (items.length !== initial.items.length) result.push("Itens");
+    return result;
+  };
+
+  const handleSubmit: React.FormEventHandler<HTMLFormElement> = (e) => {
+    if (!isEdit || confirmedRef.current) {
+      confirmedRef.current = false;
+      return;
+    }
+    e.preventDefault();
+    setChanged(computeChanged());
+  };
+
+  const confirmSave = () => {
+    confirmedRef.current = true;
+    setChanged(null);
+    formRef.current?.requestSubmit();
+  };
+
+  const formRef = useRef<HTMLFormElement>(null);
+
   return (
-    <form action={formAction} className="flex min-h-0 flex-1 flex-col">
+    <form ref={formRef} action={formAction} onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
       <input type="hidden" name="payload" value={JSON.stringify(payload)} />
       <FormSteps
         steps={STEPS}
@@ -272,9 +329,6 @@ export default function OrderForm({
                 searchPlaceholder="Buscar cliente…"
                 emptyText="Nenhum cliente. Cadastre em Clientes primeiro."
               />
-            </Field>
-            <Field label="Origem" htmlFor="source">
-              <Combobox value={source} onValueChange={setSource} options={ORDER_SOURCES.map((s) => ({ value: s, label: ORDER_SOURCE_LABELS[s] }))} />
             </Field>
             <Field label="Canal" htmlFor="channel">
               <Combobox value={channel} onValueChange={setChannel} options={ORDER_CHANNELS.map((c) => ({ value: c, label: ORDER_CHANNEL_LABELS[c] }))} />
@@ -445,33 +499,44 @@ export default function OrderForm({
             <Field label="Notas internas" htmlFor="internalNotes" className="col-span-full" hint="Não exibidas para o cliente nem para a IA.">
               <Textarea value={internalNotes} onChange={(e) => setInternalNotes(e.target.value)} rows={2} maxLength={2000} />
             </Field>
-            {templateFields.map((field) => {
-              const name = `custom_${field.key}`;
-              const value = initial?.customData?.[field.key];
-              if (field.type === "boolean") {
-                return (
-                  <label key={field.key} className="col-span-full flex items-center gap-2 text-sm">
-                    <input type="checkbox" name={name} defaultChecked={Boolean(value)} className="size-4" />
-                    {field.label}
-                  </label>
-                );
-              }
-              if ((field.type === "select" || field.type === "multiselect") && field.options) {
-                return (
-                  <Field key={field.key} label={field.label} htmlFor={name} required={field.required} className="col-span-full">
-                    <Combobox id={name} name={name} defaultValue={value != null ? String(value) : ""} options={field.options.map((o) => ({ value: o, label: o }))} placeholder="Selecione" emptyText="Sem opções." />
-                  </Field>
-                );
-              }
-              return (
-                <Field key={field.key} label={field.label} htmlFor={name} required={field.required}>
-                  <AffixInput id={name} name={name} leadIcon={<Tag />} type={field.type === "number" ? "number" : "text"} defaultValue={value != null ? String(value) : ""} required={field.required} />
-                </Field>
-              );
-            })}
+            <TemplateFieldsRenderer fields={templateFields} layout={templateLayout} values={initial?.customData} />
           </Grid>
         </FormStepPanel>
       </FormSteps>
+
+      <AlertDialog open={changed !== null} onOpenChange={(open) => !open && setChanged(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar alterações do pedido?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {changed && changed.length > 0
+                ? "Você alterou os campos abaixo. Confirme para salvar as alterações."
+                : "Confirme para salvar este pedido."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          {changed && changed.length > 0 && (
+            <ul className="flex flex-col gap-1 rounded-lg border border-border bg-muted/40 p-3 text-sm">
+              {changed.map((label) => (
+                <li key={label} className="flex items-center gap-2">
+                  <Check className="size-3.5 text-success" aria-hidden />
+                  {label}
+                </li>
+              ))}
+            </ul>
+          )}
+          <AlertDialogFooter>
+            <AlertDialogCancel>Voltar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                confirmSave();
+              }}
+            >
+              Salvar alterações
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </form>
   );
 }

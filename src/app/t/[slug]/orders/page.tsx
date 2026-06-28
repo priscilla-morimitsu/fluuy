@@ -34,7 +34,7 @@ export default async function OrdersPage({
     return Number.isFinite(n) ? n : undefined;
   };
 
-  const [{ rows, filtered, total }, customers, catalog, templateFields] = await Promise.all([
+  const [{ rows, filtered, total }, customers, catalog, template] = await Promise.all([
     listOrders(tenant.id, {
       q: str(sp.q),
       status: str(sp.status),
@@ -69,7 +69,8 @@ export default async function OrdersPage({
       total={total}
       customers={customers}
       catalog={catalog}
-      templateFields={templateFields}
+      templateFields={template.fields}
+      templateLayout={template.layout}
       canWrite={canWrite}
     />
   );

@@ -26,7 +26,7 @@ export default async function AppointmentDetailPage({
   const canWrite = role === "tenant_owner" || role === "tenant_manager" || role === "tenant_operator";
   const canDelete = role === "tenant_owner" || role === "tenant_manager";
 
-  const [appointment, options, templateFields] = await Promise.all([
+  const [appointment, options, template] = await Promise.all([
     getAppointment(tenant.id, appointmentId),
     listAppointmentOptions(tenant.id),
     appointmentTemplateFields(tenant.nicheId),
@@ -38,7 +38,7 @@ export default async function AppointmentDetailPage({
       slug={slug}
       appointment={appointment}
       options={options}
-      templateFields={templateFields}
+      templateFields={template.fields}
       canWrite={canWrite}
       canDelete={canDelete}
     />

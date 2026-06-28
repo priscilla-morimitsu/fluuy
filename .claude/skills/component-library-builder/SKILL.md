@@ -74,3 +74,11 @@ A component is ready only when it has:
 - all major states
 - clear variant naming
 - implementation notes
+
+## Fluuy CRUD building blocks (reuse, don't recreate)
+
+- `components/crud/data-table.tsx` — `onRowClick` makes listing rows clickable (`cursor-pointer`) to open the edit drawer; clicks on links/buttons/menus are ignored.
+- `components/ui/form-drawer.tsx` `FormDrawerForm` — `confirmOnSave`/`confirmTitle`/`initialValues`/`fieldLabels` show an AlertDialog listing changed fields before persisting an edit.
+- `components/forms/status-switch-item.tsx` `StatusSwitchItem` — options-driven Choice Card with impact confirmation; placed as the first form field. 2 options → switch (no danger affordance); 3+ → pills; the blocked state uses a danger-tone option. Spec: `.claude/docs/specs/components/status/`.
+- `components/ui/origin-badge.tsx` `OriginBadge` — read-only origin badge (icon+color per origin). Origin is system-assigned, never an editable form field. Spec: `.claude/docs/specs/components/origin-badge-spec.json`.
+- Feedback via `sonner` toast on every create/edit/sensitive action (pt-BR).

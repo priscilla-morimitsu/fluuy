@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import type { Prisma } from "@/generated/prisma/client";
 import type { AdminActionResult } from "@/lib/admin/action-result";
+import { readCustomData } from "@/lib/custom-data";
 import { prisma } from "@/lib/prisma";
 import { ForbiddenError, UnauthorizedError } from "@/lib/rbac";
 import { resolveTenantContext } from "@/lib/tenant-context";
@@ -20,7 +21,7 @@ import {
   slugify,
   type ServiceDeliveryMode,
 } from "@/lib/validations/service";
-import { validateCustomData, type TemplateField } from "@/lib/validations/template";
+import { validateCustomData } from "@/lib/validations/template";
 
 import { getService, serviceTemplateFields, type ServiceDetail } from "./data";
 
@@ -52,21 +53,6 @@ function readDeliveryModes(formData: FormData): ServiceDeliveryMode[] {
     .getAll("deliveryModes")
     .map(String)
     .filter((v): v is ServiceDeliveryMode => allowed.has(v));
-}
-
-function readCustomData(fields: TemplateField[], formData: FormData): Record<string, unknown> {
-  const data: Record<string, unknown> = {};
-  for (const field of fields) {
-    const raw = formData.get(`custom_${field.key}`);
-    if (field.type === "boolean") {
-      data[field.key] = raw === "on" || raw === "true";
-    } else if (field.type === "number") {
-      if (raw !== null && raw !== "") data[field.key] = Number(raw);
-    } else if (raw !== null && raw !== "") {
-      data[field.key] = String(raw);
-    }
-  }
-  return data;
 }
 
 async function uniqueSlug(tenantId: string, name: string, excludeId?: string): Promise<string> {
@@ -175,7 +161,7 @@ export async function createServiceAction(
 
     if (!(await assertCategory(tenant.id, d.categoryId))) return { error: "Categoria inválida." };
 
-    const fields = await serviceTemplateFields(tenant.nicheId);
+    const { fields } = await serviceTemplateFields(tenant.nicheId);
     const customData = readCustomData(fields, formData);
     const cdErrors = validateCustomData(fields, customData);
     if (cdErrors.length > 0) return { error: cdErrors[0] };
@@ -245,7 +231,7 @@ export async function updateServiceAction(
 
     if (!(await assertCategory(tenant.id, d.categoryId))) return { error: "Categoria inválida." };
 
-    const fields = await serviceTemplateFields(tenant.nicheId);
+    const { fields } = await serviceTemplateFields(tenant.nicheId);
     const customData = readCustomData(fields, formData);
     const cdErrors = validateCustomData(fields, customData);
     if (cdErrors.length > 0) return { error: cdErrors[0] };

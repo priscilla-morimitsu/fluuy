@@ -86,6 +86,7 @@
       "tablet (>=600px)": "460px, max 90vw",
       "hd+ (>=1280px)": "40% da largura, min 480px, max 620px"
     },
+    "fullscreen": "Toggle (Maximize2/Minimize2) no header de TODO FormDrawer que expande/recolhe o painel (modo expandido ocupa a largura total da tela — 100vw). Ligado por padrão (`allowFullscreen` default true) — todo sheet de formulário pode ser expandido/diminuído; passe `allowFullscreen={false}` para fixar na largura compacta. Reseta ao fechar. aria-pressed + aria-label.",
     "structure": {
       "overlay": "scrim --overlay + blur(6px) (frosted claro), fecha ao clicar fora",
       "panel": "coluna flex: header (fixo) + body (rolável) + footer (fixo); drawer-bg (.glass-drawer, menos transparente que glass-bg) + blur-lg + shadow-lg + border-left",
@@ -96,6 +97,23 @@
     "entranceAnimation": "Em produção, animar slide-in (translateX 100%→0, 260ms) + fade do scrim, gated em prefers-reduced-motion; aplicar via classe pós-mount. NUNCA deixar o estado base off-screen (entrance frozen-frame esconde conteúdo).",
     "sections": "Agrupar campos em <section> com sectionTitle (ex: Identificação, Contato, Acesso, Plano, Preferências, Anexos).",
     "footerActions": { "cancel": "btn ghost", "submit": "btn brand com estado loading ('Salvando…' + spinner) e disabled durante submit" }
+  },
+
+  "saveConfirmation": {
+    "rule": "Na EDIÇÃO, ao clicar em Salvar, abrir um AlertDialog de confirmação que LISTA os campos alterados (diff entre os valores atuais do formulário e os valores iniciais). O save só é executado após o usuário confirmar; Voltar mantém o drawer aberto sem salvar.",
+    "implementation": "components/ui/form-drawer.tsx → FormDrawerForm com props `confirmOnSave` (geralmente = isEdit), `confirmTitle`, `initialValues` (Record<fieldName,string> com os valores originais) e `fieldLabels` (Record<fieldName,string> com rótulos pt-BR). O diff é feito por nome de campo do FormData.",
+    "rawForms": "Formulários com <form> cru (sem FormDrawerForm) devem replicar o mesmo AlertDialog com a lista de campos alterados antes do submit final.",
+    "toast": "Após salvar com sucesso (ou em erro), exibir toast (sonner) em pt-BR — sucesso fecha o drawer e revalida a lista."
+  },
+  "statusField": {
+    "rule": "Quando o status é de ciclo de vida (ativo/inativo, ativo/inativo/bloqueado, rascunho/ativo/inativo) usar o componente StatusSwitchItem (Choice Card com confirmação de impacto) em vez de Segmented/Select cru. DEVE ser o PRIMEIRO campo do formulário (col-span-full).",
+    "component": "components/forms/status-switch-item.tsx — dirigido por opções: `options: StatusOption[]` com os valores de enum persistidos, rótulos, descrições e mensagem de impacto por transição; `value` controlado; `name` emite o hidden input no FormData. 2 opções → Switch; 3+ → pills.",
+    "simpleTwoStateNoDanger": "Para status simples ativo/inativo ou disponível/indisponível, não exibir affordance destrutivo (não declarar opção tone:'danger').",
+    "overlay": "Como abre dentro do drawer, o AlertDialog usa overlay transparente para não duplicar o scrim do drawer.",
+    "exception": "Status de fluxo (pedido, agendamento, tenant) mantém seus próprios controles."
+  },
+  "systemAssignedOrigin": {
+    "rule": "NÃO existe campo de Origem (source) editável no formulário. A origem é definida automaticamente pelo sistema conforme o ponto de entrada: painel ⇒ \"manual\"; em update pelo painel o source é preservado (omitido na escrita). A origem é apenas exibida (somente leitura) com OriginBadge (components/ui/origin-badge.tsx)."
   },
 
   "layoutSystem": {
@@ -203,6 +221,8 @@
     "Acessibilidade: dialog modal com focus trap, labels, aria-invalid/describedby, teclado.",
     "Footer com Cancelar + Salvar (loading) e hint de obrigatórios.",
     "Formulários grandes: dividir em steps (timeline) agrupados por contexto, mantendo os dados ao navegar (panels montados + hidden).",
-    "Ao salvar com erro: focar imediatamente o primeiro campo inválido, trocando de step se necessário (sem depender de requestAnimationFrame)."
+    "Ao salvar com erro: focar imediatamente o primeiro campo inválido, trocando de step se necessário (sem depender de requestAnimationFrame).",
+    "Na edição, confirmar antes de salvar com AlertDialog listando os campos alterados; toast (sonner) de sucesso/erro.",
+    "Status ativo/inativo/bloqueado usa StatusSwitchItem; campo de Origem removido (preenchido automaticamente pelo sistema) e exibido via OriginBadge."
   ]
 }

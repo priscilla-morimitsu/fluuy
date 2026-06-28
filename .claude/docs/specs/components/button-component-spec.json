@@ -1,0 +1,219 @@
+{
+  "$schema": "fluuy-button-component-spec/v1",
+  "name": "fluuy_button_component_spec",
+  "version": "2.0.0",
+  "language": "pt-BR",
+  "target_model": "Claude / Claude Code",
+  "repository": {
+    "url": "https://github.com/priscilla-morimitsu/fluuy",
+    "full_name": "priscilla-morimitsu/fluuy"
+  },
+  "framework": "Next.js + React + TypeScript + Tailwind + class-variance-authority (CVA)",
+  "uiBase": "shadcn/ui <Button> estendido — NÃO recriar do zero; estender o Button gerado pelo shadcn com novos eixos (size, variant, tone) via CVA + Radix Slot (asChild).",
+  "prototype": "components/forms/buttons.card.html",
+  "supersedes": "handoff/buttons-spec.json (este arquivo é a fonte canônica do componente)",
+  "relatedSpecs": { "forms": "handoff/forms-spec.json" },
+
+  "prompt": "Implemente o componente de Botão do Fluuy estendendo o <Button> do shadcn/ui. Mantenha a API do shadcn (asChild via Radix Slot, variant, size) e ADICIONE: (1) os tamanhos e variantes de estilo Fluuy, (2) um eixo de cor/tom semântico (tone) combinável com estilos solid/soft/outline/ghost/link, (3) estados loading + tooltip para icon-only. Use os tokens CSS do design system (NUNCA hex fixos, exceto onde indicado), raio 2xl, sem glow, e garanta adaptação automática light/dark via tokens semânticos. Componentes compostos listados em 'dedicatedComponents' têm implementação própria.",
+
+  "tokens_rule": "Sempre via CSS custom properties do DS. Hovers e superfícies neutras DEVEM usar tokens adaptativos (--secondary, --secondary-foreground, --foreground, --border) — nunca --neutral-100 fixo (quebra no dark).",
+
+  "baseButton": {
+    "component": "Button",
+    "api": "props do shadcn (asChild, type, disabled, onClick, …) + variant, size, tone, loading, tip(=tooltip p/ icon-only)",
+    "radius": "var(--radius-2xl) (16px)",
+    "font": "var(--font-sans), weight 600, lineHeight 1, gap 7px (ícone+texto)",
+    "press": "active: scale(0.98)",
+    "disabled": "opacity .5, cursor not-allowed, sem hover/press",
+    "focusVisible": "ring 3px lime (var(--ring)) — herdar do shadcn focus-visible",
+    "iconSizing": "ícone 19 (texto) / 20 (icon-only), strokeWidth ~2.2–2.4"
+  },
+
+  "sizes": {
+    "sm": { "height": "32px", "padding": "0 .875rem", "font": "text-sm" },
+    "default": { "height": "44px", "padding": "0 1.125rem", "font": "text-sm" },
+    "lg": { "height": "52px", "padding": "0 1.25rem", "font": "text-base" },
+    "icon": {
+      "height": "44px",
+      "width": "44px",
+      "padding": "0",
+      "font": "text-sm",
+      "note": "quadrado; SEMPRE com tooltip + aria-label"
+    }
+  },
+
+  "styleVariants": {
+    "_comment": "Variantes nomeadas por CONTEXTO de uso. bg/c/b com estado hover entre parênteses.",
+    "brand": {
+      "bg": "--lime-300 (hover --lime-400)",
+      "color": "--neutral-900",
+      "border": "transparent",
+      "use": "PRIMÁRIA — ações que persistem no backend (salvar, criar, enviar, gerar). Uma por contexto.",
+      "loadingSpinnerTop": "--neutral-900"
+    },
+    "default": {
+      "bg": "--neutral-900 (hover --neutral-800)",
+      "color": "--lime-300",
+      "border": "--neutral-700",
+      "use": "Ações gerais da UI (exportar, importar, continuar, menus). Borda sutil para destacar no dark.",
+      "loadingSpinnerTop": "--lime-300"
+    },
+    "secondary": {
+      "bg": "--secondary (hover --border)",
+      "color": "--secondary-foreground",
+      "border": "transparent",
+      "use": "Ações de apoio (voltar, cancelar, pular). Adaptativo light/dark."
+    },
+    "outline": {
+      "bg": "transparent (hover --secondary)",
+      "color": "--foreground",
+      "border": "--border",
+      "use": "Ação alternativa de baixa ênfase em toolbars/cards (filtrar, configurar, ordenar)."
+    },
+    "ghost": {
+      "bg": "transparent (hover --secondary)",
+      "color": "--foreground",
+      "border": "transparent",
+      "use": "Ações terciárias e icon-buttons em áreas densas (fechar, mais opções, ações de linha)."
+    },
+    "link": {
+      "bg": "transparent",
+      "color": "--foreground (hover --lime-600)",
+      "border": "transparent",
+      "decoration": "underline só no hover (textDecorationColor transparent em repouso, offset 3)",
+      "use": "Navegação/ações inline em texto ('Saiba mais', 'Esqueci a senha')."
+    },
+    "destructive": {
+      "bg": "oklch(0.584 0.157 22.3/0.12) (hover sólido var(--destructive))",
+      "color": "--destructive (hover #fff)",
+      "border": "oklch(0.584 0.157 22.3/0.40)",
+      "use": "Ações irreversíveis (excluir, bloquear). Sempre com confirmação (AlertDialog)."
+    }
+  },
+
+  "toneAxis": {
+    "description": "Eixo de COR semântica combinável com 5 tratamentos: solid · soft · outline · ghost · link. Permite, p.ex., um botão 'success outline' ou 'info soft'. Implementar como prop `tone` + `appearance`(=tratamento), gerando classes via CVA compound variants.",
+    "treatments": {
+      "solid": "fundo sólido (tone.solid, hover tone.solidHover), texto tone.on",
+      "soft": "fundo tone.soft (translúcido), texto tone.accent; hover escurece para tone.border",
+      "outline": "transparente + borda tone.border, texto tone.accent; hover fundo tone.soft",
+      "ghost": "transparente, texto tone.accent; hover fundo tone.soft",
+      "link": "transparente, texto tone.accent, sublinhado só no hover"
+    },
+    "tones": {
+      "brand": {
+        "solid": "--lime-300",
+        "solidHover": "--lime-400",
+        "on": "--neutral-900",
+        "accent": "--lime-600",
+        "soft": "oklch(0.902 0.193 121/0.16)",
+        "border": "oklch(0.86 0.19 121/0.45)"
+      },
+      "neutral": {
+        "solid": "--neutral-900",
+        "solidHover": "--neutral-800",
+        "on": "--neutral-0",
+        "accent": "--foreground",
+        "soft": "--secondary",
+        "border": "--border",
+        "note": "accent e soft adaptativos (não usar --neutral-100)"
+      },
+      "info": {
+        "solid": "oklch(0.63 0.09 230)",
+        "solidHover": "oklch(0.56 0.1 230)",
+        "on": "#fff",
+        "accent": "oklch(0.5 0.1 230)",
+        "soft": "oklch(0.63 0.09 230/0.14)",
+        "border": "oklch(0.63 0.09 230/0.42)"
+      },
+      "success": {
+        "solid": "oklch(0.62 0.13 150)",
+        "solidHover": "oklch(0.55 0.13 150)",
+        "on": "#fff",
+        "accent": "oklch(0.5 0.13 150)",
+        "soft": "oklch(0.62 0.13 150/0.14)",
+        "border": "oklch(0.62 0.13 150/0.42)"
+      },
+      "warning": {
+        "solid": "oklch(0.78 0.15 75)",
+        "solidHover": "oklch(0.71 0.15 75)",
+        "on": "--neutral-900",
+        "accent": "oklch(0.55 0.12 75)",
+        "soft": "oklch(0.78 0.15 75/0.18)",
+        "border": "oklch(0.78 0.15 75/0.5)"
+      },
+      "danger": {
+        "solid": "var(--destructive)",
+        "solidHover": "oklch(0.5 0.16 22.3)",
+        "on": "#fff",
+        "accent": "var(--destructive)",
+        "soft": "oklch(0.584 0.157 22.3/0.12)",
+        "border": "oklch(0.584 0.157 22.3/0.40)"
+      }
+    },
+    "apiNote": "Sugestão: manter `variant` para os 7 estilos nomeados (atalhos de contexto) E expor `tone`+`appearance` para a matriz cor×tratamento. Internamente os 7 variants podem mapear para combinações de tone/appearance (ex.: brand = tone:brand+solid; secondary = tone:neutral+soft; destructive = tone:danger+soft)."
+  },
+
+  "states": {
+    "loading": "spinner (anel --neutral-300, topo conforme variant: brand→--neutral-900, default→--lime-300, demais→--foreground) + texto 'Carregando…'; botão disabled durante a ação; aria-busy.",
+    "tooltip": "icon-only: tooltip no hover (fundo --neutral-900, texto --neutral-0, raio md, acima do botão) + aria-label obrigatório.",
+    "darkMode": "todos os hovers/superfícies neutras adaptam por token; solid tones mantêm cor; testar contraste nos dois temas."
+  },
+
+  "dedicatedComponents": {
+    "_comment": "Componentes que NÃO são só uma prop do Button — exigem implementação própria (composição/estado/Radix).",
+    "ButtonGroup": {
+      "base": "agrupador",
+      "desc": "junta N <Button> num bloco contíguo: cantos externos 2xl, internos retos, bordas sobrepostas (marginLeft -1). Use para ações sequenciais (Anterior/Próximo).",
+      "radix": "—"
+    },
+    "ButtonDropdown": {
+      "base": "shadcn DropdownMenu + Button",
+      "desc": "Button (label + ChevronDown) que abre menu de itens (ícone+texto); item hover usa --secondary. Para agrupar ações sob um gatilho.",
+      "radix": "DropdownMenu"
+    },
+    "Toggle": {
+      "base": "shadcn Toggle",
+      "desc": "botão on/off (aria-pressed). Ligado: --lime-300 + borda --lime-400 + texto --neutral-900; desligado: transparente, borda --border, hover --secondary.",
+      "radix": "Toggle"
+    },
+    "ToggleGroup": {
+      "base": "shadcn ToggleGroup",
+      "desc": "conjunto em bloco (como ButtonGroup) com seleção single|multiple; item ativo lime com z-index acima p/ borda inteira; inativo hover --secondary. Para alinhamento, formatação (B/I/U), intervalos (Dia/Semana/Mês).",
+      "radix": "ToggleGroup (type single|multiple)"
+    },
+    "SwitchToggle": {
+      "base": "dedicado",
+      "desc": "botão ÚNICO que alterna entre DOIS valores, cada um com cor própria (ex.: lime=Pessoa Física, azul=Pessoa Jurídica). Light: tint translúcido em repouso, sólido no hover. Dark: SEMPRE sólido (detecta tema via ancestral .dark). Cada valor: {label, icon, tint, c, bd, solid, on}.",
+      "radix": "—",
+      "props": "a:{...}, b:{...}, value/onChange controláveis"
+    },
+    "FilterButton": {
+      "base": "shadcn Button(outline) + Popover",
+      "desc": "botão 'Filtros' (ícone ListFilter) com badge lime de contagem; abre Popover (~320px, raio 2xl) com campos de filtro empilhados (Status segmented, Combobox, DatePicker) + rodapé Cancelar/Aplicar e ação Limpar.",
+      "radix": "Popover"
+    },
+    "IconButton": {
+      "base": "Button size=icon",
+      "desc": "atalho de Button quadrado 44×44 com tooltip + aria-label obrigatórios (não é componente separado, mas exige a regra de tooltip)."
+    }
+  },
+
+  "implementationNotes": [
+    "Estender o Button do shadcn via CVA: defaultVariants {variant:'brand', size:'default'}; adicionar size 'sm|default|lg|icon' (44px default), variantes de estilo e o eixo tone+appearance por compound variants.",
+    "Usar Radix Slot (asChild) para permitir <Button asChild><Link/></Button>.",
+    "Mapear cores para classes Tailwind que referenciam os tokens (ex.: bg-[var(--lime-300)]) ou estender o theme do Tailwind com os tokens — preferir tokens semânticos.",
+    "NUNCA --neutral-100 em hover (quebra dark); usar --secondary.",
+    "link: sublinhado apenas no hover; icon-only: tooltip + aria-label; loading: spinner + disabled.",
+    "Sem glow — apenas as superfícies/bordas descritas.",
+    "Os 7 variants nomeados são atalhos de contexto; documentar o mapeamento para tone×appearance."
+  ],
+
+  "definition_of_done": [
+    "Button (shadcn estendido) com sizes sm/default(44)/lg/icon, 7 variantes de estilo nomeadas e eixo tone×appearance (6 tons × solid/soft/outline/ghost/link).",
+    "Estados loading e tooltip(icon-only); link com underline no hover; pressed scale; disabled.",
+    "Tokens adaptativos light/dark (sem --neutral-100 em hover); raio 2xl; sem glow.",
+    "Componentes dedicados implementados: ButtonGroup, ButtonDropdown, Toggle, ToggleGroup, SwitchToggle, FilterButton (+ regra IconButton).",
+    "asChild via Radix Slot; acessibilidade (aria-pressed/label/busy, foco visível, teclado)."
+  ]
+}

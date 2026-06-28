@@ -2,7 +2,7 @@
 
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { CalendarRange } from "lucide-react";
+import { CalendarRange, ChevronDown } from "lucide-react";
 import * as React from "react";
 import type { DateRange } from "react-day-picker";
 
@@ -63,6 +63,7 @@ export function DateRangePicker({
       >
         <CalendarRange className="size-4 shrink-0 text-muted-foreground" />
         <span className={cn("flex-1 truncate", !range?.from && "text-muted-foreground")}>{label}</span>
+        <ChevronDown className="size-4 shrink-0 text-muted-foreground" />
       </PopoverTrigger>
       <PopoverContent className="w-auto p-0" align="start">
         <Calendar mode="range" numberOfMonths={2} selected={range} onSelect={set} autoFocus />

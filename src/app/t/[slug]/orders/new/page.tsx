@@ -24,7 +24,7 @@ export default async function NewOrderPage({ params }: { params: Promise<{ slug:
   }
   const { tenant } = ctx;
 
-  const [customers, catalog, templateFields] = await Promise.all([
+  const [customers, catalog, template] = await Promise.all([
     listCustomerOptions(tenant.id),
     listOrderCatalog(tenant.id),
     orderTemplateFields(tenant.nicheId),
@@ -37,7 +37,7 @@ export default async function NewOrderPage({ params }: { params: Promise<{ slug:
       </Link>
       <h2 className="text-xl font-semibold">Novo pedido</h2>
       <div className="glass min-h-0 flex-1 overflow-hidden rounded-2xl border border-(--glass-border)">
-        <OrderForm slug={slug} customers={customers} catalog={catalog} templateFields={templateFields} />
+        <OrderForm slug={slug} customers={customers} catalog={catalog} templateFields={template.fields} templateLayout={template.layout} />
       </div>
     </div>
   );

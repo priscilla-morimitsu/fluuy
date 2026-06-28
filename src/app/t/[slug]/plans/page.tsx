@@ -40,7 +40,7 @@ export default async function PlansPage({
     return Number.isFinite(n) ? n : undefined;
   };
 
-  const [{ rows, filtered, total }, categories, services, products, templateFields] = await Promise.all([
+  const [{ rows, filtered, total }, categories, services, products, template] = await Promise.all([
     listOfferPlans(tenant.id, {
       q: str(sp.q),
       type: str(sp.type),
@@ -76,7 +76,8 @@ export default async function PlansPage({
       categories={categories.map((c) => ({ id: c.id, name: c.name }))}
       services={services}
       products={products}
-      templateFields={templateFields}
+      templateFields={template.fields}
+      templateLayout={template.layout}
       canWrite={canWrite}
     />
   );

@@ -1,0 +1,278 @@
+{
+  "$schema": "fluuy-form-fields-component-spec/v1",
+  "name": "fluuy_form_fields_component_spec",
+  "version": "2.0.0",
+  "language": "pt-BR",
+  "target_model": "Claude / Claude Code",
+  "repository": {
+    "url": "https://github.com/priscilla-morimitsu/fluuy",
+    "full_name": "priscilla-morimitsu/fluuy"
+  },
+  "framework": "Next.js + React + TypeScript + react-hook-form + Zod + class-variance-authority",
+  "uiBase": "shadcn/ui (Input, Textarea, Combobox, Popover, Calendar, Slider, InputOTP, Checkbox, RadioGroup, Switch, Tooltip) estendido com tokens Fluuy",
+  "prototype": "components/forms/forms.card.html",
+  "supersedes": "handoff/forms-spec.json (fonte canônica dos campos)",
+  "relatedSpecs": {
+    "buttons": "handoff/button-component-spec.json",
+    "validationMasks": "uploads/fluuy_form_validation_masks_spec_prompt.json"
+  },
+
+  "prompt": "Implemente a biblioteca de CAMPOS de formulário do Fluuy estendendo shadcn/ui. Todo campo é envolvido pelo wrapper Field (label, required, info+tooltip, hint, error). Aplicar ícones (lead/trail), addons (prefixo/sufixo), máscaras DURANTE a digitação (UX) e validação canônica server-side com Zod. Combobox é o select padrão (NUNCA <select> nativo). Tokens Fluuy, campo 44px, raio 2xl/xl, sem glow, adaptativo light/dark. pt-BR.",
+
+  "fieldWrapper": {
+    "component": "Field({ label, required, info, hint, error, full, children })",
+    "label": "text-sm weight 500; required → '*' em var(--destructive) + aria-required; info → ícone Info(14) com Tooltip explicativo (cursor help, role=tooltip)",
+    "hint": "text-xs muted abaixo do controle",
+    "error": "substitui hint quando presente: ícone CircleAlert(13) + mensagem var(--destructive); controle ganha borda var(--destructive) + aria-invalid + aria-describedby",
+    "full": "ocupa as 2 colunas do grid (col-span-full)",
+    "grid": "2 colunas (responsivo → 1 coluna < 560px); gap 16px"
+  },
+
+  "baseControl": {
+    "class": ".fc",
+    "height": "44px (textarea: auto, min 84px; OTP box: 50px)",
+    "padding": "0 14px (textarea 14px)",
+    "surface": "bg var(--card), borda 1px var(--border), raio var(--radius-2xl)",
+    "hover": "borda var(--neutral-300)",
+    "focus": "borda var(--ring) + shadow 0 0 0 3px oklch(0.902 0.193 121/0.25)",
+    "disabled": "bg var(--muted), texto var(--muted-foreground), not-allowed",
+    "error": "borda var(--destructive); focus shadow vermelho oklch(0.584 0.157 22.3/0.22)",
+    "leadIcon": ".has-lead (pl 40px, ícone abs left 13px, muted)",
+    "trailIcon": ".has-trail (pr 40px, ícone/ação abs right 12px)",
+    "addon": ".affix (prefixo/sufixo .px com bg var(--muted), separador var(--border))"
+  },
+
+  "fields": [
+    {
+      "id": "text",
+      "base": "Input",
+      "use": "texto livre (nome da empresa)",
+      "validation": "trim, min/max length"
+    },
+    {
+      "id": "required",
+      "base": "Input",
+      "use": "campo obrigatório",
+      "ui": "label com '*'",
+      "validation": "required"
+    },
+    {
+      "id": "withInfo",
+      "base": "Input",
+      "use": "campo que precisa de explicação (Slug)",
+      "ui": "ícone Info + tooltip no label"
+    },
+    {
+      "id": "error",
+      "base": "Input",
+      "use": "estado inválido",
+      "ui": "borda destructive + CircleAlert trail + mensagem"
+    },
+    {
+      "id": "slug",
+      "base": "Input + addon",
+      "addon": "prefixo 'fluuy.com/'",
+      "mask": "lowercase, espaço→hífen, remove acento/inválidos",
+      "validation": "unicidade async (ok 'Disponível')"
+    },
+    {
+      "id": "email",
+      "base": "Input",
+      "icon": "lead Mail",
+      "mask": "—",
+      "validation": "z.string().email(), trim, lowercase"
+    },
+    {
+      "id": "cnpj",
+      "base": "Input",
+      "icon": "lead Building2 + trail CircleAlert(erro)",
+      "mask": "##.###.###/####-##",
+      "validation": "dígitos verificadores oficiais",
+      "persist": "digits_only"
+    },
+    {
+      "id": "cpf",
+      "base": "Input",
+      "icon": "lead IdCard",
+      "mask": "###.###.###-##",
+      "validation": "dígitos verificadores oficiais",
+      "persist": "digits_only"
+    },
+    {
+      "id": "search",
+      "base": "Input",
+      "icon": "trail Search → vira X quando há texto (limpar)",
+      "use": "busca; lupa ao final"
+    },
+    {
+      "id": "loading",
+      "base": "Input",
+      "icon": "trail spinner (.sp)",
+      "state": "disabled + placeholder 'Verificando…'",
+      "use": "validação/consulta assíncrona em andamento"
+    },
+    {
+      "id": "inputGroup",
+      "base": "Input + addon",
+      "addon": "prefixo (https://) e/ou sufixo",
+      "use": "URL e composições"
+    },
+    {
+      "id": "currency",
+      "base": "Input + addon",
+      "addon": "prefixo R$",
+      "mask": "milhar '.' decimal ',' (1.234,56)",
+      "inputMode": "decimal",
+      "persist": "decimal"
+    },
+    {
+      "id": "currencyRecurring",
+      "base": "Input + addon",
+      "addon": "prefixo R$ + sufixo /mês ⇄ /ano (clicável, toggle)",
+      "use": "preço recorrente"
+    },
+    {
+      "id": "personType",
+      "base": "SwitchToggle (ver button-component-spec)",
+      "use": "Tipo de cliente PF/PJ; alterna labels e visibilidade de campos relacionados",
+      "values": [
+        "individual (Pessoa física, User, lime)",
+        "company (Pessoa jurídica, Building2, azul)"
+      ]
+    },
+    {
+      "id": "phone",
+      "base": "Input + Popover (combobox país)",
+      "icon": "DDI integrado (bandeira; fechado só bandeira, aberto bandeira+código)",
+      "mask": "(##) #####-####",
+      "default": "Brasil 🇧🇷 +55",
+      "persist": "e164_when_possible",
+      "extra": "sem ícone de telefone; pode ter checkbox 'Este número é WhatsApp'"
+    },
+    {
+      "id": "cep",
+      "base": "Input",
+      "icon": "lead MapPin + trail Search(buscar)",
+      "mask": "#####-###",
+      "info": "Busca endereço automaticamente",
+      "persist": "digits_only"
+    },
+    {
+      "id": "select",
+      "base": "Combobox",
+      "rule": "NÃO usar <select> nativo — Combobox é o select padrão (buscável, acessível)",
+      "ui": "trigger valor/placeholder + ChevronsUpDown; popover com busca + lista; item selecionado com Check"
+    },
+    {
+      "id": "autocomplete",
+      "base": "Input + Popover",
+      "use": "sugestões enquanto digita; navegação por teclado ↑/↓/Enter; fecha ao escolher/fora"
+    },
+    {
+      "id": "multiselect",
+      "base": "Combobox multiple",
+      "ui": "valores como chips removíveis no campo; popover com checkboxes; criação inline opcional"
+    },
+    {
+      "id": "datePicker",
+      "base": "Popover + Calendar",
+      "rule": "NUNCA <input type=date>",
+      "ui": "trigger estilo input (ícone Calendar + data pt-BR/placeholder); calendário 1 mês; dia selecionado var(--lime-300); pt-BR; opção digitável (máscara dd/mm/aaaa) onde indicado; pode exibir idade calculada ao lado do label"
+    },
+    {
+      "id": "rangeDatePicker",
+      "base": "Popover + Calendar (mode=range, DOIS meses)",
+      "ui": "dois meses lado a lado, navegação única; início/fim var(--lime-300), intervalo var(--lime-50); label 'início – fim'"
+    },
+    {
+      "id": "otp",
+      "base": "InputOTP",
+      "ui": "6 caixas 44×50; avança/retrocede foco; inputMode numeric"
+    },
+    {
+      "id": "slider",
+      "base": "Slider",
+      "ui": "valor exibido no label; accent var(--lime-400)"
+    },
+    {
+      "id": "textarea",
+      "base": "Textarea",
+      "ui": "min-height 84px, resize vertical, padding 14px; contador opcional (maxLength)"
+    },
+    {
+      "id": "imageUpload",
+      "base": "dropzone",
+      "sizes": { "P": "84px (logo/avatar)", "M": "120px", "G": "170px" },
+      "states": "dropzone dashed (ImagePlus) → arquivo em progresso (ícone+nome+barra) → concluído; limites no hint"
+    },
+    {
+      "id": "checkbox",
+      "base": "Checkbox",
+      "variants": [
+        "simples (linha): accent --lime-400, estados checked/unchecked/disabled",
+        "Item/Choice Card: card clicável com título+descrição, borda+ring lime + bg lime-50 quando selecionado"
+      ]
+    },
+    {
+      "id": "radio",
+      "base": "RadioGroup",
+      "variants": ["simples (linha)", "Item/Choice Card (igual checkbox)"]
+    },
+    {
+      "id": "switch",
+      "base": "Switch",
+      "variants": [
+        "simples (linha): trilha --neutral-300→--lime-400, thumb branco",
+        "Item/Choice Card: controle à direita do card"
+      ]
+    },
+    {
+      "id": "statusSwitchItem",
+      "base": "dedicado (ver status-switch-spec.json)",
+      "use": "status Ativo/Inativo/Bloqueado em Choice Card; toggle Ativo⇄Inativo + link 'Bloquear acesso' (danger); bloqueado esconde switch e mostra 'Desbloquear'; TODA mudança abre ConfirmDialog explicando o impacto"
+    }
+  ],
+
+  "choiceCard": {
+    "selector": ".item",
+    "style": "card clicável (label envolve o input): borda 1px --border, raio 2xl, padding 14px, align-items flex-start; título weight 600 + descrição muted; SELECIONADO: borda --lime-400 + box-shadow ring lime + bg --lime-50",
+    "control": "checkbox/radio à esquerda (top-aligned); switch à direita",
+    "use": "escolhas com explicação (planos, preferências, status)"
+  },
+
+  "confirmDialog": {
+    "component": "ConfirmDialog({ open, title, message, confirmLabel, danger, onConfirm, onCancel })",
+    "use": "confirmar ações sensíveis informando o IMPACTO (mudança de status, exclusões). danger → ícone TriangleAlert + botão destructive; senão CircleHelp + botão lime",
+    "overlay": "var(--overlay) + blur(6px); card --card raio 2xl shadow-lg"
+  },
+
+  "masks": {
+    "rule": "máscara aplicada na digitação sem prejudicar edição/colagem; PERSISTIR valor canônico (dígitos/normalizado), não o mascarado",
+    "phone": "(##) #####-####",
+    "cep": "#####-###",
+    "cpf": "###.###.###-##",
+    "cnpj": "##.###.###/####-##",
+    "currency": "1.234,56",
+    "validation": "CRÍTICA sempre server-side (Zod); CPF/CNPJ por algoritmo oficial; mensagens pt-BR (ver validationMasks)"
+  },
+
+  "accessibility": [
+    "todo campo com <label htmlFor>; obrigatórios aria-required + '*'",
+    "erros com aria-invalid + aria-describedby na mensagem",
+    "Combobox/Datepicker/Multiselect/Autocomplete: aria-haspopup/expanded, teclado (↑/↓/Enter/Esc), foco gerenciado, fecha ao clicar fora",
+    "info tooltip acessível (foco+hover); Choice Card via aria-checked; OTP por caixa com foco automático",
+    "hit target ≥44px no mobile; foco visível (ring lime)"
+  ],
+
+  "tokens_rule": "Sempre tokens do DS; superfícies/hovers neutros adaptativos (--secondary, --foreground, --border) — nunca --neutral-100 fixo. Raio: campos 2xl; popovers/itens 2xl/xl. Sem glow.",
+
+  "definition_of_done": [
+    "Field wrapper com required, info(tooltip), hint, error e full.",
+    "Todos os campos da lista implementados estendendo shadcn, com ícones/addons/máscaras/validações descritos.",
+    "Combobox como select padrão; datepicker e range (2 meses) via Popover+Calendar; nunca <select>/<input date> nativos.",
+    "Telefone com combobox de país (default +55); moeda simples e recorrente; CPF/CNPJ com label/máscara dinâmicos por tipo de cliente.",
+    "checkbox/radio/switch em versão simples e Choice Card; StatusSwitchItem com ConfirmDialog de impacto.",
+    "Máscaras na digitação + validação Zod server-side; mensagens pt-BR.",
+    "Tokens Fluuy, campo 44px, raio 2xl, sem glow, adaptativo light/dark; acessibilidade e responsividade."
+  ]
+}

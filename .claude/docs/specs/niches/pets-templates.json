@@ -1,0 +1,46 @@
+{
+  "name": "fluuy_niche_pets_templates_spec",
+  "version": "1.0.0",
+  "language": "pt-BR",
+  "purpose": "Definição canônica dos templates do nicho Pets (fonte de verdade do seed em prisma/seed.ts). Os formulários de Cliente e Pet renderizam estes campos dinamicamente na seção 'Campos específicos do nicho' e os validam server-side via src/lib/validations/template.ts.",
+  "niche": {
+    "key": "pets",
+    "customerLabel": "Tutor",
+    "entityLabel": "Pet"
+  },
+  "model": {
+    "primary_tutor": "O tutor principal é sempre o Customer dono do Pet (relação definicional). Não há campo nem flag para isso, e não existe Template entityType=customer no nicho Pets.",
+    "additional_tutors": "O Pet guarda, em custom_data, no máximo 1 tutor adicional e 1 contato de emergência, como campos planos definidos pelo template (não lista dinâmica). Suporte a N tutores exigiria um tipo de campo repetível no motor de templates — fora de escopo.",
+    "no_migration": "Sem migração de schema: tudo vive em CustomerEntity.custom_data validado pelo template customer_entity.",
+    "label_namespacing": "O motor de templates não tem conceito de seção; o agrupamento visual de tutor adicional e contato de emergência é feito por prefixo no label do campo.",
+    "display_name_field": "O PRIMEIRO campo obrigatório do template é tratado como o nome de exibição da entidade (CustomerEntity.name) e é a coluna mostrada na listagem de clientes. Para Pet é 'nome' (Nome do pet). Não há input de nome separado: o nome vem do template.",
+    "multiple_pets": "Um cliente/tutor pode ter vários pets. O formulário do cliente (em steps) tem um passo 'Pets' com repetidor para adicionar/editar/remover pets; cada pet é um CustomerEntity entityType='pet'."
+  },
+  "templates": [
+    {
+      "entityType": "customer_entity",
+      "name": "Pet — Pets",
+      "status": "active",
+      "version": 1,
+      "fields": [
+        { "key": "nome", "label": "Nome do pet", "type": "text", "required": true },
+        { "key": "especie", "label": "Espécie", "type": "select", "required": true, "options": ["Cão", "Gato", "Outro"] },
+        { "key": "raca", "label": "Raça", "type": "text", "required": false },
+        { "key": "nasc", "label": "Data de nascimento", "type": "text", "required": false },
+        { "key": "porte", "label": "Porte", "type": "select", "required": false, "options": ["Pequeno", "Médio", "Grande"] },
+        { "key": "peso_kg", "label": "Peso (kg)", "type": "number", "required": false },
+        { "key": "sexo", "label": "Sexo", "type": "select", "required": false, "options": ["Macho", "Fêmea"] },
+        { "key": "castrado", "label": "Castrado", "type": "boolean", "required": false },
+        { "key": "observacoes_saude", "label": "Observações de saúde", "type": "textarea", "required": false },
+        { "key": "tutor2_nome", "label": "Tutor adicional — Nome", "type": "text", "required": false },
+        { "key": "tutor2_telefone", "label": "Tutor adicional — Telefone", "type": "text", "required": false },
+        { "key": "tutor2_vinculo", "label": "Tutor adicional — Vínculo", "type": "select", "required": false, "options": ["Cônjuge", "Filho(a)", "Familiar", "Cuidador", "Outro"] },
+        { "key": "tutor2_email", "label": "Tutor adicional — E-mail", "type": "text", "required": false },
+        { "key": "contato_emergencia_nome", "label": "Contato de emergência — Nome", "type": "text", "required": false },
+        { "key": "contato_emergencia_telefone", "label": "Contato de emergência — Telefone", "type": "text", "required": false },
+        { "key": "contato_emergencia_vinculo", "label": "Contato de emergência — Vínculo", "type": "text", "required": false },
+        { "key": "contato_emergencia_email", "label": "Contato de emergência — E-mail", "type": "text", "required": false }
+      ]
+    }
+  ]
+}

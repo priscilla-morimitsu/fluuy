@@ -18,6 +18,7 @@ export function ChipsInput({
   disabled,
   id,
   className,
+  onChange,
 }: {
   name?: string;
   defaultValue?: string[];
@@ -25,13 +26,21 @@ export function ChipsInput({
   disabled?: boolean;
   id?: string;
   className?: string;
+  /** Fired with the full chip list whenever it changes (controlled usage). */
+  onChange?: (chips: string[]) => void;
 }) {
   const [chips, setChips] = React.useState<string[]>(defaultValue);
   const [draft, setDraft] = React.useState("");
 
+  // Wraps setChips so callers always learn about the new list.
+  const commit = (next: string[]) => {
+    setChips(next);
+    onChange?.(next);
+  };
+
   const add = (raw: string) => {
     const v = raw.trim();
-    if (v && !chips.includes(v)) setChips((c) => [...c, v]);
+    if (v && !chips.includes(v)) commit([...chips, v]);
     setDraft("");
   };
 
@@ -54,7 +63,7 @@ export function ChipsInput({
             type="button"
             aria-label={`Remover ${c}`}
             disabled={disabled}
-            onClick={() => setChips((cs) => cs.filter((_, idx) => idx !== i))}
+            onClick={() => commit(chips.filter((_, idx) => idx !== i))}
             className="grid size-4 place-items-center rounded-full hover:bg-black/10"
           >
             <X className="size-3" />
@@ -72,7 +81,7 @@ export function ChipsInput({
             e.preventDefault();
             add(draft);
           } else if (e.key === "Backspace" && draft === "" && chips.length > 0) {
-            setChips((c) => c.slice(0, -1));
+            commit(chips.slice(0, -1));
           }
         }}
         onBlur={() => draft && add(draft)}

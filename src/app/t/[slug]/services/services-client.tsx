@@ -29,7 +29,7 @@ import { FormDrawer } from "@/components/ui/form-drawer";
 import { Label } from "@/components/ui/label";
 import type { badgeVariants } from "@/components/ui/badge";
 import { SERVICE_DELIVERY_MODE_LABELS } from "@/lib/validations/service";
-import type { TemplateField } from "@/lib/validations/template";
+import type { TemplateField, TemplateLayout } from "@/lib/validations/template";
 
 import {
   deleteServiceAction,
@@ -73,6 +73,7 @@ export default function ServicesClient({
   professionals,
   locations,
   templateFields,
+  templateLayout,
   canWrite,
 }: {
   slug: string;
@@ -83,6 +84,7 @@ export default function ServicesClient({
   professionals: ProfessionalOption[];
   locations: LocationOption[];
   templateFields: TemplateField[];
+  templateLayout?: TemplateLayout;
   canWrite: boolean;
 }) {
   const [params, setParams] = useTableParams();
@@ -299,6 +301,7 @@ export default function ServicesClient({
         tableId="tenant-services"
         columns={columns}
         data={rows}
+        onRowClick={canWrite ? (row) => openEdit(row.id) : undefined}
         hasActiveFilters={activeFilters.length > 0}
         onClearFilters={clearAll}
         toolbarStart={<SearchInput placeholder="Buscar por nome, descrição ou categoria..." />}
@@ -398,6 +401,7 @@ export default function ServicesClient({
               professionals={professionals}
               locations={locations}
               templateFields={templateFields}
+              templateLayout={templateLayout}
               onCancel={() => setCreating(false)}
               onSuccess={() => {
                 setCreating(false);
@@ -420,6 +424,7 @@ export default function ServicesClient({
                 professionals={professionals}
                 locations={locations}
                 templateFields={templateFields}
+              templateLayout={templateLayout}
                 initial={editing}
                 onCancel={() => setEditing(null)}
                 onSuccess={() => {

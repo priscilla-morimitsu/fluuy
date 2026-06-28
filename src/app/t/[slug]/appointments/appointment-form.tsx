@@ -1,14 +1,16 @@
 "use client";
 
 import { useActionState, useEffect, useState } from "react";
+import { toast } from "sonner";
 
+import { TemplateFieldsRenderer } from "@/components/crud/template-fields-renderer";
 import { Combobox } from "@/components/ui/combobox";
 import { AffixInput, Field } from "@/components/ui/field";
 import { FormDrawerForm, FormSection } from "@/components/ui/form-drawer";
 import { Textarea } from "@/components/ui/textarea";
 import { actionError, actionOk } from "@/lib/admin/action-result";
 import { APPOINTMENT_MODALITIES, APPOINTMENT_RESPONSIBLE_TYPES } from "@/lib/validations/appointment";
-import type { TemplateField } from "@/lib/validations/template";
+import type { TemplateField, TemplateLayout } from "@/lib/validations/template";
 
 import { createAppointmentAction, updateAppointmentAction, type AppointmentActionResult } from "./actions";
 import { MODALITY_LABELS, RESPONSIBLE_LABELS } from "./labels";
@@ -51,6 +53,7 @@ export default function AppointmentForm({
   slug,
   options,
   templateFields,
+  templateLayout,
   initial,
   defaultStartAt,
   onSuccess,
@@ -59,6 +62,7 @@ export default function AppointmentForm({
   slug: string;
   options: AppointmentOptions;
   templateFields: TemplateField[];
+  templateLayout?: TemplateLayout;
   initial?: AppointmentInitial;
   defaultStartAt?: string;
   onSuccess?: () => void;
@@ -74,8 +78,41 @@ export default function AppointmentForm({
   const [modality, setModality] = useState(initial?.modality ?? "at_location");
 
   useEffect(() => {
-    if (actionOk(state)) onSuccess?.();
+    if (actionOk(state)) {
+      onSuccess?.();
+      return;
+    }
+    const err = actionError(state);
+    if (err) toast.error(err);
   }, [state, onSuccess]);
+
+  const fieldLabels = {
+    customerId: "Cliente",
+    serviceId: "Serviço",
+    responsibleType: "Responsável",
+    professionalId: "Profissional",
+    locationId: "Local",
+    modality: "Modalidade",
+    startAt: "Início",
+    endAt: "Término",
+    customerNotes: "Observações do cliente",
+    internalNotes: "Notas internas",
+  };
+
+  const initialValues = initial
+    ? {
+        customerId: initial.customerId,
+        serviceId: initial.serviceId,
+        responsibleType: initial.responsibleType,
+        professionalId: initial.professionalId ?? "",
+        locationId: initial.locationId ?? "",
+        modality: initial.modality,
+        startAt: toLocalInput(initial.startAt),
+        endAt: toLocalInput(initial.endAt),
+        customerNotes: initial.customerNotes ?? "",
+        internalNotes: initial.internalNotes ?? "",
+      }
+    : undefined;
 
   return (
     <FormDrawerForm
@@ -84,9 +121,11 @@ export default function AppointmentForm({
       error={actionError(state)}
       onCancel={onCancel}
       submitLabel={isEdit ? "Salvar alterações" : "Criar agendamento"}
+      confirmOnSave={isEdit}
+      confirmTitle="Confirmar alterações do agendamento?"
+      initialValues={initialValues}
+      fieldLabels={fieldLabels}
     >
-      <input type="hidden" name="source" value="manual" />
-
       <FormSection title="Cliente e serviço">
         <Field label="Cliente" htmlFor="customerId" required className="col-span-full">
           <Combobox
@@ -188,30 +227,7 @@ export default function AppointmentForm({
 
       {templateFields.length > 0 && (
         <FormSection title="Campos específicos do nicho">
-          {templateFields.map((field) => {
-            const name = `custom_${field.key}`;
-            const value = initial?.customData?.[field.key];
-            if (field.type === "boolean") {
-              return (
-                <label key={field.key} className="col-span-full flex items-center gap-2 text-sm">
-                  <input type="checkbox" name={name} defaultChecked={Boolean(value)} className="size-4" />
-                  {field.label}
-                </label>
-              );
-            }
-            if ((field.type === "select" || field.type === "multiselect") && field.options) {
-              return (
-                <Field key={field.key} label={field.label} htmlFor={name} required={field.required} className="col-span-full">
-                  <Combobox id={name} name={name} defaultValue={value != null ? String(value) : ""} options={field.options.map((o) => ({ value: o, label: o }))} placeholder="Selecione" emptyText="Sem opções." />
-                </Field>
-              );
-            }
-            return (
-              <Field key={field.key} label={field.label} htmlFor={name} required={field.required}>
-                <AffixInput id={name} name={name} type={field.type === "number" ? "number" : "text"} defaultValue={value != null ? String(value) : ""} required={field.required} />
-              </Field>
-            );
-          })}
+          <TemplateFieldsRenderer fields={templateFields} layout={templateLayout} values={initial?.customData} prefix="custom_" />
         </FormSection>
       )}
     </FormDrawerForm>

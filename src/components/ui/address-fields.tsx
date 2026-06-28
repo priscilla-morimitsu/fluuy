@@ -1,6 +1,6 @@
 "use client";
 
-import { MapPin, Search } from "lucide-react";
+import { Hash, MapPin, Search } from "lucide-react";
 import * as React from "react";
 
 import { Combobox, type ComboOption } from "@/components/ui/combobox";
@@ -185,7 +185,7 @@ export function AddressFormFields({
       {showReference && <input type="hidden" name={hidden("reference")} value={value.reference ?? ""} />}
 
       <FormGrid>
-        {/* 1. CEP */}
+        {/* 1. CEP · 2. Número (same line) */}
         <Field
           label="CEP"
           htmlFor={fid("cep")}
@@ -216,9 +216,20 @@ export function AddressFormFields({
             }
           />
         </Field>
+        <Field label="Número" htmlFor={fid("number")} required={required} error={errors.number}>
+          <AffixInput
+            id={fid("number")}
+            leadIcon={<Hash />}
+            disabled={disabled}
+            invalid={Boolean(errors.number)}
+            placeholder="123"
+            value={value.number}
+            onChange={(e) => setField("number", e.target.value)}
+          />
+        </Field>
 
-        {/* 2. Rua / Logradouro */}
-        <Field label="Rua / Logradouro" htmlFor={fid("street")} required={required} error={errors.street} className="col-span-full">
+        {/* 3. Logradouro (full width) */}
+        <Field label="Logradouro" htmlFor={fid("street")} required={required} error={errors.street} className="col-span-full">
           <Combobox
             id={fid("street")}
             value={value.street}
@@ -230,34 +241,22 @@ export function AddressFormFields({
             allowCustom
             disabled={disabled}
             ariaInvalid={Boolean(errors.street)}
-            placeholder="Busque por UF + cidade + rua, ou digite"
+            placeholder="Rua, avenida…"
             searchPlaceholder="Digite a rua (mín. 3 letras)…"
             emptyText="Nenhuma rua encontrada — digite para usar manualmente."
           />
         </Field>
 
-        {/* 3. Número · 4. Complemento */}
-        <Field label="Número" htmlFor={fid("number")} required={required} error={errors.number}>
-          <AffixInput
-            id={fid("number")}
-            disabled={disabled}
-            invalid={Boolean(errors.number)}
-            placeholder="Nº ou S/N"
-            value={value.number}
-            onChange={(e) => setField("number", e.target.value)}
-          />
-        </Field>
+        {/* 4. Complemento · 5. Bairro */}
         <Field label="Complemento" htmlFor={fid("complement")} error={errors.complement}>
           <AffixInput
             id={fid("complement")}
             disabled={disabled}
-            placeholder="Apto, bloco, sala…"
+            placeholder="Apto, bloco…"
             value={value.complement}
             onChange={(e) => setField("complement", e.target.value)}
           />
         </Field>
-
-        {/* 5. Bairro */}
         <Field label="Bairro" htmlFor={fid("neighborhood")} required={required} error={errors.neighborhood}>
           <Combobox
             id={fid("neighborhood")}
@@ -288,7 +287,7 @@ export function AddressFormFields({
             emptyText="Digite para usar a cidade."
           />
         </Field>
-        <Field label="Estado / UF" htmlFor={fid("state")} required={required} error={errors.state}>
+        <Field label="UF" htmlFor={fid("state")} required={required} error={errors.state}>
           <Combobox
             id={fid("state")}
             value={value.state}
@@ -296,25 +295,17 @@ export function AddressFormFields({
             options={UF_OPTIONS}
             disabled={disabled}
             ariaInvalid={Boolean(errors.state)}
-            placeholder="Selecione a UF"
+            placeholder="UF"
             searchPlaceholder="Buscar UF…"
             emptyText="UF não encontrada."
           />
         </Field>
 
-        {/* 8. País */}
-        <Field label="País" htmlFor={fid("country")}>
-          <AffixInput
-            id={fid("country")}
-            disabled={disabled}
-            value={value.country}
-            onChange={(e) => setField("country", e.target.value)}
-          />
-        </Field>
+        {/* País: submitted via the hidden input above; no visible field per spec. */}
 
-        {/* 9. Referência (opcional) */}
+        {/* 8. Referência (opcional, full width) */}
         {showReference && (
-          <Field label="Ponto de referência" htmlFor={fid("reference")} className="col-span-full">
+          <Field label="Referência" htmlFor={fid("reference")} className="col-span-full">
             <AffixInput
               id={fid("reference")}
               disabled={disabled}

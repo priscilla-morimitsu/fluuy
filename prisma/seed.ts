@@ -121,6 +121,49 @@ async function main() {
     });
   }
 
+  // Active customer_entity template for the niche → drives the Pet form's
+  // "Campos específicos do nicho" section. The Pet owns its tutors: the primary
+  // tutor is the owning Customer (no field — definitional); one additional tutor
+  // and one emergency contact live as flat, template-driven fields in custom_data
+  // (label-namespaced since the template engine has no section concept). See
+  // .claude/docs/specs/niches/pets-templates.json (source of truth).
+  const hasPetTemplate = await prisma.template.findFirst({
+    where: { nicheId: niche.id, entityType: "customer_entity" },
+    select: { id: true },
+  });
+  if (!hasPetTemplate) {
+    await prisma.template.create({
+      data: {
+        nicheId: niche.id,
+        entityType: "customer_entity",
+        name: "Pet — Pets",
+        status: "active",
+        version: 1,
+        fields: [
+          // O primeiro campo obrigatório do template é tratado como nome de exibição
+          // da entidade (aparece na listagem). Para Pet, é o nome do pet.
+          { key: "nome", label: "Nome do pet", type: "text", required: true },
+          { key: "especie", label: "Espécie", type: "select", required: true, options: ["Cão", "Gato", "Outro"] },
+          { key: "raca", label: "Raça", type: "text", required: false },
+          { key: "nasc", label: "Data de nascimento", type: "text", required: false },
+          { key: "porte", label: "Porte", type: "select", required: false, options: ["Pequeno", "Médio", "Grande"] },
+          { key: "peso_kg", label: "Peso (kg)", type: "number", required: false },
+          { key: "sexo", label: "Sexo", type: "select", required: false, options: ["Macho", "Fêmea"] },
+          { key: "castrado", label: "Castrado", type: "boolean", required: false },
+          { key: "observacoes_saude", label: "Observações de saúde", type: "textarea", required: false },
+          { key: "tutor2_nome", label: "Tutor adicional — Nome", type: "text", required: false },
+          { key: "tutor2_telefone", label: "Tutor adicional — Telefone", type: "text", required: false },
+          { key: "tutor2_vinculo", label: "Tutor adicional — Vínculo", type: "select", required: false, options: ["Cônjuge", "Filho(a)", "Familiar", "Cuidador", "Outro"] },
+          { key: "tutor2_email", label: "Tutor adicional — E-mail", type: "text", required: false },
+          { key: "contato_emergencia_nome", label: "Contato de emergência — Nome", type: "text", required: false },
+          { key: "contato_emergencia_telefone", label: "Contato de emergência — Telefone", type: "text", required: false },
+          { key: "contato_emergencia_vinculo", label: "Contato de emergência — Vínculo", type: "text", required: false },
+          { key: "contato_emergencia_email", label: "Contato de emergência — E-mail", type: "text", required: false },
+        ],
+      },
+    });
+  }
+
   const tenantEmail = process.env.SEED_TENANT_EMAIL ?? "owner@petshop.com";
   const tenantPassword = process.env.SEED_TENANT_PASSWORD ?? "changeme123";
 

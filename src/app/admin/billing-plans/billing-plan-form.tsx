@@ -50,6 +50,22 @@ export default function BillingPlanForm({
       error={actionError(state)}
       onCancel={onCancel}
       submitLabel={isEdit ? "Salvar alterações" : "Criar plano"}
+      confirmOnSave={isEdit}
+      confirmTitle="Confirmar alterações do plano?"
+      initialValues={
+        initial && {
+          name: initial.name,
+          price: initial.price,
+          billingPeriod: initial.billingPeriod,
+          description: initial.description ?? "",
+        }
+      }
+      fieldLabels={{
+        name: "Nome",
+        price: "Preço (mensalidade)",
+        billingPeriod: "Periodicidade",
+        description: "Descrição",
+      }}
     >
       <FormSection title="Plano">
         <Field label="Key" htmlFor="key" required={!isEdit} hint={isEdit ? "Imutável após a criação." : "snake_case"}>

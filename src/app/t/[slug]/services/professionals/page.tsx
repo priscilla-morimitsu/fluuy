@@ -39,7 +39,7 @@ export default async function ProfessionalsPage({
     return Number.isFinite(n) ? n : undefined;
   };
 
-  const [{ rows, filtered, total }, specialties, services, locations, members, templateFields] = await Promise.all([
+  const [{ rows, filtered, total }, specialties, services, locations, members, template] = await Promise.all([
     listProfessionals(tenant.id, {
       q: str(sp.q),
       status: str(sp.status),
@@ -72,7 +72,8 @@ export default async function ProfessionalsPage({
       services={services.map((s) => ({ id: s.id, name: s.name }))}
       locations={locations.map((l) => ({ id: l.id, name: l.name }))}
       members={members}
-      templateFields={templateFields}
+      templateFields={template.fields}
+      templateLayout={template.layout}
       canWrite={canWrite}
     />
   );

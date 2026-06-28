@@ -1,20 +1,21 @@
 "use client";
 
-import { Plus, Tag } from "lucide-react";
+import { Plus } from "lucide-react";
 import { useActionState, useEffect, useState, useTransition } from "react";
 import { toast } from "sonner";
 
+import { TemplateFieldsRenderer } from "@/components/crud/template-fields-renderer";
+import { StatusSwitchItem, type StatusOption } from "@/components/forms/status-switch-item";
 import { Button } from "@/components/ui/button";
 import { Combobox } from "@/components/ui/combobox";
 import { AffixInput, Field } from "@/components/ui/field";
 import { FormDrawerForm, FormSection } from "@/components/ui/form-drawer";
 import { PhoneInput } from "@/components/ui/masked-inputs";
 import { MultiSelect } from "@/components/ui/multiselect";
-import { Segmented } from "@/components/ui/segmented";
 import { SwitchCard } from "@/components/ui/switch-card";
 import { Textarea } from "@/components/ui/textarea";
 import { actionError, actionOk } from "@/lib/admin/action-result";
-import type { TemplateField } from "@/lib/validations/template";
+import type { TemplateField, TemplateLayout } from "@/lib/validations/template";
 
 import {
   createProfessionalAction,
@@ -45,9 +46,29 @@ export type ProfessionalInitial = {
   locationIds: string[];
 };
 
-const STATUS_OPTIONS = [
-  { value: "active", label: "Ativo" },
-  { value: "inactive", label: "Inativo" },
+// Two-state lifecycle (active/inactive) — switch control, no danger affordance.
+const STATUS_OPTIONS: StatusOption[] = [
+  {
+    value: "active",
+    label: "Ativo",
+    description: "Ativo — o profissional aparece e pode ser agendado.",
+    tone: "positive",
+    confirm: {
+      title: "Ativar profissional?",
+      message: "O profissional volta a aparecer e pode receber agendamentos.",
+      confirmLabel: "Ativar",
+    },
+  },
+  {
+    value: "inactive",
+    label: "Inativo",
+    description: "Inativo — o profissional fica oculto e indisponível.",
+    confirm: {
+      title: "Inativar profissional?",
+      message: "O profissional fica oculto e indisponível para novos agendamentos até ser reativado.",
+      confirmLabel: "Inativar",
+    },
+  },
 ];
 
 export default function ProfessionalForm({
@@ -57,6 +78,7 @@ export default function ProfessionalForm({
   locations,
   members,
   templateFields,
+  templateLayout,
   initial,
   onSuccess,
   onCancel,
@@ -67,6 +89,7 @@ export default function ProfessionalForm({
   locations: IdName[];
   members: MemberOption[];
   templateFields: TemplateField[];
+  templateLayout?: TemplateLayout;
   initial?: ProfessionalInitial;
   onSuccess?: () => void;
   onCancel?: () => void;
@@ -77,6 +100,7 @@ export default function ProfessionalForm({
     : createProfessionalAction.bind(null, slug);
   const [state, formAction, pending] = useActionState<ProfessionalActionResult, FormData>(action, undefined);
 
+  const [status, setStatus] = useState(initial?.status ?? "active");
   const [userId, setUserId] = useState(initial?.userId ?? "");
 
   // Specialties: uncontrolled MultiSelect + inline create (remount on add).
@@ -113,10 +137,45 @@ export default function ProfessionalForm({
       error={actionError(state)}
       onCancel={onCancel}
       submitLabel={isEdit ? "Salvar alterações" : "Criar profissional"}
+      confirmOnSave={isEdit}
+      confirmTitle="Confirmar alterações do profissional?"
+      initialValues={
+        initial && {
+          name: initial.name,
+          title: initial.title ?? "",
+          bio: initial.bio ?? "",
+          avatarUrl: initial.avatarUrl ?? "",
+          status: initial.status,
+          phone: initial.phone ?? "",
+          whatsapp: initial.whatsapp ?? "",
+          email: initial.email ?? "",
+          internalNotes: initial.internalNotes ?? "",
+        }
+      }
+      fieldLabels={{
+        name: "Nome",
+        title: "Cargo / função",
+        bio: "Bio",
+        avatarUrl: "Foto (URL)",
+        status: "Status",
+        phone: "Telefone",
+        whatsapp: "WhatsApp",
+        email: "E-mail",
+        internalNotes: "Notas internas",
+      }}
     >
       <input type="hidden" name="userId" value={userId} />
 
       <FormSection title="Informações principais">
+        <div className="col-span-full">
+          <StatusSwitchItem
+            title="Status do profissional"
+            name="status"
+            value={status}
+            onChange={setStatus}
+            options={STATUS_OPTIONS}
+          />
+        </div>
         <Field label="Nome" htmlFor="name" required>
           <AffixInput id="name" name="name" required maxLength={150} defaultValue={initial?.name} />
         </Field>
@@ -134,9 +193,6 @@ export default function ProfessionalForm({
             placeholder="https://…"
             defaultValue={initial?.avatarUrl ?? ""}
           />
-        </Field>
-        <Field label="Status" htmlFor="status">
-          <Segmented name="status" ariaLabel="Status" defaultValue={initial?.status ?? "active"} options={STATUS_OPTIONS} />
         </Field>
         <SwitchCard
           title="Perfil público"
@@ -256,55 +312,7 @@ export default function ProfessionalForm({
 
       {templateFields.length > 0 && (
         <FormSection title="Campos específicos do nicho">
-          {templateFields.map((field) => {
-            const name = `custom_${field.key}`;
-            const value = initial?.customData?.[field.key];
-            if (field.type === "boolean") {
-              return (
-                <SwitchCard
-                  key={field.key}
-                  title={field.label}
-                  name={name}
-                  defaultChecked={Boolean(value)}
-                  className="col-span-full"
-                />
-              );
-            }
-            if ((field.type === "select" || field.type === "multiselect") && field.options) {
-              return (
-                <Field key={field.key} label={field.label} htmlFor={name} required={field.required} className="col-span-full">
-                  <Combobox
-                    id={name}
-                    name={name}
-                    defaultValue={value != null ? String(value) : ""}
-                    options={field.options.map((o) => ({ value: o, label: o }))}
-                    placeholder="Selecione"
-                    searchPlaceholder="Buscar…"
-                    emptyText="Sem opções."
-                  />
-                </Field>
-              );
-            }
-            if (field.type === "textarea") {
-              return (
-                <Field key={field.key} label={field.label} htmlFor={name} required={field.required} className="col-span-full">
-                  <Textarea id={name} name={name} rows={2} defaultValue={value != null ? String(value) : ""} required={field.required} />
-                </Field>
-              );
-            }
-            return (
-              <Field key={field.key} label={field.label} htmlFor={name} required={field.required}>
-                <AffixInput
-                  id={name}
-                  name={name}
-                  leadIcon={<Tag />}
-                  type={field.type === "number" ? "number" : "text"}
-                  defaultValue={value != null ? String(value) : ""}
-                  required={field.required}
-                />
-              </Field>
-            );
-          })}
+          <TemplateFieldsRenderer fields={templateFields} layout={templateLayout} values={initial?.customData} />
         </FormSection>
       )}
 
