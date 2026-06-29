@@ -97,6 +97,16 @@ function buildSearchTokens(...inputs: (string | undefined)[]): string[] {
   return [...out];
 }
 
+/**
+ * Casamento de busca insensível a acento e maiúsculas (feito na aplicação, já que o catálogo
+ * por tenant é pequeno). Retorna true se QUALQUER token (normalizado) aparecer no texto.
+ */
+function matchesTokens(haystack: string, tokens: string[]): boolean {
+  if (tokens.length === 0) return true;
+  const h = normalizeKey(haystack);
+  return tokens.some((t) => h.includes(normalizeKey(t)));
+}
+
 /** Builds "HH:MM" slot starts from a window, stepping by `stepMin` minutes. */
 function buildSlots(startTime: string, endTime: string, stepMin: number): string[] {
   const toMin = (hhmm: string): number => {
@@ -193,31 +203,25 @@ export function registerReadTools(server: McpServer): void {
     },
     async ({ termo, porte }, extra) => {
       const tenantId = getTenantId(extra.authInfo);
-      const and: Prisma.ServiceWhereInput[] = [];
-      // Busca tolerante por tokens: "banho e tosa" casa com "Banho + Tosa Higiênica".
+      // Busca tolerante (insensível a acento, por tokens): "banho e tosa" casa com
+      // "Banho + Tosa Higiênica", "racao"/"ração" idem. Filtro feito na aplicação.
       const tokens = buildSearchTokens(termo);
-      if (tokens.length > 0) {
-        and.push({
-          OR: tokens.flatMap((t) => [
-            { name: { contains: t, mode: "insensitive" } as Prisma.StringFilter },
-            { description: { contains: t, mode: "insensitive" } as Prisma.StringNullableFilter },
-          ]),
-        });
-      }
-
-      const services = await prisma.service.findMany({
-        where: { tenantId, status: "active", availableForBooking: true, AND: and },
+      const allServices = await prisma.service.findMany({
+        where: { tenantId, status: "active", availableForBooking: true },
         select: {
           id: true,
           name: true,
+          description: true,
           basePrice: true,
           promotionalPrice: true,
           estimatedDurationMinutes: true,
           customData: true,
         },
         orderBy: { name: "asc" },
-        take: 12,
       });
+      const services = allServices
+        .filter((s) => matchesTokens(`${s.name} ${s.description ?? ""}`, tokens))
+        .slice(0, 12);
 
       if (services.length === 0) {
         return textResult("Nenhum serviço encontrado para esse filtro.");
@@ -275,28 +279,21 @@ export function registerReadTools(server: McpServer): void {
     },
     async ({ termo, marca, especie, porte }, extra) => {
       const tenantId = getTenantId(extra.authInfo);
-      const and: Prisma.ProductWhereInput[] = [];
-      // Busca tolerante: quebra termo/espécie/porte em tokens e casa SE QUALQUER UM aparecer
-      // no nome/descrição/marca. Espécie e porte NÃO filtram duro (zerava produtos cujo nome
-      // não repete a espécie); entram só como tokens adicionais (com sinônimos de espécie).
+      // Busca tolerante (insensível a acento, por tokens, na aplicação): quebra termo/espécie/
+      // porte em tokens e casa SE QUALQUER UM aparecer no nome/descrição/marca. Espécie e porte
+      // NÃO filtram duro (zerava produtos cujo nome não repete a espécie); entram como tokens
+      // adicionais (com sinônimos de espécie). "ração para cães", "racao" e especie="cão" passam.
       const tokens = buildSearchTokens(termo, especie, porte);
-      if (tokens.length > 0) {
-        and.push({
-          OR: tokens.flatMap((t) => [
-            { name: { contains: t, mode: "insensitive" } as Prisma.StringFilter },
-            { description: { contains: t, mode: "insensitive" } as Prisma.StringNullableFilter },
-            { brand: { contains: t, mode: "insensitive" } as Prisma.StringNullableFilter },
-          ]),
-        });
-      }
-      if (marca) and.push({ brand: { contains: marca, mode: "insensitive" } });
-
-      const products = await prisma.product.findMany({
-        where: { tenantId, status: "active", availableForSale: true, AND: and },
-        select: { name: true, brand: true, salePrice: true, promotionalPrice: true },
+      const marcaKey = marca ? normalizeKey(marca) : null;
+      const allProducts = await prisma.product.findMany({
+        where: { tenantId, status: "active", availableForSale: true },
+        select: { name: true, brand: true, description: true, salePrice: true, promotionalPrice: true },
         orderBy: { name: "asc" },
-        take: 12,
       });
+      const products = allProducts
+        .filter((p) => matchesTokens(`${p.name} ${p.brand ?? ""} ${p.description ?? ""}`, tokens))
+        .filter((p) => !marcaKey || normalizeKey(p.brand ?? "").includes(marcaKey))
+        .slice(0, 12);
 
       if (products.length === 0) {
         return textResult("Nenhum produto encontrado para esse filtro.");
