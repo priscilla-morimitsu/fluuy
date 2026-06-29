@@ -44,7 +44,9 @@ coleta/encaminha — não preenche a lacuna.
 | Mapa das 41 skills → tool / ação nativa / prompt | [05_skills_para_tools.md](05_skills_para_tools.md) |
 | Guard-rails em camadas + handoff | [06_guardrails_e_handoff.md](06_guardrails_e_handoff.md) |
 | O que colocar na base de conhecimento + microcopy | [07_base_conhecimento_e_microcopy.md](07_base_conhecimento_e_microcopy.md) |
+| **Skills da simulação petshop (Ação `fluuy_mcp`, WhatsApp do Fluuy)** | [08_skills_simulacao_petshop.md](08_skills_simulacao_petshop.md) |
 | Registro de tools (máquina) | [tools/zatten-mcp-tools.spec.json](tools/zatten-mcp-tools.spec.json) |
+| Pacote de skills da simulação (máquina) | [skills/zatten-petshop-skills.spec.json](skills/zatten-petshop-skills.spec.json) |
 
 ---
 
