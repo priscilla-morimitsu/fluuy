@@ -65,6 +65,38 @@ function textResult(text: string): { content: { type: "text"; text: string }[] }
   return { content: [{ type: "text", text }] };
 }
 
+const SEARCH_STOPWORDS = new Set([
+  "de", "da", "do", "das", "dos", "para", "pra", "pro", "e", "com", "a", "o", "os", "as",
+  "em", "um", "uma", "no", "na", "meu", "minha", "pet",
+]);
+
+// Sinônimos de espécie: o usuário/modelo pode dizer "cão" mas o cadastro usa "cães"/"cachorro".
+const SPECIES_SYNONYMS: Record<string, string[]> = {
+  cao: ["cão", "cães", "cachorro", "cachorros", "canino"],
+  gato: ["gato", "gatos", "felino", "felina"],
+};
+
+/**
+ * Quebra termo/espécie/porte em tokens de busca tolerantes: remove stopwords, ignora tokens
+ * curtos e expande sinônimos de espécie. Usado para casar por QUALQUER token (OR), evitando
+ * que frases compostas ("ração para cães") ou filtros de espécie zerem o resultado.
+ */
+function buildSearchTokens(...inputs: (string | undefined)[]): string[] {
+  const out = new Set<string>();
+  for (const input of inputs) {
+    if (!input) continue;
+    for (const word of input.split(/\s+/)) {
+      const cleaned = word.trim();
+      if (cleaned.length < 3) continue;
+      if (SEARCH_STOPWORDS.has(normalizeKey(cleaned))) continue;
+      out.add(cleaned);
+      const synonyms = SPECIES_SYNONYMS[normalizeKey(cleaned)];
+      if (synonyms) for (const s of synonyms) out.add(s);
+    }
+  }
+  return [...out];
+}
+
 /** Builds "HH:MM" slot starts from a window, stepping by `stepMin` minutes. */
 function buildSlots(startTime: string, endTime: string, stepMin: number): string[] {
   const toMin = (hhmm: string): number => {
@@ -162,12 +194,14 @@ export function registerReadTools(server: McpServer): void {
     async ({ termo, porte }, extra) => {
       const tenantId = getTenantId(extra.authInfo);
       const and: Prisma.ServiceWhereInput[] = [];
-      if (termo) {
+      // Busca tolerante por tokens: "banho e tosa" casa com "Banho + Tosa Higiênica".
+      const tokens = buildSearchTokens(termo);
+      if (tokens.length > 0) {
         and.push({
-          OR: [
-            { name: { contains: termo, mode: "insensitive" } },
-            { description: { contains: termo, mode: "insensitive" } },
-          ],
+          OR: tokens.flatMap((t) => [
+            { name: { contains: t, mode: "insensitive" } as Prisma.StringFilter },
+            { description: { contains: t, mode: "insensitive" } as Prisma.StringNullableFilter },
+          ]),
         });
       }
 
@@ -242,24 +276,20 @@ export function registerReadTools(server: McpServer): void {
     async ({ termo, marca, especie, porte }, extra) => {
       const tenantId = getTenantId(extra.authInfo);
       const and: Prisma.ProductWhereInput[] = [];
-      if (termo) {
+      // Busca tolerante: quebra termo/espécie/porte em tokens e casa SE QUALQUER UM aparecer
+      // no nome/descrição/marca. Espécie e porte NÃO filtram duro (zerava produtos cujo nome
+      // não repete a espécie); entram só como tokens adicionais (com sinônimos de espécie).
+      const tokens = buildSearchTokens(termo, especie, porte);
+      if (tokens.length > 0) {
         and.push({
-          OR: [
-            { name: { contains: termo, mode: "insensitive" } },
-            { description: { contains: termo, mode: "insensitive" } },
-            { brand: { contains: termo, mode: "insensitive" } },
-          ],
+          OR: tokens.flatMap((t) => [
+            { name: { contains: t, mode: "insensitive" } as Prisma.StringFilter },
+            { description: { contains: t, mode: "insensitive" } as Prisma.StringNullableFilter },
+            { brand: { contains: t, mode: "insensitive" } as Prisma.StringNullableFilter },
+          ]),
         });
       }
       if (marca) and.push({ brand: { contains: marca, mode: "insensitive" } });
-      for (const extraTerm of [especie, porte].filter((v): v is string => Boolean(v))) {
-        and.push({
-          OR: [
-            { name: { contains: extraTerm, mode: "insensitive" } },
-            { description: { contains: extraTerm, mode: "insensitive" } },
-          ],
-        });
-      }
 
       const products = await prisma.product.findMany({
         where: { tenantId, status: "active", availableForSale: true, AND: and },
