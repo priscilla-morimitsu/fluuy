@@ -153,14 +153,13 @@ export function registerReadTools(server: McpServer): void {
         "exato; senão informe 'a partir de'. Só retorna o que está cadastrado.",
       inputSchema: {
         termo: z.string().optional().describe("Texto para filtrar (ex.: banho, tosa, consulta)."),
-        especie: z.string().optional().describe("Espécie do pet (cão, gato), se relevante."),
         porte: z
           .string()
           .optional()
           .describe("Porte do pet (pequeno, médio, grande, gigante) para o preço exato."),
       },
     },
-    async ({ termo, especie, porte }, extra) => {
+    async ({ termo, porte }, extra) => {
       const tenantId = getTenantId(extra.authInfo);
       const and: Prisma.ServiceWhereInput[] = [];
       if (termo) {
@@ -171,18 +170,11 @@ export function registerReadTools(server: McpServer): void {
           ],
         });
       }
-      if (especie) {
-        and.push({
-          OR: [
-            { name: { contains: especie, mode: "insensitive" } },
-            { description: { contains: especie, mode: "insensitive" } },
-          ],
-        });
-      }
 
       const services = await prisma.service.findMany({
         where: { tenantId, status: "active", availableForBooking: true, AND: and },
         select: {
+          id: true,
           name: true,
           basePrice: true,
           promotionalPrice: true,
@@ -220,10 +212,14 @@ export function registerReadTools(server: McpServer): void {
         }
 
         const dur = s.estimatedDurationMinutes ? ` · ~${s.estimatedDurationMinutes}min` : "";
-        return `- ${s.name}: ${price}${dur}`;
+        return `- ${s.name}: ${price}${dur} [ref:${s.id}]`;
       });
 
-      return textResult(`Serviços:\n${lines.join("\n")}`);
+      return textResult(
+        `Serviços:\n${lines.join("\n")}\n` +
+          "(O [ref:...] é o identificador interno do serviço para consultar disponibilidade; " +
+          "não mostre ao cliente.)",
+      );
     },
   );
 
@@ -359,24 +355,39 @@ export function registerReadTools(server: McpServer): void {
     {
       title: "Consultar disponibilidade",
       description:
-        "Retorna as janelas/horários configurados para um serviço (por id). Passe 'data' " +
+        "Retorna as janelas/horários configurados para um serviço. Identifique o serviço por " +
+        "'servico' (nome, ex.: 'banho') ou por 'servicoId' (obtido em buscar_servicos). Passe 'data' " +
         "(AAAA-MM-DD) para ver os horários daquele dia. Ofereça SOMENTE os horários retornados e " +
         "avise que a confirmação final é da equipe — não prometa encaixe.",
       inputSchema: {
-        servicoId: z.string().describe("ID do serviço (obtido em buscar_servicos)."),
+        servicoId: z.string().optional().describe("ID do serviço (obtido em buscar_servicos)."),
+        servico: z
+          .string()
+          .optional()
+          .describe("Nome do serviço (ex.: banho, tosa). Alternativa ao servicoId."),
         data: z.string().optional().describe("Data desejada no formato AAAA-MM-DD."),
       },
     },
-    async ({ servicoId, data }, extra) => {
+    async ({ servicoId, servico, data }, extra) => {
       const tenantId = getTenantId(extra.authInfo);
+      if (!servicoId && !servico) {
+        return textResult("Informe o serviço (nome em 'servico' ou 'servicoId').");
+      }
       const service = await prisma.service.findFirst({
-        where: { id: servicoId, tenantId, status: "active" },
-        select: { name: true, estimatedDurationMinutes: true },
+        where: {
+          tenantId,
+          status: "active",
+          ...(servicoId
+            ? { id: servicoId }
+            : { name: { contains: servico as string, mode: "insensitive" } }),
+        },
+        select: { id: true, name: true, estimatedDurationMinutes: true },
+        orderBy: { name: "asc" },
       });
       if (!service) return textResult("Serviço não encontrado.");
 
       const rules = await prisma.serviceAvailabilityRule.findMany({
-        where: { tenantId, serviceId: servicoId, status: "active" },
+        where: { tenantId, serviceId: service.id, status: "active" },
         select: {
           weekday: true,
           startTime: true,
