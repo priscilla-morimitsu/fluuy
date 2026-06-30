@@ -6,7 +6,7 @@ import type { Prisma } from "@/generated/prisma/client";
 import { readCustomData } from "@/lib/custom-data";
 import { prisma } from "@/lib/prisma";
 import { requireTenantRole } from "@/lib/rbac";
-import { tenantProfileSchema } from "@/lib/validations/tenant";
+import { sanitizeAtendimentoFlows, tenantProfileSchema } from "@/lib/validations/tenant";
 import { validateCustomData, type TemplateField } from "@/lib/validations/template";
 
 export type ActionResult = { error: string } | undefined;
@@ -27,6 +27,7 @@ export async function updateTenantProfileAction(
     publicPhone: formData.get("publicPhone") ?? "",
     publicEmail: formData.get("publicEmail") ?? "",
     notificationPhone: formData.get("notificationPhone") ?? "",
+    atendimentoFlows: formData.getAll("atendimentoFlows").map(String),
   });
 
   if (!parsed.success) {
@@ -49,6 +50,7 @@ export async function updateTenantProfileAction(
       publicPhone: parsed.data.publicPhone || null,
       publicEmail: parsed.data.publicEmail || null,
       notificationPhone: parsed.data.notificationPhone || null,
+      atendimentoFlows: sanitizeAtendimentoFlows(parsed.data.atendimentoFlows),
       customData: customData as Prisma.InputJsonValue,
     },
   });

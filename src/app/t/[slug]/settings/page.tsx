@@ -38,6 +38,7 @@ export default async function TenantSettingsPage({
           publicEmail: tenant.publicEmail ?? "",
           notificationPhone: tenant.notificationPhone ?? "",
         }}
+        atendimentoFlows={Array.isArray(tenant.atendimentoFlows) ? (tenant.atendimentoFlows as string[]) : []}
         customData={(tenant.customData as Record<string, unknown>) ?? {}}
         templateFields={templateFields}
         templateLayout={templateLayout}

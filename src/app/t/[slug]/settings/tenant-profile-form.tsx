@@ -6,7 +6,9 @@ import { TemplateFieldsRenderer } from "@/components/crud/template-fields-render
 import { Button } from "@/components/ui/button";
 import { FormField } from "@/components/ui/form-field";
 import { Input } from "@/components/ui/input";
+import { MultiSelect } from "@/components/ui/multiselect";
 import { Textarea } from "@/components/ui/textarea";
+import { ATENDIMENTO_FLOW_GROUPS } from "@/lib/validations/tenant";
 import type { TemplateField, TemplateLayout } from "@/lib/validations/template";
 
 import { updateTenantProfileAction, type ActionResult } from "./actions";
@@ -20,15 +22,21 @@ type TenantFixedFields = {
   notificationPhone: string;
 };
 
+const FLOW_OPTIONS = ATENDIMENTO_FLOW_GROUPS.flatMap((g) =>
+  g.flows.map((f) => ({ value: f.value, label: f.label, description: g.group })),
+);
+
 export default function TenantProfileForm({
   tenantId,
   tenant,
+  atendimentoFlows,
   customData,
   templateFields,
   templateLayout,
 }: {
   tenantId: string;
   tenant: TenantFixedFields;
+  atendimentoFlows: string[];
   customData: Record<string, unknown>;
   templateFields: TemplateField[];
   templateLayout?: TemplateLayout;
@@ -59,6 +67,24 @@ export default function TenantProfileForm({
         </div>
         <FormField label="Descrição" htmlFor="description">
           <Textarea id="description" name="description" rows={2} defaultValue={tenant.description} />
+        </FormField>
+      </fieldset>
+
+      <fieldset className="glass flex flex-col gap-4 rounded-xl p-4">
+        <legend className="px-1 text-sm font-medium">Fluxos de atendimento</legend>
+        <FormField
+          label="O que o seu negócio atende"
+          htmlFor="atendimentoFlows"
+          hint="Selecione os serviços e fluxos que o agente deve oferecer aos seus clientes."
+        >
+          <MultiSelect
+            id="atendimentoFlows"
+            name="atendimentoFlows"
+            defaultValue={atendimentoFlows}
+            options={FLOW_OPTIONS}
+            placeholder="Selecione os fluxos atendidos…"
+            searchPlaceholder="Buscar fluxo…"
+          />
         </FormField>
       </fieldset>
 

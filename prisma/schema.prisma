@@ -279,6 +279,7 @@ model Tenant {
   hasDelivery          Boolean      @default(false) @map("has_delivery")
   hasPickup            Boolean      @default(false) @map("has_pickup")
   acceptsOnlinePayment Boolean      @default(false) @map("accepts_online_payment")
+  atendimentoFlows     Json?        @map("atendimento_flows")
   customData           Json         @default("{}") @map("custom_data")
   createdAt            DateTime     @default(now()) @map("created_at")
   updatedAt            DateTime     @updatedAt @map("updated_at")
