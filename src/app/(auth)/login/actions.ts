@@ -33,7 +33,7 @@ export async function loginWithPasswordAction(
     await signIn("password", {
       email: parsed.data.email,
       password: parsed.data.password,
-      redirectTo: parsed.data.callbackUrl || "/",
+      redirectTo: parsed.data.callbackUrl || "/home",
     });
   } catch (err) {
     if (err instanceof AuthError) {
@@ -103,7 +103,7 @@ export async function verifyOtpAction(
     await signIn(parsed.data.channel === "email" ? "email-otp" : "whatsapp-otp", {
       identifier: parsed.data.identifier,
       code: parsed.data.code,
-      redirectTo: parsed.data.callbackUrl || "/",
+      redirectTo: parsed.data.callbackUrl || "/home",
     });
   } catch (err) {
     if (err instanceof AuthError) {
@@ -114,5 +114,5 @@ export async function verifyOtpAction(
 }
 
 export async function signInWithGoogleAction(callbackUrl?: string): Promise<void> {
-  await signIn("google", { redirectTo: callbackUrl || "/" });
+  await signIn("google", { redirectTo: callbackUrl || "/home" });
 }

@@ -9,7 +9,7 @@ export default async function SetPasswordPage() {
   const user = await requireUser();
 
   const existing = await prisma.authCredential.findUnique({ where: { userId: user.id } });
-  if (existing) redirect("/");
+  if (existing) redirect("/home");
 
   return (
     <div className="flex min-h-screen items-center justify-center gradient-bg px-4">

@@ -10,7 +10,7 @@ export default async function SelectTenantPage() {
   const user = await requireUser();
   const resolution = await resolveTenantsForUser(user.id, user.isPlatformAdmin ?? false);
 
-  if (resolution.kind !== "multiple") redirect("/");
+  if (resolution.kind !== "multiple") redirect("/home");
 
   const tenants = await prisma.tenant.findMany({
     where: { id: { in: resolution.tenantIds } },

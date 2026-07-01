@@ -12,7 +12,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   // Every admin route/action re-checks isPlatformAdmin server-side (see
   // requirePlatformAdmin in src/lib/rbac.ts) — this redirect is just UX.
   if (!session?.user?.isPlatformAdmin) {
-    redirect("/");
+    redirect("/home");
   }
 
   async function logout() {

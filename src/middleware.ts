@@ -22,7 +22,10 @@ const PUBLIC_PATHS = [
 
 export default auth((req) => {
   const { pathname } = req.nextUrl;
-  const isPublic = PUBLIC_PATHS.some((p) => pathname.startsWith(p));
+  // The marketing landing page ("/") is public for everyone — including
+  // authenticated users, who see the landing rather than being redirected.
+  // Matched exactly, since a `startsWith("/")` would make every route public.
+  const isPublic = pathname === "/" || PUBLIC_PATHS.some((p) => pathname.startsWith(p));
 
   if (isPublic) return NextResponse.next();
 

@@ -1,0 +1,90 @@
+/*
+ * Landing page styles — faithful port of the Claude Design prototype
+ * (fluuy-landing-page-design). Keyframes and :hover / :focus rules here
+ * replace the prototype's runtime `style-hover` / `style-focus` synthesis;
+ * everything else stays as inline styles on the elements for pixel fidelity.
+ */
+
+.fl-root {
+  background: #282926;
+  color: #e6e6e6;
+  overflow-x: clip;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  font-family: var(--font-sans), "DM Sans", system-ui, sans-serif;
+}
+.fl-root ::selection {
+  background: #d6f272;
+  color: #282926;
+}
+.fl-mono {
+  font-family: var(--font-geist-mono), "DM Mono", monospace;
+}
+
+/* ── Keyframes (verbatim from prototype) ── */
+@keyframes fl-float { 0%,100%{transform:translate(0,0)} 50%{transform:translate(0,-22px)} }
+@keyframes fl-float2 { 0%,100%{transform:translate(0,0)} 50%{transform:translate(0,18px)} }
+@keyframes fl-blink { 0%,75%,100%{opacity:.28;transform:translateY(0)} 38%{opacity:1;transform:translateY(-2px)} }
+@keyframes fl-marquee { from{transform:translateX(0)} to{transform:translateX(-50%)} }
+@keyframes fl-reveal { from{opacity:0;transform:translateY(30px)} to{opacity:1;transform:none} }
+@keyframes fl-pulse { 0%,100%{box-shadow:0 0 0 0 rgba(123,196,72,.55)} 70%{box-shadow:0 0 0 6px rgba(123,196,72,0)} }
+@keyframes fl-rise { from{opacity:0;transform:translateY(8px) scale(.97)} to{opacity:1;transform:none} }
+@keyframes fl-spin { to{transform:rotate(360deg)} }
+@keyframes fl-bob { 0%,100%{transform:translateY(0) rotate(-2deg)} 50%{transform:translateY(-9px) rotate(2deg)} }
+
+/* ── Hover / focus states (ported from style-hover / style-focus) ── */
+.fl-nav-link { transition: color .15s; }
+.fl-nav-link:hover { color: #d6f272; }
+
+.fl-btn-primary { transition: transform .16s ease, box-shadow .25s ease; }
+.fl-btn-primary:hover { transform: translateY(-1px); box-shadow: 0 10px 26px rgba(214,242,114,.32); }
+
+.fl-btn-hero { transition: transform .16s ease, box-shadow .25s ease; }
+.fl-btn-hero:hover { transform: translateY(-2px); box-shadow: 0 16px 38px rgba(214,242,114,.34); }
+
+.fl-btn-ghost { transition: background .18s ease, border-color .18s ease; }
+.fl-btn-ghost:hover { background: rgba(255,255,255,.09); border-color: rgba(255,255,255,.3); }
+
+.fl-step-icon { transition: transform .25s ease; }
+.fl-step-icon:hover { transform: scale(1.06); }
+
+.fl-feature-card { transition: transform .25s ease, box-shadow .25s ease, border-color .25s ease; }
+.fl-feature-card:hover { transform: translateY(-6px); box-shadow: 0 20px 44px rgba(40,41,38,.1); border-color: #d6f272; }
+
+.fl-faq-cta { transition: transform .16s ease; }
+.fl-faq-cta:hover { transform: translateY(-2px); }
+
+.fl-cta-btn { transition: transform .16s ease, box-shadow .25s ease; }
+.fl-cta-btn:hover { transform: translateY(-2px); box-shadow: 0 18px 40px rgba(40,41,38,.32); }
+
+.fl-lead-input { transition: border-color .15s, box-shadow .15s; }
+.fl-lead-input:focus { border-color: #b9cf5e; box-shadow: 0 0 0 3px rgba(214,242,114,.45); }
+
+.fl-lead-submit { transition: transform .15s ease, box-shadow .2s ease; }
+.fl-lead-submit:hover { transform: translateY(-1px); box-shadow: 0 12px 28px rgba(40,41,38,.28); }
+
+.fl-footer-link { transition: color .15s; }
+.fl-footer-link:hover { color: #d6f272; }
+
+@media (prefers-reduced-motion: reduce) {
+  .fl-root *,
+  .fl-root *::before,
+  .fl-root *::after {
+    animation-duration: .001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .001ms !important;
+  }
+}
+
+/* ── Responsive: collapse the two-column grids on small screens ── */
+@media (max-width: 860px) {
+  .fl-hero-grid { grid-template-columns: 1fr !important; gap: 40px !important; padding-top: 56px !important; padding-bottom: 64px !important; }
+  .fl-demo-grid { grid-template-columns: 1fr !important; gap: 40px !important; }
+  .fl-faq-grid { grid-template-columns: 1fr !important; gap: 32px !important; }
+  .fl-steps-grid { grid-template-columns: 1fr !important; }
+  .fl-steps-line { display: none !important; }
+  .fl-features-grid { grid-template-columns: 1fr !important; }
+  .fl-metrics-grid { grid-template-columns: repeat(2, 1fr) !important; }
+  .fl-footer-grid { grid-template-columns: 1fr 1fr !important; }
+  .fl-nav-links { display: none !important; }
+}

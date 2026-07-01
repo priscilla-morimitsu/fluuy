@@ -38,5 +38,5 @@ export async function setInitialPasswordAction(
   await prisma.authCredential.create({ data: { userId: user.id, passwordHash } });
   await writeAuditLog("password_initial_set", { userId: user.id });
 
-  redirect("/");
+  redirect("/home");
 }

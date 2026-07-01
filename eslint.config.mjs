@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Claude Design handoff bundle — prototype HTML/JS, not project source.
+    "fluuy-landing-page-design/**",
   ]),
 ]);
 
